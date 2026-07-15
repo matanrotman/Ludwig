@@ -85,7 +85,11 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 
 ## Open questions
 - Sharing-scope badge / workspace icon in the content-pane toolbar — user deferred (out of scope for now).
-- `specs/tables.md` (RTL table paste) — written spec, untouched, not scheduled.
+
+## Written specs not currently scheduled
+*(both are real, signed-off-pending specs — listed so they don't get lost between RTL sessions)*
+- `specs/tables.md` (RTL table paste) — written spec, untouched since 2026-07-14, not scheduled.
+- `specs/meeting-transcription.md` — stub only (2026-07-12): connect the app to the user's **self-hosted** transcription server. "Not started, no integration exists yet." Still needs the scoping interview before any code — its six open questions (streaming vs batch API, live vs post-hoc, where transcripts land, speaker labels, UI trigger, offline/unreachable handling) are unanswered. Note the CLAUDE.md privacy rule applies here and this is the exact case it names: flag the external-service trade-off explicitly and use the user's own config — though self-hosted is the mitigation, so confirm what the server actually is before assuming.
 
 ## Local build quick-reference
 Run from `~/Projects/AppFlowy/frontend`, with `~/flutter/bin`, `~/.cargo/bin`, `~/.pub-cache/bin` on PATH:
