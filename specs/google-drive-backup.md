@@ -38,11 +38,29 @@ So: the cloud is not a backup, cannot be made one locally, and the user's writin
 - The app's own data-path plumbing (`ApplicationDataStorage.getPath()`) to find the active workspace folder — the debug build's real folder is `data_dev_beta.appflowy.cloud` (see STATUS.md's data-dir map; don't hardcode).
 - Possibly `BACKUP_COLLAB_DB` machinery in `flowy_user` (Rust) if we build on the internal snapshot path.
 
-## Open questions (to resolve during build, not blockers)
-- Does `BACKUP_COLLAB_DB` produce a complete, consistent copy we can zip directly? (Best case: yes, we reuse it wholesale.)
-- Change detection: cheapest reliable signal for "something changed since last snapshot" (folder mtime walk vs. hooking the app's own edit events).
-- Drive "streaming" vs "mirroring" mode behavior for files we *write* (upload happens either way; verify the written file also remains locally readable for the snapshot list).
-- Quit-time snapshot: how late in shutdown can we run and still finish the zip (6MB ≈ fast, but verify).
+## Open questions — resolved by investigation 2026-07-16
+- **`BACKUP_COLLAB_DB` is not Dart-triggerable.** It's the tracing span of `UserManager::prepare_backup` (`flowy-user/src/user_manager/manager.rs:556-566`), fired internally once per sign-in/day. It zips only `collab_db` into `collab_db_history/collab_db_YYYYMMDD.zip` via `CollabDBZipBackup` (`flowy-user/src/services/db.rs:166-209`), validating the DB first. Real zips exist on disk daily since 07-12 (~350KB each) — a useful *extra* safety layer that our snapshots will simply include, but not a mechanism we can invoke on demand without a new Rust event. **Decision: Phase 1 stays Dart-only** — zip the whole live workspace folder (crash-consistent copy: RocksDB and SQLite both keep write-ahead logs and are designed to recover exactly this state), mitigated by (a) retention depth — a bad snapshot never stands alone, (b) the on-quit snapshot being taken at natural quiescence, and (c) restore-time validation. If restore drills ever surface a torn snapshot in practice, escalate to a small Rust "backup now" event that reuses `CollabDBZipBackup` — the seam is already identified.
+- **Change detection:** recursive latest-mtime walk of the workspace folder (~6MB, trivially fast), compared to the last snapshot's recorded high-water mark. No app-event hooking needed.
+- **Drive mode / local readability & quit-time budget:** verified during Stage 5's end-to-end checks (explicit checklist items below).
+
+## Phase 1 execution plan (agreed 2026-07-16)
+
+**Stage 1 — backup engine (new files only).**
+`lib/shared/backup/` : `backup_service.dart` (walk → detect change → zip to temp name → atomic rename into destination), `backup_settings.dart` (KeyValueStorage-backed: enabled, destination, interval, last-run), `drive_mount_detector.dart` (`~/Library/CloudStorage/GoogleDrive-*`, fallback `~/Google Drive`, manual override), retention pruner (last 50 + daily thinning). Unit tests for retention math, change detection, and atomic-write behavior (temp dir fixtures — no real data).
+
+**Stage 2 — scheduling (2 one-line core touches).**
+Startup task registered next to `AutoUpdateTask()` (`lib/startup/startup.dart:148` pattern) running the 30-min timer; quit hook investigated at build time (app teardown path) — **fallback if quit hooks prove unreliable: snapshot-on-next-launch covers the previous session's tail, and the 30-min timer bounds the loss either way.** Never runs in integration-test mode (same guard as AutoUpdateTask).
+
+**Stage 3 — Backup settings page.**
+New `SettingsPage.backup` enum case + page (pattern: `settings_shortcuts_view.dart`; registration in `settings_dialog.dart` + settings sidebar + `en-US.json` strings — small, flagged core touches). Contents: on/off, destination picker (Drive auto-detected, shown as "Google Drive ✓"), interval, "Last backup: …" status, snapshot list read from the destination folder.
+
+**Stage 4 — restore + docs.**
+In-app Restore… flow: pick snapshot → **automatic pre-restore snapshot of current state** → typed confirmation → unzip to a staging folder → sanity-validate (expected structure present, zip integrity) → swap folders → prompt relaunch. Plus `RESTORE.md` (manual path for when the app can't even launch) and a short setup doc for other fork users.
+
+**Stage 5 — verification drills (the spec's "how we'll know it's done", executed).**
+Type in a scratch page → snapshot appears AND Drive web UI shows it uploaded (proves it left the machine); kill the app mid-session → next snapshot fine; full restore drill against a scratch data folder (never live data); seed >50 snapshots → pruning correct; both restore safeguards demonstrably fire. Also verified here: written zips stay locally readable under Drive's streaming mode, and the on-quit zip completes within teardown.
+
+**Estimated shape: ~3 sessions** (1: Stages 1–2, 2: Stage 3, 3: Stages 4–5). Core-file touches total: one line in `startup.dart`, the settings enum/dialog/sidebar registrations, and localization strings — everything else is new isolated files, per the fork-maintenance rule.
 
 ## How we'll know it's done (verification)
 1. Type in a scratch page → within 30 min (or on quit) a new zip appears in the Drive folder **and** shows "uploaded" in Drive's web UI (checked from the browser — proves it left the machine).
@@ -52,7 +70,8 @@ So: the cloud is not a backup, cannot be made one locally, and the user's writin
 5. The two restore safeguards demonstrably fire (pre-restore snapshot exists; typed confirmation required).
 
 ## Sign-off
-**Pending — do not start coding until the user approves this spec.** (CLAUDE.md rule.)
+**Execution plan presented 2026-07-16 after the user asked to "make a plan to execute" — treating plan approval as the sign-off gate. Code starts only after the user approves the plan above.**
 
 ## Session Log
-- **2026-07-16 — spec written from scoping interview; no code.** Root-cause investigation that motivated this lives in STATUS.md ("Cloud sync") and the session log there. Interview decisions recorded above. Sign-off not yet given.
+- **2026-07-16 — spec written from scoping interview; no code.** Root-cause investigation that motivated this lives in STATUS.md ("Cloud sync") and the session log there. Interview decisions recorded above.
+- **2026-07-16 (later) — open questions resolved by code investigation; Phase 1 execution plan added.** Key finding: the app already makes daily internal `collab_db` zips (`CollabDBZipBackup`, fired at sign-in — real zips on disk since 07-12), but it isn't Dart-triggerable, so Phase 1 zips the whole workspace folder Dart-side with crash-consistent semantics + retention depth + restore validation as the mitigation stack. Escalation path to a Rust "backup now" event identified if drills ever surface a torn snapshot.
