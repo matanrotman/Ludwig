@@ -69,6 +69,48 @@ Resolved 2026-07-13, before Phase 2 implementation begins:
 - Cursor-lag and selection-toolbar-position bugs: unconfirmed RTL-specific vs. general — deferred, not yet scoped into Phase 2 (see "Known related bugs, not yet scoped" above). 🔶
 - Drag-select into/out of a table: confirmed general, not RTL-specific — logged for later, not part of any current spec. ✅
 
+## Editor fork — upstream merge (deferred 2026-07-15; read this before attempting it)
+
+The fork-sync check reports the editor fork as **36 behind / 10 ahead** of
+`AppFlowy-IO/appflowy-editor`. That number is real but misleading, and it has already
+prompted one merge attempt that was called off. Read this before it prompts another.
+
+**Why "36 behind" is the wrong target.** `AppFlowy-IO/AppFlowy` pins `appflowy_editor` at
+`470c4e7` — *byte-identical to our merge base* (`git merge-base` and `git rev-parse 470c4e7`
+both give `470c4e77c71b63f693ce0923a927afcd667d6f3b`). The app never followed the editor
+package. Measured against the upstream that actually matters, we are **0 behind**. The 36
+commits belong to a package our app doesn't track.
+
+**It isn't an editor merge, it's a Flutter migration.** 35 of the 36 commits sit at or after
+`49a2b1c0`, which raises the editor's floor to Flutter ≥3.32.0 (upstream CI now runs 3.38.5).
+The app, AppFlowy-IO's CI, and this machine are all on 3.27.4, and the editor's pubspec would
+demand `flutter: ">=3.32.0"` — so `pub get` fails before anything compiles. Merging means
+dragging all of AppFlowy (404 files import the editor; 12 reach into private `src/`;
+`editor_i18n.dart` carries 111 overrides; 52 block-component subclass sites) onto a Flutter
+version its own upstream doesn't use, producing an AppFlowy 0.11.4 + editor 6.1.0 combination
+nobody has tested. The single pre-bump commit is an offline-collab example app — no value.
+
+**The trigger to revisit:** when AppFlowy-IO bumps its own `appflowy_editor` pin past
+`470c4e7`. Then we follow them, on their Flutter version, with their testing behind us.
+
+**Landmines to expect when it does happen** (each cost real investigation):
+- **`floating_toolbar.dart` — merges clean, does not compile.** Upstream `b1e78536` added
+  `Debounce.cancel(_debounceKey)` to `dispose()`; our branch *deleted* `_debounceKey`, splitting
+  it into `_selectionDebounceKey`/`_scrollDebounceKey`. Different lines, so git won't flag it —
+  the result is a dangling symbol. Cancel both keys there, and keep upstream's adjacent
+  `_toolbarContainer?.dispose()` (they inlined `_clear()` deliberately; don't revert it).
+  *May be moot:* if our upstream PR is accepted, this fix leaves the fork entirely.
+- **`appflowy_rich_text.dart` (~line 455) — the only real textual conflict, and it's convergent.**
+  Upstream `1c2d58b6` independently fixed the same placeholder bug we did, replacing
+  `updateTextStyle(Colors.transparent)` with an empty span and flattening
+  `getPlaceholderTextSpan()`. Take upstream's `textSpan.copyWith(text: '')`, keep our comment,
+  retire our version. (`copyWith` preserves `children` where ours dropped them — equivalent here,
+  since upstream's span is now flat and all three app call sites only use `updateTextStyle`.)
+- **`f882d958` (awesome_lints) is pure noise on our files** — it touches 10 of our 12, inserting
+  only blank lines. Expect fat conflicts carrying zero semantics.
+- **Our three `docs:` commits add no doc files.** They are comment blocks inside
+  `appflowy_rich_text.dart`. A merge tool will drop them silently — re-check them by hand.
+
 ## Verification
 **Phase 1:**
 - Manually switch interface language to Hebrew (or another RTL language available in Settings) and confirm: sidebar docks right, collapse icon points the correct way, resize handle widens the sidebar when dragged toward it, toolbar/breadcrumbs look correct, no leftover left-docked visual artifacts.
@@ -163,3 +205,12 @@ Resolved 2026-07-13, before Phase 2 implementation begins:
   - **Cloud-sync question raised (queued for next session, user agreed):** the release-build cache of the *same* cloud workspace (`data_beta.appflowy.cloud`, workspace `612287731153768448`) was noticeably sparser than the debug one the user actually uses — suggesting recent work may be local-only rather than fully pushed to AppFlowy Cloud. Unrelated to the RTL bugs and nothing was lost, but it means the cloud copy may not be a dependable second copy. Keep the 2026-07-15 desktop backup until this is settled.
   - **Deferred (user's call):** mid-character cursor bug (needs the user's oracle on one boundary) and the editor-fork upstream merge (36 behind, major version jump — a dedicated session).
   - **Process rules added to `CLAUDE.md`** off the back of this session (real-target verification; ship via `flutter build macos --debug`; clear the `path_location` pref after integration tests; reproduce with the user's real settings; back up + use `ditto` before touching data/app bundles) — the same "make the recurring landmine a standing checklist" move that the fork-sync checklist got last session.
+- **2026-07-15 (round 2, same day)**: Session opened to do the editor-fork upstream merge. **Investigated it, then deliberately did not do it** — the premise was wrong. Spent the session on fork hygiene instead (user's call, after being shown the finding).
+  - **The merge was called off on evidence, not caution.** `AppFlowy-IO/AppFlowy` pins `appflowy_editor` at `470c4e7`, which is *byte-identical to our merge base* — so against the upstream that actually matters we are **0 behind**, and "36 behind" tracks a package the app doesn't follow. 35 of those 36 commits sit at/after the Flutter ≥3.32 bump (upstream CI runs 3.38.5) while the app, AppFlowy-IO's CI and this machine are all on 3.27.4 — `pub get` would fail outright. So it's a Flutter migration of all of AppFlowy, not an editor merge, and it would put us on an untested AppFlowy 0.11.4 + editor 6.1.0 combination while *increasing* what we maintain — the inverse of why we merge upstream. Full reasoning + the trigger condition + the landmines now live in the "Editor fork — upstream merge" section above, so this doesn't get re-litigated every session.
+  - **Convergence found:** upstream's `1c2d58b6` independently fixed the same placeholder bug we shipped in `ba6c4fcb`, the same way. Validation of our fix, and one less thing to defend at merge time.
+  - **RTL caret regression test armed.** Added a `setUpAll` guard to `document_rtl_empty_caret_test.dart` that probes the font (`'iii'` vs `'WWW'` advance widths) and fails loudly with the `-d macos` command if the fake font is active. **Verified the probe empirically rather than assuming it**: a throwaway headless test measured `iii=42.0 WWW=42.0 אאא=42.0` — every glyph identical, Hebrew geometry fully collapsed. Confirmed the guard stays silent on the real target (`setUpAll` passed under `-d macos`), and the test itself still passes there: `emptyCaret=1174.0 typedCaret=1164.7 diff=9.3` against a 999.0 right-quarter threshold.
+  - **Correction to the "headless false-pass" story.** The guard cannot actually fire for this file today: living under `integration_test/` makes the tool demand a `-d` device. Proved that protection is *positional only* — the same `IntegrationTestWidgetsFlutterBinding` placed under `test/` runs headless, prints a warning, and still reports **"All tests passed"**. So the guard is a backstop for the day the file moves or is copied. The real historical false-passes came from the fork's own `test/` files (e.g. `caret_bidi_test.dart`), which genuinely do run under the fake font. Documented that honestly in the test rather than letting the guard overclaim.
+  - **⚠️ NEW FOOTGUN — `flutter test integration_test/... -d macos` overwrites the dock app with a TEST build.** The run rebuilds *in place* at `build/macos/Build/Products/Debug/AppFlowy.app` — the exact path the Dock tile points at — with the test as the Dart entrypoint. Verified: the bundle's `kernel_blob.bin` carried **14** `IntegrationTestWidgetsFlutterBinding` references afterwards. Clicking the dock icon would launch the test harness, not AppFlowy. This is very likely a *second*, previously unrecognised cause of the "blank window / app looks broken" confusion that burned several sessions — STATUS.md only ever blamed the `path_location` pref, which has a documented fix; this one is silent. **Fix: re-run `flutter build macos --debug` after any `-d macos` integration test.** Done this session; verified restored (`IntegrationTestWidgetsFlutterBinding` → 0, `RTLDIAG` → 0, `runAppFlowy` → 30) and the `path_location` pref cleared.
+  - **Correction to STATUS.md's rebuild check:** judging a rebuild by `kernel_blob.bin`'s **timestamp is unreliable**. After a successful restore the mtime read `09:26` (that morning's build), because Flutter copies the cached real-app artifact and preserves its mtime — an old timestamp does *not* mean the rebuild failed. Check the *contents* instead (`strings … | grep -c IntegrationTestWidgetsFlutterBinding`, want 0). Also learned: grepping the blob for the test *filename* is a false-positive detector — it matches a code comment in `appflowy_rich_text.dart` that references the test file.
+  - **⚠️ Discovered the RTL caret test is intermittently unreliable — 1 hang in 3 runs.** Ran it three times: pass (45s), **hang → fail (61m14s)**, pass (44s). When it runs it's deterministic — both passing runs gave bit-identical `emptyCaret=1174.0 typedCaret=1164.7 diff=9.3`. The failing run printed **no `RTLDIAG`**, so it never reached the measurement: a hang, not a caret regression. Systematically ruled out the plausible culprits rather than guessing: not the new `setUpAll` guard (it was already present in the first *passing* run), not the removed `foundation.dart` import (the *later* passing run has it removed and matches the first run exactly), not geometry. **Root cause unknown and undiagnosable after the fact — I had piped that run through `grep`, which destroyed the error.** Standing rule now in STATUS.md: never grep a test run you might need to debug; write full output to a log and grep the log. Reading rule: no `RTLDIAG` = it didn't measure = flake, re-run; a real regression shows `RTLDIAG` with bad numbers. This is a material caveat on the "regression net" — it deserves its own diagnosis before being trusted.
+  - **Upstream toolbar PR prepared, deliberately not sent** (user chose "prepare, don't send"; user later authorised sending, but the push was blocked by a permission classifier still reading the earlier decision — left for the user to permit or push). Branch `fix/floating-toolbar-debounce-race` off `upstream/main` in an isolated worktree, commit `7299f9d4`, one file, +21/−8 — the debounce-key split plus the post-frame deferral, RTL-free and rebased onto upstream's newer `dispose()` (i.e. the landmine, resolved for real as a contained dry-run of the merge's worst conflict). Comments trimmed to match upstream's much lower density; rationale moved into the PR body. **Cannot be compiled locally** (upstream needs Flutter ≥3.32) — verified by inspection only: parses, `dart format`-clean, no dangling `_debounceKey`. The commit message doubles as the PR body, so it survives without the session scratchpad. Nothing pushed; `git ls-remote` confirms 0 matching remote branches. If accepted, `floating_toolbar.dart` leaves the fork permanently. Send instructions in `STATUS.md`.

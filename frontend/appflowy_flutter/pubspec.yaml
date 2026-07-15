@@ -188,8 +188,17 @@ dependency_overrides:
       # direction-aware positioning for the block-insert ("+") menu in RTL
       # blocks — see specs/rtl-support.md Phase 2. Upstream has no hook for
       # this today; re-evaluate switching back if/when it gains one.
+      #
+      # Pinned to an exact commit, not the branch name, so that a `pub upgrade`
+      # run for any unrelated package can't silently move the editor. The
+      # branch this commit lives on is `rtl-direction-aware-selection-menu`.
+      #
+      # To adopt a new fork commit: push it, then paste its SHA here and run
+      # `flutter pub get`. Re-pinning is deliberate by design — forgetting it
+      # means the app keeps building the OLD editor code, which has burned us
+      # before (comments described fixes that weren't actually running).
       url: https://github.com/matanrotman/appflowy-editor.git
-      ref: "rtl-direction-aware-selection-menu"
+      ref: "ba6c4fcba228774a86737e5d2cb91f6e13fdb98a"
 
   appflowy_editor_plugins:
     git:

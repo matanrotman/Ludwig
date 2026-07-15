@@ -98,7 +98,7 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: rtl-direction-aware-selection-menu
+      ref: ba6c4fcba228774a86737e5d2cb91f6e13fdb98a
       resolved-ref: ba6c4fcba228774a86737e5d2cb91f6e13fdb98a
       url: "https://github.com/matanrotman/appflowy-editor.git"
     source: git

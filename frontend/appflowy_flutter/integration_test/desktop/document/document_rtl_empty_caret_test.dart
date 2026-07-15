@@ -1,6 +1,5 @@
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,8 +20,49 @@ import '../../shared/util.dart';
 /// IMPORTANT: measures the actual rendered [Cursor] widget's global rect, NOT
 /// editorState.selectionRects() — the latter's transformRectToGlobal
 /// mis-reports the caret for this shrink-wrapped RTL block, hiding the bug.
+///
+/// Deliberately registered in NO test runner, and it must stay that way. CI runs
+/// the desktop_runner_* suites on Linux, where this test cannot be trusted: the
+/// thresholds below were tuned against macOS text metrics, and Hebrew font
+/// coverage on the runner isn't guaranteed. Run it by path on macOS instead —
+/// see the guard in setUpAll for the command. Its absence from the runners is
+/// intentional, not an oversight.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    // Backstop against the fake test font, which renders every glyph at one
+    // fixed advance width and so flattens the RTL geometry this test exists to
+    // measure — the assertions below would all pass while the app stayed
+    // visibly broken.
+    //
+    // Today this cannot trigger from `flutter test <this path>`: living under
+    // integration_test/ makes the tool demand a `-d` device, which gives us
+    // real fonts. That protection is purely positional, though. The same
+    // binding under test/ runs headless, reports "All tests passed", and
+    // measures 'iii', 'WWW' and 'אאא' at an identical 42.0 (verified). So this
+    // guard earns its place the day the file is moved or copied — which is
+    // exactly how a test like this spreads.
+    double widthOf(String s) => (TextPainter(
+          text: TextSpan(text: s, style: const TextStyle(fontSize: 14)),
+          textDirection: TextDirection.ltr,
+        )..layout())
+        .width;
+
+    if (widthOf('iii') == widthOf('WWW')) {
+      fail(
+        'Fake-font rendering detected: every glyph has the same advance width, '
+        'so RTL caret geometry here is meaningless and this test would report a '
+        'false pass. Run it against the real macOS target instead:\n\n'
+        '  flutter test integration_test/desktop/document/'
+        'document_rtl_empty_caret_test.dart -d macos\n\n'
+        'Afterwards, clear the test data-path it writes into the real app prefs, '
+        'or the app opens a blank sandbox:\n'
+        '  defaults delete com.appflowy.appflowy.flutter '
+        'flutter.io.appflowy.appflowy_flutter.path_location',
+      );
+    }
+  });
 
   // The caret widget ([Cursor]) is in appflowy_editor/src and not exported,
   // so match it by runtime type name.
