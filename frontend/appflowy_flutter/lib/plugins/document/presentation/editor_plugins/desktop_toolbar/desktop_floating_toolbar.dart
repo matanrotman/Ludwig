@@ -76,7 +76,13 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
   }
 
   /// Where the toolbar anchors (it renders just above the returned rect):
-  /// 1. the mouse pointer, when it sits over the visible selection;
+  /// 1. the mouse pointer, whenever it's anywhere inside the visible
+  ///    editor area — NOT only when it's literally over highlighted text.
+  ///    (2026-07-16 r3: the earlier "over the selection" check made
+  ///    Cmd+A land on the fallback anchor even with the pointer resting
+  ///    in the middle of the page, just not on top of a text glyph —
+  ///    the user's read was "the pointer is on the page, it should
+  ///    still be used".)
   /// 2. otherwise about a third of the way down the selection's visible
   ///    vertical span — anchoring on the selection's raw extent instead
   ///    put the toolbar below the viewport after Cmd+A on a long page;
@@ -93,17 +99,16 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
     // viewport, not the full document height.
     final viewport = editorOffset & editorSize;
 
+    final pointer = widget.pointerTracker?.positionInside([viewport]);
+    if (pointer != null) {
+      return Rect.fromLTWH(pointer.dx, pointer.dy, 1, 16);
+    }
+
     final visibleSelectionRects = editorState
         .selectionRects()
         .map((rect) => rect.intersect(viewport))
         .where((rect) => !rect.isEmpty)
         .toList();
-
-    final pointer =
-        widget.pointerTracker?.positionInside(visibleSelectionRects);
-    if (pointer != null) {
-      return Rect.fromLTWH(pointer.dx, pointer.dy, 1, 16);
-    }
     if (visibleSelectionRects.isNotEmpty) {
       return upperThirdAnchorRect(visibleSelectionRects, viewport);
     }
@@ -157,10 +162,18 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
 
     // Mirrors documentPopoverDirection's convention for other document
     // popovers: LTR opens toward the right of the cursor (toolbar's left
-    // edge at the cursor), RTL toward the left (toolbar's right edge at
-    // the cursor) -- keyed off the document's own layout direction, not
-    // the sidebar's dock side.
-    final rawLeft = isRTL ? rect.left - menuWidth : rect.left;
+    // edge at the anchor's left edge), RTL toward the left (toolbar's
+    // right edge at the anchor's RIGHT edge) -- keyed off the document's
+    // own layout direction, not the sidebar's dock side.
+    //
+    // Mirroring off rect.right (not rect.left) matters for the
+    // upper-third fallback anchor: unlike the 1px-wide pointer anchor,
+    // that rect spans a whole selection row, so its `left` sits near the
+    // editor's own left edge regardless of text direction. Subtracting
+    // menuWidth from THAT drove the toolbar deeply negative and pinned
+    // it to the far-left wall (2026-07-16 r3 user report) -- rect.right
+    // is the row's actual RTL reading-start edge.
+    final rawLeft = isRTL ? rect.right - menuWidth : rect.left;
     final minLeft = editorRect.left + edgeMargin;
     final maxLeft = editorRect.right - edgeMargin - menuWidth;
     final left = math.min(

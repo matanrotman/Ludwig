@@ -339,8 +339,66 @@ void main() {
   );
 
   testWidgets(
-    'a pointer hovering over the document but off the selection is ignored: '
-    'the toolbar uses the upper-third-of-selection anchor instead',
+    'a pointer hovering anywhere in the editor still anchors the toolbar '
+    'at the pointer, even off the highlighted selection',
+    (tester) async {
+      // 2026-07-16 r3: the earlier version of this test asserted the
+      // OPPOSITE -- that an off-selection hover was ignored. Live
+      // testing found that wrong: Cmd+A on a long page kept landing on
+      // the fallback anchor even with the mouse resting in the middle
+      // of the page, just not on top of a highlighted glyph. The bar is
+      // now "is the pointer on the page at all", not "is it on the
+      // highlighted text".
+      final tracker = EditorPointerTracker();
+      await pumpEditorHarness(tester, tracker: tracker);
+
+      // A 2-node selection, not single-node: onlyShowInSingleSelectionAnd
+      // TextType is false for it, giving the toolbar its narrower 420px
+      // menu width. A single-node selection here would trigger the
+      // wide 660px menu, whose maxLeft clamp is narrow enough that
+      // almost any hover point off the selected row gets clamped
+      // regardless of this fix -- which isn't what this test is about.
+      editorState.selection = Selection(
+        start: Position(path: [5]),
+        end: Position(
+          path: [6],
+          offset: editorState.getNodeAtPath([6])!.delta!.length,
+        ),
+      );
+      await tester.pump();
+
+      // Hover over paragraph 8 — inside the editor, well away from the
+      // selected rows. Near the row's left rather than its center: the
+      // toolbar's own maxLeft clamp (menuWidth 420 + margins, well
+      // within an 800px-wide test window) leaves only its left portion
+      // free of clamping, and this test is about whether the pointer is
+      // used at all, not about clamp behavior (covered elsewhere).
+      final hoverPoint = globalRectOfNode([8]).centerLeft + const Offset(20, 0);
+      final gesture =
+          await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: hoverPoint);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(hoverPoint);
+      await tester.pump();
+      expect(tracker.lastGlobalPosition, hoverPoint);
+
+      await mountToolbar(tester, tracker: tracker);
+
+      final toolbarTopLeft =
+          tester.getTopLeft(find.byKey(const Key('toolbarChild')));
+      final expected = hoverPoint + const Offset(0, -48);
+      expect(
+        (toolbarTopLeft - expected).distance < 1.0,
+        true,
+        reason: 'toolbar $toolbarTopLeft should anchor at the hover point '
+            '$hoverPoint even though it is off the highlighted selection',
+      );
+    },
+  );
+
+  testWidgets(
+    'a pointer outside the editor entirely falls back to the '
+    'upper-third-of-selection anchor',
     (tester) async {
       final tracker = EditorPointerTracker();
       await pumpEditorHarness(tester, tracker: tracker);
@@ -355,15 +413,12 @@ void main() {
       );
       await tester.pump();
 
-      // Hover over paragraph 8 — inside the editor, outside the selection.
-      final hoverPoint = globalRectOfNode([8]).center;
-      final gesture =
-          await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: hoverPoint);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(hoverPoint);
-      await tester.pump();
-      expect(tracker.lastGlobalPosition, hoverPoint);
+      // Stand in for "the pointer is somewhere outside the editor's own
+      // viewport (e.g. over the sidebar)": EditorPointerTracker only
+      // ever reflects positions its Listener actually received, so no
+      // event having landed inside the editor is the real-world
+      // equivalent of this.
+      tracker.lastGlobalPosition = const Offset(-500, -500);
 
       await mountToolbar(tester, tracker: tracker);
 
@@ -374,14 +429,123 @@ void main() {
       expect(
         (toolbarTopLeft.dy - expectedDy).abs() < 2.0,
         true,
-        reason: 'toolbar $toolbarTopLeft should anchor a third of the way '
-            'down the selected row $selectedRowRect (dy ≈ $expectedDy), not '
-            'at the hover point $hoverPoint',
+        reason: 'toolbar $toolbarTopLeft should fall back to a third of '
+            'the way down the selected row $selectedRowRect '
+            '(dy ≈ $expectedDy) when the pointer is not inside the '
+            'editor at all',
       );
+    },
+  );
+
+  testWidgets(
+    'RTL: the upper-third fallback anchor opens from the selected row\'s '
+    'right edge, not pinned to the far-left wall',
+    (tester) async {
+      // 2026-07-16 r3 regression (live user report, screenshot): mirroring
+      // RTL off rect.left subtracted the toolbar's full width from a
+      // full-width selection row's left edge -- which sits near the
+      // editor's own left bound regardless of text direction -- driving
+      // the result deeply negative and clamping the toolbar to the
+      // far-left wall, unrelated to where the text actually was.
+      // Mirroring off rect.right (the row's real RTL reading-start edge)
+      // fixes it. This test forces isRTL via the mocked cubit; the
+      // document itself renders LTR (English placeholder text) since
+      // only the mirror math, not real bidi shaping, is under test.
+      final rtlCubit = MockAppearanceSettingsCubit();
+      final rtlState = MockAppearanceSettingsState();
+      when(() => rtlState.layoutDirection)
+          .thenReturn(LayoutDirection.rtlLayout);
+      when(() => rtlCubit.state).thenReturn(rtlState);
+      when(() => rtlCubit.stream)
+          .thenAnswer((_) => Stream.fromIterable([rtlState]));
+
+      // Long, word-wrapping text for the first paragraph: word-wrap packs
+      // as much as fits per line before breaking, so the topmost visible
+      // (and thus anchor) row ends up close to the block's full width --
+      // matching the real-world wrapped-RTL-paragraph screenshot this
+      // test reproduces. Short "paragraph N" text for the rest wouldn't
+      // reach anywhere near the editor's right edge regardless of
+      // direction, and couldn't have caught this bug.
+      final rtlEditorState = EditorState(
+        document: Document(
+          root: pageNode(
+            children: [
+              paragraphNode(text: List.filled(40, 'paragraph').join(' ')),
+              for (var i = 1; i < 30; i++) paragraphNode(text: 'paragraph $i'),
+            ],
+          ),
+        ),
+      );
+      final rtlNavigatorKey = GlobalKey<NavigatorState>();
+      final rtlEditorScrollController =
+          EditorScrollController(editorState: rtlEditorState);
+      await tester.pumpWidget(
+        BlocProvider<AppearanceSettingsCubit>.value(
+          value: rtlCubit,
+          child: MaterialApp(
+            navigatorKey: rtlNavigatorKey,
+            home: Scaffold(
+              body: SizedBox(
+                height: 300,
+                child: AppFlowyEditor(
+                  editorState: rtlEditorState,
+                  editorScrollController: rtlEditorScrollController,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // A 2-node selection (not single-node): onlyShowInSingleSelectionAnd
+      // TextType is false for it, matching the real Cmd+A bug's menuWidth
+      // (420, the "short menu" branch) -- a single-node selection instead
+      // triggers the long-menu (660) branch, which genuinely doesn't fit
+      // this test's ~480px-wide content column regardless of direction,
+      // and would make this assertion meaningless.
+      //
+      // Setting a selection also auto-scrolls to reveal its END, which
+      // for a caret several lines into a wrapped paragraph pushes the
+      // earlier lines negative (above the viewport) -- force node 0 back
+      // to the very top of the viewport afterward so its first (widest)
+      // visible line is what upperThirdAnchorRect actually anchors on,
+      // matching the real-world screenshot this test reproduces.
+      final secondText =
+          rtlEditorState.getNodeAtPath([1])!.delta!.toPlainText();
+      rtlEditorState.selection = Selection(
+        start: Position(path: [0]),
+        end: Position(path: [1], offset: secondText.length),
+      );
+      await tester.pump();
+      rtlEditorScrollController.itemScrollController.jumpTo(index: 0);
+      await tester.pump();
+
+      final entry = OverlayEntry(
+        builder: (context) => DesktopFloatingToolbar(
+          editorState: rtlEditorState,
+          onDismiss: () {},
+          enableAnimation: false,
+          child: Container(
+            key: const Key('rtlToolbarChild'),
+            width: 40,
+            height: 40,
+            color: Colors.blue,
+          ),
+        ),
+      );
+      rtlNavigatorKey.currentState!.overlay!.insert(entry);
+      await tester.pumpAndSettle();
+
+      final editorRect = tester.getRect(find.byType(AppFlowyEditor));
+      final toolbarLeft =
+          tester.getTopLeft(find.byKey(const Key('rtlToolbarChild'))).dx;
       expect(
-        (toolbarTopLeft.dy - (hoverPoint.dy - 48)).abs() > 20,
+        toolbarLeft > editorRect.left + 16 + 1,
         true,
-        reason: 'toolbar must not anchor at the off-selection hover point',
+        reason: 'toolbar left=$toolbarLeft should not be pinned to the '
+            'far-left wall (editorRect.left + margin = '
+            '${editorRect.left + 16}) for a full-width RTL selection row',
       );
     },
   );

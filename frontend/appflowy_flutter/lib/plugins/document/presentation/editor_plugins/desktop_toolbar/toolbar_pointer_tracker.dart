@@ -23,7 +23,7 @@ class EditorPointerTracker {
   Offset? lastGlobalPosition;
 
   /// The recorded position, but only when it lies inside one of [rects] —
-  /// used to answer "is the pointer over the (visible) selection?".
+  /// e.g. "is the pointer inside the visible editor area?".
   Offset? positionInside(Iterable<Rect> rects) {
     final position = lastGlobalPosition;
     if (position == null) {
@@ -91,9 +91,10 @@ class EditorPointerTrackingListener extends StatelessWidget {
 /// viewport.
 ///
 /// [visibleSelectionRects] must be non-empty and already intersected with
-/// the viewport. The returned rect's left edge comes from the selection row
-/// at that height, so the existing horizontal placement math applies
-/// unchanged.
+/// the viewport. The returned rect spans the selection row's full left..right
+/// width at that height (not a single point) — the horizontal placement math
+/// mirrors off `left` for LTR and `right` for RTL, and a full-width RTL row's
+/// `right` is its real reading-start edge, nowhere near its `left`.
 Rect upperThirdAnchorRect(
   List<Rect> visibleSelectionRects,
   Rect viewport, {
@@ -120,7 +121,7 @@ Rect upperThirdAnchorRect(
       anchorRow = rect;
     }
   }
-  return Rect.fromLTWH(anchorRow.left, anchorY, 1, 16);
+  return Rect.fromLTRB(anchorRow.left, anchorY, anchorRow.right, anchorY + 16);
 }
 
 /// Safety net for when no part of the selection is visible at all: pulls
