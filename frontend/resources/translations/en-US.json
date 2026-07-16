@@ -806,6 +806,37 @@
         "title": "Snapshots",
         "empty": "No snapshots yet.",
         "restoreAction": "Restore…"
+      },
+      "restore": {
+        "confirmTitle": "Restore the snapshot from {}?",
+        "confirmDescription": "Your current data will be replaced by this snapshot. Two safety nets apply: a fresh snapshot of your current data is taken first, and the current data folder is kept on disk (renamed, not deleted) until later restores clean it up.",
+        "typeToConfirm": "Type \"{}\" to enable the Restore button:",
+        "keyword": "restore",
+        "confirmAction": "Restore",
+        "inProgressTitle": "Restoring…",
+        "phase": {
+          "preparing": "Preparing…",
+          "preRestoreSnapshot": "Taking a safety snapshot of your current data…",
+          "extracting": "Unpacking the snapshot…",
+          "validating": "Checking the snapshot…",
+          "swapping": "Swapping data folders…",
+          "finishing": "Finishing…"
+        },
+        "successTitle": "Restore complete",
+        "successDescription": "Your data has been restored from the snapshot. AppFlowy will now restart to load it.\n\nYour previous data is kept at:\n{}",
+        "restartAction": "Restart AppFlowy",
+        "failedTitle": "Restore failed",
+        "newerVersionTitle": "Snapshot from a newer AppFlowy",
+        "newerVersionDescription": "This snapshot was created by AppFlowy {}, which is newer than the version now running ({}). Restoring it might not load correctly. Continue anyway?",
+        "newerVersionAction": "Restore anyway",
+        "failed": {
+          "workspaceNotFound": "AppFlowy couldn't find its own data folder, so nothing was changed.",
+          "preRestoreSnapshot": "The safety snapshot of your current data failed, so the restore was stopped before changing anything.",
+          "extract": "The snapshot couldn't be unpacked — it may be damaged, or Google Drive may still be downloading it. Your data was not changed.",
+          "validate": "This file doesn't look like a usable AppFlowy snapshot. Your data was not changed.",
+          "swap": "The data folders couldn't be swapped. The change was rolled back — your data is unchanged.",
+          "rollback": "The restore failed partway and couldn't be undone automatically. Your data is SAFE on disk, but needs one manual step to move back — the details below say exactly where it is, and RESTORE.md walks through it."
+        }
       }
     },
     "shortcutsPage": {

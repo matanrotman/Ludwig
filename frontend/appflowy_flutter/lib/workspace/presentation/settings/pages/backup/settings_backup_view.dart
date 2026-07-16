@@ -3,6 +3,7 @@ import 'package:appflowy/shared/backup/backup_bloc.dart';
 import 'package:appflowy/shared/backup/backup_service.dart';
 import 'package:appflowy/shared/backup/backup_settings.dart';
 import 'package:appflowy/shared/backup/snapshot_repository.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/backup/restore_flow.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/af_dropdown_menu_entry.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/setting_list_tile.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
@@ -113,8 +114,7 @@ class _DestinationRow extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
     final destination = state.status.destination;
     final isManual = state.settings.destinationPath != null;
-    final isDriveDetected =
-        !isManual && state.status.destinationSource != null;
+    final isDriveDetected = !isManual && state.status.destinationSource != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,8 +146,8 @@ class _DestinationRow extends StatelessWidget {
                   vertical: theme.spacing.s,
                 ),
                 child: Text(
-                  LocaleKeys
-                      .settings_backupPage_automaticBackup_driveDetected.tr(),
+                  LocaleKeys.settings_backupPage_automaticBackup_driveDetected
+                      .tr(),
                   style: theme.textStyle.caption
                       .standard(color: theme.textColorScheme.primary),
                 ),
@@ -160,14 +160,16 @@ class _DestinationRow extends StatelessWidget {
           children: [
             AFOutlinedTextButton.normal(
               text: LocaleKeys
-                  .settings_backupPage_automaticBackup_changeDestination.tr(),
+                  .settings_backupPage_automaticBackup_changeDestination
+                  .tr(),
               onTap: () => context.read<BackupBloc>().pickDestination(),
             ),
             if (isManual) ...[
               HSpace(theme.spacing.m),
               AFGhostTextButton.primary(
                 text: LocaleKeys
-                    .settings_backupPage_automaticBackup_useAutoDetected.tr(),
+                    .settings_backupPage_automaticBackup_useAutoDetected
+                    .tr(),
                 onTap: () =>
                     context.read<BackupBloc>().useAutoDetectedDestination(),
               ),
@@ -235,8 +237,8 @@ class _LastBackupRow extends StatelessWidget {
           .tr();
     }
     if (status.lastRunAt == null) {
-      return LocaleKeys
-          .settings_backupPage_automaticBackup_lastBackup_neverRun.tr();
+      return LocaleKeys.settings_backupPage_automaticBackup_lastBackup_neverRun
+          .tr();
     }
 
     final timestamp = status.lastRunAt!.toString();
@@ -261,13 +263,29 @@ class _SnapshotRow extends StatelessWidget {
       label: snapshot.timestamp.toString(),
       hint: '$sizeMb MB',
       trailing: [
-        // Restore flow ships in Stage 4 (specs/google-drive-backup.md).
         AFOutlinedTextButton.normal(
           text: LocaleKeys.settings_backupPage_snapshots_restoreAction.tr(),
-          disabled: true,
-          onTap: () {},
+          onTap: () => _startRestore(context),
         ),
       ],
     );
+  }
+
+  Future<void> _startRestore(BuildContext context) async {
+    final bloc = context.read<BackupBloc>();
+    final destination = bloc.state.status.destination;
+    if (destination == null) {
+      return;
+    }
+    await startRestoreFlow(
+      context,
+      snapshot: snapshot,
+      destinationPath: destination,
+    );
+    // Reached on cancel or failure only (success relaunches the app) — the
+    // pre-restore snapshot may already exist, so the list is stale.
+    if (!bloc.isClosed) {
+      await bloc.refreshSnapshots();
+    }
   }
 }
