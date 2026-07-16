@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'selection_extent_rect.dart';
 import 'toolbar_animation.dart';
+import 'toolbar_pointer_tracker.dart';
 
 class DesktopFloatingToolbar extends StatefulWidget {
   const DesktopFloatingToolbar({
@@ -13,12 +14,18 @@ class DesktopFloatingToolbar extends StatefulWidget {
     required this.child,
     required this.onDismiss,
     this.enableAnimation = true,
+    this.pointerTracker,
   });
 
   final EditorState editorState;
   final Widget child;
   final VoidCallback onDismiss;
   final bool enableAnimation;
+
+  /// When provided (and [anchorToolbarToPointer] is on), the toolbar
+  /// anchors at the mouse pointer whenever the pointer is over the visible
+  /// selection.
+  final EditorPointerTracker? pointerTracker;
 
   @override
   State<DesktopFloatingToolbar> createState() => _DesktopFloatingToolbarState();
@@ -38,34 +45,59 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
       return;
     }
     toolbarController._addCallback(dismiss);
-    // Anchor to the selection's extent (where the user's cursor actually
-    // is right now), not its start — using selectionRects().first here
-    // used to always pick the start, regardless of which direction the
-    // user dragged, so the toolbar appeared back where the selection began
-    // instead of near where the user currently is (most noticeable when
-    // the selection requires scrolling).
-    //
-    // FIXED (2026-07-14, confirmed via a widget test that pumps this
-    // widget for real: desktop_floating_toolbar_test.dart): the bug
-    // wasn't in selectionExtentRect's math, it was a timing issue. This
-    // widget is recreated inside a fresh OverlayEntry whenever the outer
-    // FloatingToolbar's scroll-offset listener fires, using a
-    // Duration.zero (synchronous) debounce — so a scroll event can
-    // recreate this widget in the very same frame the scroll happens.
-    // initState() runs during that frame's BUILD phase, which happens
-    // BEFORE its LAYOUT phase — so reading render-object geometry
-    // (selectionExtentRect -> localToGlobal) synchronously here reads
-    // whatever layout was left over from the PREVIOUS frame, not the
-    // freshly-scrolled position. Deferring to a post-frame callback reads
-    // it only after this frame's layout has actually settled.
+    // Geometry must be read in a post-frame callback, not synchronously:
+    // this widget is recreated inside a fresh OverlayEntry whenever the
+    // outer FloatingToolbar's scroll-offset listener fires (Duration.zero
+    // debounce), so initState() can run during the BUILD phase of the very
+    // frame a scroll happens — before that frame's LAYOUT phase — and a
+    // synchronous read would return the previous frame's stale geometry
+    // (regression test: desktop_floating_toolbar_test.dart).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final extentRect = selectionExtentRect(editorState);
-      if (extentRect == null) return;
+      final anchorRect = _resolveAnchorRect();
+      if (anchorRect == null) return;
       setState(() {
-        position = calculateSelectionMenuOffset(extentRect);
+        position = calculateSelectionMenuOffset(anchorRect);
       });
     });
+  }
+
+  /// Where the toolbar anchors (it renders just above the returned rect):
+  /// 1. the mouse pointer, when it sits over the visible selection;
+  /// 2. otherwise about a third of the way down the selection's visible
+  ///    vertical span — anchoring on the selection's raw extent instead
+  ///    put the toolbar below the viewport after Cmd+A on a long page;
+  /// 3. if no part of the selection is visible, the extent clamped into
+  ///    the viewport, so the toolbar can never render off-screen.
+  Rect? _resolveAnchorRect() {
+    if (!anchorToolbarToPointer) {
+      return selectionExtentRect(editorState);
+    }
+    final editorOffset =
+        editorState.renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final editorSize = editorState.renderBox?.size ?? Size.zero;
+    // editorState.renderBox is the scroll service's box — the visible
+    // viewport, not the full document height.
+    final viewport = editorOffset & editorSize;
+
+    final visibleSelectionRects = editorState
+        .selectionRects()
+        .map((rect) => rect.intersect(viewport))
+        .where((rect) => !rect.isEmpty)
+        .toList();
+
+    final pointer =
+        widget.pointerTracker?.positionInside(visibleSelectionRects);
+    if (pointer != null) {
+      return Rect.fromLTWH(pointer.dx, pointer.dy, 1, 16);
+    }
+    if (visibleSelectionRects.isNotEmpty) {
+      return upperThirdAnchorRect(visibleSelectionRects, viewport);
+    }
+    final extentRect = selectionExtentRect(editorState);
+    return extentRect == null
+        ? null
+        : clampRectIntoViewport(extentRect, viewport);
   }
 
   @override

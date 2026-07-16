@@ -29,6 +29,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 import 'editor_plugins/desktop_toolbar/desktop_floating_toolbar.dart';
+import 'editor_plugins/desktop_toolbar/toolbar_pointer_tracker.dart';
 import 'editor_plugins/toolbar_item/custom_format_toolbar_items.dart';
 import 'editor_plugins/toolbar_item/custom_hightlight_color_toolbar_item.dart';
 import 'editor_plugins/toolbar_item/custom_link_toolbar_item.dart';
@@ -137,6 +138,8 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
   late final ViewInfoBloc viewInfoBloc = context.read<ViewInfoBloc>();
 
   final editorKeyboardInterceptor = EditorKeyboardInterceptor();
+
+  final editorPointerTracker = EditorPointerTracker();
 
   Future<bool> showSlashMenu(editorState) async => customSlashCommand(
         _customSlashMenuItems(),
@@ -454,6 +457,7 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
               editorState: editorState,
               onDismiss: onDismiss,
               enableAnimation: !isMetricsChanged,
+              pointerTracker: editorPointerTracker,
               child: child,
             ),
           ),
@@ -468,7 +472,10 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
             message,
             child,
           ),
-          child: editor,
+          child: EditorPointerTrackingListener(
+            tracker: editorPointerTracker,
+            child: editor,
+          ),
         ),
       ),
     );
