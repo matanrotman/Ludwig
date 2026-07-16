@@ -1,10 +1,19 @@
 import 'package:appflowy/plugins/document/presentation/editor_plugins/desktop_toolbar/desktop_floating_toolbar.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/desktop_toolbar/toolbar_pointer_tracker.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockAppearanceSettingsCubit extends Mock
+    implements AppearanceSettingsCubit {}
+
+class MockAppearanceSettingsState extends Mock
+    implements AppearanceSettingsState {}
 
 // Regression test for the floating toolbar landing at a stale position
 // after a selection that requires auto-scroll to reveal.
@@ -27,15 +36,32 @@ import 'package:flutter_test/flutter_test.dart';
 const _selectedPath = [25];
 
 void main() {
+  late MockAppearanceSettingsCubit appearanceSettingsCubit;
+
   setUp(() {
     getIt.registerSingleton<FloatingToolbarController>(
       FloatingToolbarController(),
     );
+    // DesktopFloatingToolbar reads the document's layout direction (LTR
+    // vs RTL) to mirror where the toolbar opens relative to the cursor.
+    appearanceSettingsCubit = MockAppearanceSettingsCubit();
+    final state = MockAppearanceSettingsState();
+    when(() => state.layoutDirection).thenReturn(LayoutDirection.ltrLayout);
+    when(() => appearanceSettingsCubit.state).thenReturn(state);
+    when(() => appearanceSettingsCubit.stream)
+        .thenAnswer((_) => Stream.fromIterable([state]));
   });
 
   tearDown(() {
     getIt.unregister<FloatingToolbarController>();
   });
+
+  Widget wrapWithAppearanceProvider(Widget child) {
+    return BlocProvider<AppearanceSettingsCubit>.value(
+      value: appearanceSettingsCubit,
+      child: child,
+    );
+  }
 
   testWidgets(
     'toolbar lands at the settled position, not a stale pre-scroll one, '
@@ -86,14 +112,16 @@ void main() {
       }
 
       await tester.pumpWidget(
-        MaterialApp(
-          navigatorKey: navigatorKey,
-          home: Scaffold(
-            body: SizedBox(
-              height: 300,
-              child: AppFlowyEditor(
-                editorState: editorState,
-                editorScrollController: editorScrollController,
+        wrapWithAppearanceProvider(
+          MaterialApp(
+            navigatorKey: navigatorKey,
+            home: Scaffold(
+              body: SizedBox(
+                height: 300,
+                child: AppFlowyEditor(
+                  editorState: editorState,
+                  editorScrollController: editorScrollController,
+                ),
               ),
             ),
           ),
@@ -167,14 +195,19 @@ void main() {
       editorScrollController: EditorScrollController(editorState: editorState),
     );
     await tester.pumpWidget(
-      MaterialApp(
-        navigatorKey: navigatorKey,
-        home: Scaffold(
-          body: SizedBox(
-            height: 300,
-            child: tracker == null
-                ? editor
-                : EditorPointerTrackingListener(tracker: tracker, child: editor),
+      wrapWithAppearanceProvider(
+        MaterialApp(
+          navigatorKey: navigatorKey,
+          home: Scaffold(
+            body: SizedBox(
+              height: 300,
+              child: tracker == null
+                  ? editor
+                  : EditorPointerTrackingListener(
+                      tracker: tracker,
+                      child: editor,
+                    ),
+            ),
           ),
         ),
       ),
@@ -293,12 +326,14 @@ void main() {
 
       final toolbarTopLeft =
           tester.getTopLeft(find.byKey(const Key('toolbarChild')));
-      final expected = dragEnd + const Offset(-50, -48);
+      // LTR opens toward the right of the cursor: toolbar's left edge
+      // sits at the anchor's x (no horizontal shift), 48px above it.
+      final expected = dragEnd + const Offset(0, -48);
       expect(
         (toolbarTopLeft - expected).distance < 1.0,
         true,
         reason: 'toolbar $toolbarTopLeft should anchor at the release point '
-            '$dragEnd (50 left, 48 up => $expected)',
+            '$dragEnd (48 up, no horizontal shift in LTR => $expected)',
       );
     },
   );

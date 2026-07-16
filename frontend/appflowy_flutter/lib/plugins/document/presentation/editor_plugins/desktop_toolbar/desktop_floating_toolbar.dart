@@ -1,7 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/toolbar_extension.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'selection_extent_rect.dart';
 import 'toolbar_animation.dart';
@@ -37,6 +41,15 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
   _Position? position;
   final toolbarController = getIt<FloatingToolbarController>();
 
+  // Mirrors documentPopoverDirection's convention for other document
+  // popovers (text align/color, heading, code language, etc.): keyed off
+  // the document's own layout direction setting, not the sidebar's dock
+  // side. Read (not watch) since this is a one-shot placement computed
+  // outside build().
+  bool get _isRTL =>
+      context.read<AppearanceSettingsCubit>().state.layoutDirection ==
+      LayoutDirection.rtlLayout;
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +70,7 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
       final anchorRect = _resolveAnchorRect();
       if (anchorRect == null) return;
       setState(() {
-        position = calculateSelectionMenuOffset(anchorRect);
+        position = calculateSelectionMenuOffset(anchorRect, isRTL: _isRTL);
       });
     });
   }
@@ -124,9 +137,14 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
   }
 
   _Position calculateSelectionMenuOffset(
-    Rect rect,
-  ) {
+    Rect rect, {
+    required bool isRTL,
+  }) {
     const toolbarHeight = 40, topLimit = toolbarHeight + 8;
+    // Never sit flush against the editor's own left/right bound (which is
+    // already positioned clear of the sidebar) -- a toolbar with no gap
+    // there reads as glued to the sidebar edge.
+    const edgeMargin = 16.0;
     final bool isLongMenu = onlyShowInSingleSelectionAndTextType(editorState);
     final editorOffset =
         editorState.renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -134,20 +152,22 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
     final menuWidth =
         isLongMenu ? (isNarrowWindow(editorState) ? 490.0 : 660.0) : 420.0;
     final editorRect = editorOffset & editorSize;
-    final left = rect.left, leftStart = 50;
     final top =
         rect.top < topLimit ? rect.bottom + topLimit : rect.top - topLimit;
-    if (left + menuWidth > editorRect.right) {
-      return _Position(
-        editorRect.right - menuWidth,
-        top,
-        null,
-      );
-    } else if (rect.left - leftStart > 0) {
-      return _Position(rect.left - leftStart, top, null);
-    } else {
-      return _Position(rect.left, top, null);
-    }
+
+    // Mirrors documentPopoverDirection's convention for other document
+    // popovers: LTR opens toward the right of the cursor (toolbar's left
+    // edge at the cursor), RTL toward the left (toolbar's right edge at
+    // the cursor) -- keyed off the document's own layout direction, not
+    // the sidebar's dock side.
+    final rawLeft = isRTL ? rect.left - menuWidth : rect.left;
+    final minLeft = editorRect.left + edgeMargin;
+    final maxLeft = editorRect.right - edgeMargin - menuWidth;
+    final left = math.min(
+      math.max(rawLeft, minLeft),
+      math.max(minLeft, maxLeft),
+    );
+    return _Position(left, top, null);
   }
 }
 

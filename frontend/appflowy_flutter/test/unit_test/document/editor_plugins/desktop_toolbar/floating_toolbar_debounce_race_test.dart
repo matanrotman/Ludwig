@@ -1,8 +1,17 @@
 import 'package:appflowy/plugins/document/presentation/editor_plugins/desktop_toolbar/desktop_floating_toolbar.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockAppearanceSettingsCubit extends Mock
+    implements AppearanceSettingsCubit {}
+
+class MockAppearanceSettingsState extends Mock
+    implements AppearanceSettingsState {}
 
 // Regression test for a debounce race between selection-driven and
 // scroll-driven floating-toolbar show requests.
@@ -41,10 +50,18 @@ import 'package:flutter_test/flutter_test.dart';
 const _selectedPath = [25];
 
 void main() {
+  late MockAppearanceSettingsCubit appearanceSettingsCubit;
+
   setUp(() {
     getIt.registerSingleton<FloatingToolbarController>(
       FloatingToolbarController(),
     );
+    appearanceSettingsCubit = MockAppearanceSettingsCubit();
+    final state = MockAppearanceSettingsState();
+    when(() => state.layoutDirection).thenReturn(LayoutDirection.ltrLayout);
+    when(() => appearanceSettingsCubit.state).thenReturn(state);
+    when(() => appearanceSettingsCubit.stream)
+        .thenAnswer((_) => Stream.fromIterable([state]));
   });
 
   tearDown(() {
@@ -68,25 +85,28 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              height: 300,
-              child: FloatingToolbar(
-                items: const [],
-                editorState: editorState,
-                editorScrollController: editorScrollController,
-                textDirection: TextDirection.ltr,
-                toolbarBuilder: (_, child, onDismiss, isMetricsChanged) =>
-                    DesktopFloatingToolbar(
-                  editorState: editorState,
-                  onDismiss: onDismiss,
-                  enableAnimation: false,
-                  child: child,
-                ),
-                child: AppFlowyEditor(
+        BlocProvider<AppearanceSettingsCubit>.value(
+          value: appearanceSettingsCubit,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                height: 300,
+                child: FloatingToolbar(
+                  items: const [],
                   editorState: editorState,
                   editorScrollController: editorScrollController,
+                  textDirection: TextDirection.ltr,
+                  toolbarBuilder: (_, child, onDismiss, isMetricsChanged) =>
+                      DesktopFloatingToolbar(
+                    editorState: editorState,
+                    onDismiss: onDismiss,
+                    enableAnimation: false,
+                    child: child,
+                  ),
+                  child: AppFlowyEditor(
+                    editorState: editorState,
+                    editorScrollController: editorScrollController,
+                  ),
                 ),
               ),
             ),
@@ -96,22 +116,27 @@ void main() {
       await tester.pumpAndSettle();
 
       // A selection far down the document -- requires scroll to reveal.
-      // This fires FloatingToolbar's 200ms selection-driven show.
+      // This fires FloatingToolbar's 400ms selection-driven show (was
+      // 200ms; bumped 2026-07-16 so the toolbar doesn't feel like it
+      // flickers up mid-interaction).
       editorState.selection = Selection.single(
         path: _selectedPath,
         startOffset: 0,
         endOffset: 9,
       );
 
-      // Do NOT wait out that 200ms yet -- interrupt it with a scroll
+      // Do NOT wait out that 400ms yet -- interrupt it with a scroll
       // tick in the same synchronous window, exactly like an
       // auto-scroll tick would during a real drag that needs scrolling.
       editorScrollController.jumpTo(offset: _selectedPath.first.toDouble());
 
       // Let everything settle: the scroll-triggered show (deferred to
-      // post-frame) and, after 200ms, the selection-triggered show.
+      // post-frame) and, after 400ms, the selection-triggered show.
+      // pumpAndSettle alone doesn't reliably wait out a plain Timer once
+      // the widget tree stops actively scheduling frames on its own, so
+      // this pumps an explicit duration past the debounce first.
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 450));
       await tester.pumpAndSettle();
 
       final selectable =
