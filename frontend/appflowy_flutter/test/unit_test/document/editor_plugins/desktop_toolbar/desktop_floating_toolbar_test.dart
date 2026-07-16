@@ -326,14 +326,15 @@ void main() {
 
       final toolbarTopLeft =
           tester.getTopLeft(find.byKey(const Key('toolbarChild')));
-      // LTR opens toward the right of the cursor: toolbar's left edge
-      // sits at the anchor's x (no horizontal shift), 48px above it.
-      final expected = dragEnd + const Offset(0, -48);
+      // LTR pointer anchor: 1/3 of the (420px, multi-node selection ->
+      // short menu) toolbar pokes left of the pointer, 2/3 extends
+      // right -- so its left edge sits 140px left of the release point.
+      final expected = dragEnd + const Offset(-140, -48);
       expect(
         (toolbarTopLeft - expected).distance < 1.0,
         true,
-        reason: 'toolbar $toolbarTopLeft should anchor at the release point '
-            '$dragEnd (48 up, no horizontal shift in LTR => $expected)',
+        reason: 'toolbar $toolbarTopLeft should anchor 1/3 left of the '
+            'release point $dragEnd (=> $expected)',
       );
     },
   );
@@ -368,12 +369,13 @@ void main() {
       await tester.pump();
 
       // Hover over paragraph 8 — inside the editor, well away from the
-      // selected rows. Near the row's left rather than its center: the
-      // toolbar's own maxLeft clamp (menuWidth 420 + margins, well
-      // within an 800px-wide test window) leaves only its left portion
-      // free of clamping, and this test is about whether the pointer is
-      // used at all, not about clamp behavior (covered elsewhere).
-      final hoverPoint = globalRectOfNode([8]).centerLeft + const Offset(20, 0);
+      // selected rows, and comfortably inside the editor's clamp-free
+      // horizontal zone (menuWidth 420 + the 1/3-inward pointer offset +
+      // margins leave only a middle band unclamped in an 800px-wide
+      // test window). This test is about whether the pointer is used at
+      // all, not about clamp behavior (covered elsewhere).
+      final hoverPoint =
+          globalRectOfNode([8]).centerLeft + const Offset(200, 0);
       final gesture =
           await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: hoverPoint);
@@ -386,12 +388,15 @@ void main() {
 
       final toolbarTopLeft =
           tester.getTopLeft(find.byKey(const Key('toolbarChild')));
-      final expected = hoverPoint + const Offset(0, -48);
+      // LTR pointer anchor: 1/3 of the 420px toolbar pokes left of the
+      // pointer, 2/3 extends right.
+      final expected = hoverPoint + const Offset(-140, -48);
       expect(
         (toolbarTopLeft - expected).distance < 1.0,
         true,
-        reason: 'toolbar $toolbarTopLeft should anchor at the hover point '
-            '$hoverPoint even though it is off the highlighted selection',
+        reason: 'toolbar $toolbarTopLeft should anchor 1/3 left of the '
+            'hover point $hoverPoint even though it is off the '
+            'highlighted selection',
       );
     },
   );
@@ -546,6 +551,116 @@ void main() {
         reason: 'toolbar left=$toolbarLeft should not be pinned to the '
             'far-left wall (editorRect.left + margin = '
             '${editorRect.left + 16}) for a full-width RTL selection row',
+      );
+    },
+  );
+
+  testWidgets(
+    'RTL pointer anchor: 1/3 of the toolbar pokes right of the pointer, '
+    '2/3 extends left (the LTR case mirrored)',
+    (tester) async {
+      // 2026-07-16 r4, direct user request: the toolbar shouldn't sit
+      // flush against either side of the pointer. LTR reads left-to-
+      // right, so it opens mostly rightward (1/3 left of pointer, 2/3
+      // right); RTL is the mirror image (1/3 right of pointer, 2/3
+      // left). This test forces isRTL via the mocked cubit; the
+      // document itself renders LTR (English placeholder text) since
+      // only the mirror math, not real bidi shaping, is under test.
+      final rtlCubit = MockAppearanceSettingsCubit();
+      final rtlState = MockAppearanceSettingsState();
+      when(() => rtlState.layoutDirection)
+          .thenReturn(LayoutDirection.rtlLayout);
+      when(() => rtlCubit.state).thenReturn(rtlState);
+      when(() => rtlCubit.stream)
+          .thenAnswer((_) => Stream.fromIterable([rtlState]));
+
+      final rtlEditorState = EditorState(
+        document: Document(
+          root: pageNode(
+            children: [
+              for (var i = 0; i < 10; i++) paragraphNode(text: 'paragraph $i'),
+            ],
+          ),
+        ),
+      );
+      final rtlTracker = EditorPointerTracker();
+      final rtlNavigatorKey = GlobalKey<NavigatorState>();
+      final editor = AppFlowyEditor(
+        editorState: rtlEditorState,
+        editorScrollController:
+            EditorScrollController(editorState: rtlEditorState),
+      );
+      await tester.pumpWidget(
+        BlocProvider<AppearanceSettingsCubit>.value(
+          value: rtlCubit,
+          child: MaterialApp(
+            navigatorKey: rtlNavigatorKey,
+            home: Scaffold(
+              body: SizedBox(
+                height: 300,
+                child: EditorPointerTrackingListener(
+                  tracker: rtlTracker,
+                  child: editor,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // A 2-node selection: onlyShowInSingleSelectionAndTextType is
+      // false for it, giving the toolbar its narrower 420px menu width
+      // (matches the LTR pointer-anchor tests above, for the same
+      // clamp-avoidance reason).
+      final secondText =
+          rtlEditorState.getNodeAtPath([1])!.delta!.toPlainText();
+      rtlEditorState.selection = Selection(
+        start: Position(path: [0]),
+        end: Position(path: [1], offset: secondText.length),
+      );
+      await tester.pump();
+
+      // A pointer position comfortably inside the clamp-free zone: for
+      // a 420px menu with a 16px edge margin, RTL's rawLeft = pointer.x
+      // - menuWidth*2/3 must stay >= minLeft, i.e. pointer.x >= minLeft
+      // + 280 -- pick 350 so there's headroom on both sides.
+      const pointerPosition = Offset(350, 100);
+      final gesture =
+          await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: pointerPosition);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(pointerPosition);
+      await tester.pump();
+      expect(rtlTracker.lastGlobalPosition, pointerPosition);
+
+      final entry = OverlayEntry(
+        builder: (context) => DesktopFloatingToolbar(
+          editorState: rtlEditorState,
+          onDismiss: () {},
+          enableAnimation: false,
+          pointerTracker: rtlTracker,
+          child: Container(
+            key: const Key('rtlPointerToolbarChild'),
+            width: 40,
+            height: 40,
+            color: Colors.blue,
+          ),
+        ),
+      );
+      rtlNavigatorKey.currentState!.overlay!.insert(entry);
+      await tester.pumpAndSettle();
+
+      final toolbarTopLeft = tester
+          .getTopLeft(find.byKey(const Key('rtlPointerToolbarChild')));
+      // RTL pointer anchor: 1/3 of the 420px toolbar pokes right of the
+      // pointer, 2/3 extends left => left edge = pointer.x - 280.
+      final expected = pointerPosition + const Offset(-280, -48);
+      expect(
+        (toolbarTopLeft - expected).distance < 1.0,
+        true,
+        reason: 'toolbar $toolbarTopLeft should anchor 1/3 right of the '
+            'pointer $pointerPosition (=> $expected)',
       );
     },
   );

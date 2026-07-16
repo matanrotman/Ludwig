@@ -27,8 +27,8 @@ class DesktopFloatingToolbar extends StatefulWidget {
   final bool enableAnimation;
 
   /// When provided (and [anchorToolbarToPointer] is on), the toolbar
-  /// anchors at the mouse pointer whenever the pointer is over the visible
-  /// selection.
+  /// anchors at the mouse pointer whenever it's inside the visible editor
+  /// area.
   final EditorPointerTracker? pointerTracker;
 
   @override
@@ -67,10 +67,14 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
     // (regression test: desktop_floating_toolbar_test.dart).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final anchorRect = _resolveAnchorRect();
-      if (anchorRect == null) return;
+      final anchor = _resolveAnchorRect();
+      if (anchor == null) return;
       setState(() {
-        position = calculateSelectionMenuOffset(anchorRect, isRTL: _isRTL);
+        position = calculateSelectionMenuOffset(
+          anchor.rect,
+          isRTL: _isRTL,
+          isPointerAnchor: anchor.isPointerAnchor,
+        );
       });
     });
   }
@@ -88,9 +92,15 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
   ///    put the toolbar below the viewport after Cmd+A on a long page;
   /// 3. if no part of the selection is visible, the extent clamped into
   ///    the viewport, so the toolbar can never render off-screen.
-  Rect? _resolveAnchorRect() {
+  ///
+  /// The `isPointerAnchor` flag tells [calculateSelectionMenuOffset]
+  /// whether to apply the 1/3-inward pointer offset (case 1 only) — the
+  /// fallback anchors (cases 2 and 3) aren't a literal point under the
+  /// cursor, so that adjustment doesn't apply to them.
+  ({Rect rect, bool isPointerAnchor})? _resolveAnchorRect() {
     if (!anchorToolbarToPointer) {
-      return selectionExtentRect(editorState);
+      final rect = selectionExtentRect(editorState);
+      return rect == null ? null : (rect: rect, isPointerAnchor: false);
     }
     final editorOffset =
         editorState.renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -101,7 +111,10 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
 
     final pointer = widget.pointerTracker?.positionInside([viewport]);
     if (pointer != null) {
-      return Rect.fromLTWH(pointer.dx, pointer.dy, 1, 16);
+      return (
+        rect: Rect.fromLTWH(pointer.dx, pointer.dy, 1, 16),
+        isPointerAnchor: true,
+      );
     }
 
     final visibleSelectionRects = editorState
@@ -110,12 +123,18 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
         .where((rect) => !rect.isEmpty)
         .toList();
     if (visibleSelectionRects.isNotEmpty) {
-      return upperThirdAnchorRect(visibleSelectionRects, viewport);
+      return (
+        rect: upperThirdAnchorRect(visibleSelectionRects, viewport),
+        isPointerAnchor: false,
+      );
     }
     final extentRect = selectionExtentRect(editorState);
     return extentRect == null
         ? null
-        : clampRectIntoViewport(extentRect, viewport);
+        : (
+            rect: clampRectIntoViewport(extentRect, viewport),
+            isPointerAnchor: false,
+          );
   }
 
   @override
@@ -144,6 +163,7 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
   _Position calculateSelectionMenuOffset(
     Rect rect, {
     required bool isRTL,
+    required bool isPointerAnchor,
   }) {
     const toolbarHeight = 40, topLimit = toolbarHeight + 8;
     // Never sit flush against the editor's own left/right bound (which is
@@ -161,19 +181,35 @@ class _DesktopFloatingToolbarState extends State<DesktopFloatingToolbar> {
         rect.top < topLimit ? rect.bottom + topLimit : rect.top - topLimit;
 
     // Mirrors documentPopoverDirection's convention for other document
-    // popovers: LTR opens toward the right of the cursor (toolbar's left
-    // edge at the anchor's left edge), RTL toward the left (toolbar's
-    // right edge at the anchor's RIGHT edge) -- keyed off the document's
-    // own layout direction, not the sidebar's dock side.
-    //
-    // Mirroring off rect.right (not rect.left) matters for the
-    // upper-third fallback anchor: unlike the 1px-wide pointer anchor,
-    // that rect spans a whole selection row, so its `left` sits near the
-    // editor's own left edge regardless of text direction. Subtracting
-    // menuWidth from THAT drove the toolbar deeply negative and pinned
-    // it to the far-left wall (2026-07-16 r3 user report) -- rect.right
-    // is the row's actual RTL reading-start edge.
-    final rawLeft = isRTL ? rect.right - menuWidth : rect.left;
+    // popovers: LTR opens toward the right of the cursor, RTL toward the
+    // left -- keyed off the document's own layout direction, not the
+    // sidebar's dock side. The two anchor kinds place differently:
+    final double rawLeft;
+    if (isPointerAnchor) {
+      // 2026-07-16 r4: the toolbar shouldn't sit flush against either
+      // side of the pointer -- it opens 1/3 of its width in the
+      // reading-*against* direction and 2/3 in the reading direction.
+      // LTR reads left-to-right, so 1/3 pokes left of the pointer and
+      // 2/3 extends right; RTL is the mirror image. rect.left is the
+      // pointer's x (this rect is the 1px-wide point anchor).
+      rawLeft = isRTL
+          ? rect.left - menuWidth * 2 / 3
+          : rect.left - menuWidth / 3;
+    } else {
+      // Fallback anchors (upper-third-of-selection, or the clamped
+      // extent) aren't a literal point under the cursor, so the inward
+      // adjustment above doesn't apply -- open fully toward the reading
+      // direction from the anchor row's actual edge instead.
+      //
+      // Mirroring off rect.right (not rect.left) matters here: unlike
+      // the point anchor, this rect spans a whole selection row, so its
+      // `left` sits near the editor's own left edge regardless of text
+      // direction. Subtracting menuWidth from THAT drove the toolbar
+      // deeply negative and pinned it to the far-left wall (2026-07-16
+      // r3 user report) -- rect.right is the row's actual RTL
+      // reading-start edge.
+      rawLeft = isRTL ? rect.right - menuWidth : rect.left;
+    }
     final minLeft = editorRect.left + edgeMargin;
     final maxLeft = editorRect.right - edgeMargin - menuWidth;
     final left = math.min(
