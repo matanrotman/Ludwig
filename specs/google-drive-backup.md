@@ -31,12 +31,12 @@ So: the cloud is not a backup, cannot be made one locally, and the user's writin
 - Backing up the stale caches (`data_beta*`) — only the active workspace folder.
 - Mobile.
 
-## Files / interfaces likely involved
-- New module for the backup service (new files — fork-maintenance rule: isolate, don't edit core). Likely a startup task registration (one-line touch in `frontend/appflowy_flutter/lib/startup/`) analogous to existing `auto_update_task.dart`.
-- New settings page + registration in the settings dialog (`settings_dialog.dart` — one entry; the shortcuts settings page at `settings_shortcuts_view.dart` is the pattern to copy).
-- Drive mount detection: `~/Library/CloudStorage/GoogleDrive-*` (macOS), with manual folder picker as override.
-- The app's own data-path plumbing (`ApplicationDataStorage.getPath()`) to find the active workspace folder — the debug build's real folder is `data_dev_beta.appflowy.cloud` (see STATUS.md's data-dir map; don't hardcode).
-- Possibly `BACKUP_COLLAB_DB` machinery in `flowy_user` (Rust) if we build on the internal snapshot path.
+## Files / interfaces involved
+**Built (Stages 1–2):** `frontend/appflowy_flutter/lib/shared/backup/` (`backup_service.dart`, `snapshot_engine.dart`, `change_detector.dart`, `retention_pruner.dart`, `drive_mount_detector.dart`, `workspace_path_resolver.dart`, `backup_settings.dart`, `snapshot_manifest.dart`, `snapshot_repository.dart`); `frontend/appflowy_flutter/lib/startup/tasks/backup_task.dart`; tests in `frontend/appflowy_flutter/test/unit_test/backup/`. Core touches so far: `lib/startup/startup.dart`, `lib/startup/deps_resolver.dart`, `lib/startup/tasks/prelude.dart`, `lib/core/config/kv_keys.dart` (all marked `// [fork:backup]`).
+
+**Remaining (Stages 3–4):** see the detailed plan above — new settings page under `lib/workspace/presentation/settings/pages/backup/`, `backup_bloc.dart`, `restore_service.dart`, `restore_flow.dart`, `RESTORE.md`; core touches to `settings_dialog_bloc.dart`, `settings_dialog.dart`, `settings_menu.dart`, `frontend/resources/translations/en-US.json`.
+
+Not used: `BACKUP_COLLAB_DB` (Rust) — investigated, not Dart-triggerable, decision was to stay Dart-only for Phase 1 (see "Open questions" above). The active workspace folder is resolved via `WorkspacePathResolver`, already built — no need to hardcode `data_dev_beta.appflowy.cloud` anywhere.
 
 ## Open questions — resolved by investigation 2026-07-16
 - **`BACKUP_COLLAB_DB` is not Dart-triggerable.** It's the tracing span of `UserManager::prepare_backup` (`flowy-user/src/user_manager/manager.rs:556-566`), fired internally once per sign-in/day. It zips only `collab_db` into `collab_db_history/collab_db_YYYYMMDD.zip` via `CollabDBZipBackup` (`flowy-user/src/services/db.rs:166-209`), validating the DB first. Real zips exist on disk daily since 07-12 (~350KB each) — a useful *extra* safety layer that our snapshots will simply include, but not a mechanism we can invoke on demand without a new Rust event. **Decision: Phase 1 stays Dart-only** — zip the whole live workspace folder (crash-consistent copy: RocksDB and SQLite both keep write-ahead logs and are designed to recover exactly this state), mitigated by (a) retention depth — a bad snapshot never stands alone, (b) the on-quit snapshot being taken at natural quiescence, and (c) restore-time validation. If restore drills ever surface a torn snapshot in practice, escalate to a small Rust "backup now" event that reuses `CollabDBZipBackup` — the seam is already identified.
@@ -45,22 +45,89 @@ So: the cloud is not a backup, cannot be made one locally, and the user's writin
 
 ## Phase 1 execution plan (agreed 2026-07-16)
 
-**Stage 1 — backup engine (new files only).**
-`lib/shared/backup/` : `backup_service.dart` (walk → detect change → zip to temp name → atomic rename into destination), `backup_settings.dart` (KeyValueStorage-backed: enabled, destination, interval, last-run), `drive_mount_detector.dart` (`~/Library/CloudStorage/GoogleDrive-*`, fallback `~/Google Drive`, manual override), retention pruner (last 50 + daily thinning). Unit tests for retention math, change detection, and atomic-write behavior (temp dir fixtures — no real data).
+**Stage 1 — backup engine.** ✅ **DONE** (Session 1, see Session Log). `lib/shared/backup/`: `backup_service.dart`, `snapshot_engine.dart`, `change_detector.dart`, `retention_pruner.dart`, `drive_mount_detector.dart`, `workspace_path_resolver.dart`, `backup_settings.dart`, `snapshot_manifest.dart`, `snapshot_repository.dart`. 38 unit tests, all green.
 
-**Stage 2 — scheduling (2 one-line core touches).**
-Startup task registered next to `AutoUpdateTask()` (`lib/startup/startup.dart:148` pattern) running the 30-min timer; quit hook investigated at build time (app teardown path) — **fallback if quit hooks prove unreliable: snapshot-on-next-launch covers the previous session's tail, and the 30-min timer bounds the loss either way.** Never runs in integration-test mode (same guard as AutoUpdateTask).
+**Stage 2 — scheduling.** ✅ **DONE** (Session 1). `lib/startup/tasks/backup_task.dart` — 30-min timer, `AppLifecycleListener(onExitRequested:)` quit hook (5s cap), 60s catch-up. Live-verified against the real Google Drive mount.
 
-**Stage 3 — Backup settings page.**
-New `SettingsPage.backup` enum case + page (pattern: `settings_shortcuts_view.dart`; registration in `settings_dialog.dart` + settings sidebar + `en-US.json` strings — small, flagged core touches). Contents: on/off, destination picker (Drive auto-detected, shown as "Google Drive ✓"), interval, "Last backup: …" status, snapshot list read from the destination folder.
+**Stage 3 — Backup settings page.** ⬅ **START HERE for Session 2.** Not built. See "Stage 3 — detailed plan" below.
 
-**Stage 4 — restore + docs.**
-In-app Restore… flow: pick snapshot → **automatic pre-restore snapshot of current state** → typed confirmation → unzip to a staging folder → sanity-validate (expected structure present, zip integrity) → swap folders → prompt relaunch. Plus `RESTORE.md` (manual path for when the app can't even launch) and a short setup doc for other fork users.
+**Stage 4 — restore + docs.** Not built. See "Stage 4 — detailed plan" below.
 
-**Stage 5 — verification drills (the spec's "how we'll know it's done", executed).**
-Type in a scratch page → snapshot appears AND Drive web UI shows it uploaded (proves it left the machine); kill the app mid-session → next snapshot fine; full restore drill against a scratch data folder (never live data); seed >50 snapshots → pruning correct; both restore safeguards demonstrably fire. Also verified here: written zips stay locally readable under Drive's streaming mode, and the on-quit zip completes within teardown.
+**Stage 5 — verification drills.** Not run. See "Stage 5 — drill checklist" below.
 
-**Estimated shape: ~3 sessions** (1: Stages 1–2, 2: Stage 3, 3: Stages 4–5). Core-file touches total: one line in `startup.dart`, the settings enum/dialog/sidebar registrations, and localization strings — everything else is new isolated files, per the fork-maintenance rule.
+**Session split:** Session 1 = Stages 1–2 (done). Session 2 = Stage 3. Session 3 = Stages 4–5.
+
+---
+
+### Stage 3 — detailed plan (Session 2 starts here)
+
+**New files:**
+- `lib/workspace/presentation/settings/pages/backup/settings_backup_view.dart` — page scaffold: `SettingsBody` → `SettingsCategory("Automatic backup")` (toggle; destination row modeled on the `_CurrentPath` clickable/copyable row in `settings_manage_data_view.dart:335-454`, with a "Google Drive detected ✓" badge when auto-detected vs a manual-pick label; interval dropdown {15,30,60}; "Back up now" button; "Last backup: …" status line reading `BackupService.status` `ValueNotifier`) + `SettingsCategory("Snapshots")` (list from `SnapshotRepository.list()`, size + date per row, a "Restore…" button per row — wire that button in Stage 4, disabled/TODO for now). `BlocProvider` created in `build()` (pattern: `settings_shortcuts_view.dart:44-46`).
+- `lib/shared/backup/backup_bloc.dart` — plain bloc (no freezed, mirror `ShortcutsCubit`'s style): load settings + status + snapshot list on open; events for toggle enabled, pick destination (`getIt<FilePickerService>().getDirectoryPath()`, pattern `settings_manage_data_view.dart:312`), change interval, "back up now" (`BackupService.backupNow(trigger: BackupTrigger.manual)`), refresh. On any settings change, call `BackupService.settingsChanged()` (already implemented) so the running timer re-arms.
+
+**Core touches (each ≤ a few lines, mark `// [fork:backup]` like Stage 1–2's):**
+1. `lib/workspace/application/settings/settings_dialog_bloc.dart:14-29` — add `backup,` to the `SettingsPage` enum.
+2. `lib/workspace/presentation/settings/settings_dialog.dart:127-187` — add `case SettingsPage.backup: return const SettingsBackupView();` (exhaustive switch, compiler forces this).
+3. `lib/workspace/presentation/settings/widgets/settings_menu.dart:50-149` — one `SettingsMenuElement(page: SettingsPage.backup, label: LocaleKeys.settings_backupPage_menuLabel.tr(), icon: ...)` after the Manage Data entry; reuse an existing `FlowySvgs` glyph, don't add a new asset.
+4. `frontend/resources/translations/en-US.json` (NOT `assets/translations/` — codegen wipes and re-copies that) — new `settings.backupPage.*` block (menuLabel, title, description, toggle label, destination row labels incl. "Google Drive detected", interval label + 3 option strings, "Back up now", last-backup variants incl. never-run/running/succeeded/failed, snapshots section header, empty-state text). Then run `cargo make code_generation` (wraps `dart run easy_localization:generate` twice — text + `LocaleKeys`) to regenerate `lib/generated/locale_keys.g.dart`.
+
+**Gate before moving to Stage 4:** toggle/destination/interval persist across an app restart; "Back up now" produces a snapshot and the list updates; Drive auto-detect badge shows correctly; `flutter analyze` clean; `flutter build macos --debug` + the standard dock-app content check (`kernel_blob.bin` strings for `IntegrationTestWidgetsFlutterBinding`=0, `runAppFlowy`>0).
+
+### Stage 4 — detailed plan
+
+**New files:**
+- `lib/shared/backup/restore_service.dart` — the state machine below.
+- `lib/workspace/presentation/settings/pages/backup/restore_flow.dart` — typed-confirmation dialog via `showCustomConfirmDialog` (`lib/workspace/presentation/widgets/dialogs.dart:586`) whose `builder` hosts a `TextField` gate (confirm button disabled until the input exactly matches the keyword `restore` — this exact "type to confirm" pattern does not exist anywhere else in the codebase, base ideas from `NavigatorTextFieldDialog` `dialogs.dart:75`); a progress dialog reflecting `RestoreService`'s phase; a completion dialog ("Restore complete — Restart AppFlowy") whose button pops the settings dialog and calls `runAppFlowy()`.
+- `RESTORE.md` (repo root) — manual restore when the app won't even launch: find the newest zip in `My Drive/AppFlowy Backups/snapshots/` (or the web UI if the mount is gone), unzip, read `manifest.json` for `sourceFolderName`, copy `data/**` over `~/Library/Application Support/com.appflowy.appflowy.flutter/<sourceFolderName>` (app must be quit first). Plus a short "setting this up on a fresh machine / other forks" section: install Google Drive for desktop → the app auto-detects `My Drive/AppFlowy Backups` → done; anyone using Dropbox/iCloud instead can point the destination picker at their own synced folder.
+
+**Restore state machine** (the only code in this feature that can destroy data — the most care goes here):
+
+`idle → confirmed → preRestoreSnapshot → extracting → validating → swapping → awaitingRelaunch | failed(phase, error)`
+
+1. User picks a snapshot from the Stage-3 list → typed-confirmation dialog (keyword `restore`, shows the snapshot's date) → no mutation happens before step 6.
+2. `BackupService.pause()` (already implemented — cancels the timer, awaits any in-flight run, sets `isPaused`).
+3. Trim `.pre-restore-*` dirs beyond the newest 2 (housekeeping done at the START of a restore, never at the end — so a failure never destroys the fallback).
+4. Pre-restore snapshot: `BackupService.backupNow(trigger: BackupTrigger.preRestore)` — must succeed or abort the whole restore.
+5. Extract the picked zip via `extractSnapshot()` (already implemented in `snapshot_engine.dart`) into `<parent-of-workspace>/<workspaceFolderName>.restore-staging-<ts>`. A corrupt zip throws HERE (ZipDecoder's `verify: true`) — live data untouched.
+6. Validate the staging folder: `manifest.formatVersion` is `SnapshotManifest.currentFormatVersion` or known-supported; at least one `*/collab_db` directory exists; nonzero files extracted. If the manifest's `appVersion` is newer than `ApplicationInfo.applicationVersion`, show an extra confirmation (older app opening a newer snapshot's format is the risky direction).
+7. Swap: rename the live workspace dir → `<name>.pre-restore-<ts>`; rename the staging dir → the live name (this is why staging must be created with the exact final name it needs — see `WorkspacePathResolver`, which already excludes `.pre-restore-`/`.restore-staging-` names from candidacy). If the second rename fails, rename the first one back (single-rename rollback) — the pre-restore dir is **never deleted by the same run**, so at every failure point the live folder is either untouched or already restored.
+8. Show the "Restart AppFlowy" dialog → `runAppFlowy()` (precedent: `settings_manage_data_view.dart:55` after a data-location change; `lib/startup/startup.dart:92-97` disposes the SDK + `getIt` and re-resolves everything, including a fresh `WorkspacePathResolver.resolve()` call that will find the just-restored folder). Any writes the Rust backend makes into the renamed-away pre-restore folder between swap and restart are harmless — it's abandoned, not deleted.
+9. `BackupService.resume()` (already implemented); the high-water mark is naturally stale after a restore, so the next scheduled tick snapshots the restored state correctly.
+
+**Tests:** `test/unit_test/backup/restore_service_test.dart` — happy path (MemoryFileSystem, engine calls faked/injected); rename-#2-fails → rollback leaves live folder byte-identical to before; corrupt zip → validation never reached, live untouched; manifest from a future format version → refused with a clear error.
+
+**Gate before moving to Stage 5:** all restore-service unit tests green; a restore rehearsed against a **scratch** data folder (never the live one — 2026-07-13 incident rule) round-trips correctly end to end including the relaunch.
+
+### Stage 5 — drill checklist (what unit tests can't cover)
+
+Run these against the real app and record results in this file's Session Log:
+- (a) edit a scratch page → a snapshot appears in the Drive folder **and** shows as uploaded in Google Drive's **web** UI (proves it left the machine, not just the local mount).
+- (b) `.tmp` dot-file behavior on the Drive mount is sane (no stuck partial uploads).
+- (c) unzip a snapshot that Drive's streaming mode had evicted locally (forces a re-download) — confirms restore still works when Drive hasn't cached the file.
+- (d) Cmd+Q with pending changes → snapshot completes, quit stays fast (already measured at 0.3s in Session 1 for the no-change case — re-measure for the changed case).
+- (e) `kill -9` mid-session → relaunch → app comes up clean → the 60s catch-up snapshot fires.
+- (f) **full restore drill on a scratch data folder only** — both safeguards demonstrably fire (pre-restore snapshot exists afterward; the typed-confirmation gate actually blocks a wrong keyword).
+- (g) seed >50 snapshots in the real destination → pruning matches the Stage-1 unit-tested policy against real files, not just `MemoryFileSystem`.
+- (h) confirm `My Drive` (not a differently-named localized folder) is what this Mac's mount actually uses — already true here, but `DriveMountDetector`'s fallback path has no live test yet.
+
+### Locked engineering decisions (context for whoever resumes — don't re-derive these)
+| Decision | Choice | Why |
+|---|---|---|
+| Quit hook | `AppLifecycleListener(onExitRequested:)`, zero core-file changes | `macos/Runner/AppDelegate.swift` returns `false` from `applicationShouldTerminateAfterLastWindowClosed` (window-close hides, doesn't quit); Cmd+Q is the only real quit and flows through Flutter's cancellable-exit protocol. `setPreventClose` was rejected — it changes the global close path and doesn't even fire on Cmd+Q. |
+| Zip off-thread | `Isolate.run` over plain path strings — first isolate use in `lib/` | Existing zips (`share_log_files.dart:15`) run on the UI thread and jank; ours runs mid-session and on quit. |
+| Atomic write | `.{finalName}.tmp` inside `snapshots/`, `flush: true`, then same-dir rename | Same-directory rename is atomic on APFS and the Drive mount. |
+| Zip contents | File entries only, **no explicit directory entries** | Found live in Session 1: the `archive` package's directory entries make Info-ZIP's `unzip -t` report "invalid compressed data to inflate" — would have broken the manual-restore path in RESTORE.md. Regression-tested (`snapshot_engine_test.dart`: runs the real system `unzip -t`). |
+| Destination layout | `<Drive mount>/My Drive/AppFlowy Backups/snapshots/*.zip`, auto-created on first use | Found live in Session 1: auto-detect originally wrote an unbranded `snapshots/` folder at the Drive root; moved under a named `AppFlowy Backups/` folder. Manual destinations still must pre-exist (typo protection). |
+| Naming | `AppFlowy-backup-v<appVersion>-<yyyyMMdd-HHmmss>.zip` (+ `AppFlowy-prerestore-…`) | Sortable, greppable, version-stamped. |
+| Change signal | Max mtime over files+dirs, plus count; excludes `log.*` and `LOG`/`LOG.old.*` basenames only (never `*.log` suffix — RocksDB WALs like `000004.log` carry typed content and must count) | App/RocksDB info logs churn even while idle and would defeat change detection otherwise; verified both directions in `change_detector_test.dart`. |
+| Live-folder resolution | Mirrors Rust's `make_user_data_folder` preference order (`flowy-core/src/config.rs:109-165`) with existence checks, not blind re-derivation; glob fallback; restore-artifact names excluded from candidacy | Dart doesn't own this logic natively — see `workspace_path_resolver.dart`. |
+
+### Useful seams already located (don't re-explore)
+- Settings page scaffold: `SettingsBody` → `SettingsCategory` → `SingleSettingAction` (`lib/workspace/presentation/settings/shared/`). `BlocProvider` created inside the page's `build()`.
+- Folder picker: `getIt<FilePickerService>().getDirectoryPath()` — interface in `packages/flowy_infra/lib/file_picker/file_picker_service.dart`, registered in `deps_resolver.dart`.
+- Confirm dialogs: `lib/workspace/presentation/widgets/dialogs.dart` — `showConfirmDialog` (:515), `showCustomConfirmDialog` (:586, the one with a `builder` — use this for typed confirmation), `NavigatorTextFieldDialog` (:75, a text-input dialog base).
+- `KVKeys.backupSettings` / `KVKeys.backupState` already exist (`lib/core/config/kv_keys.dart`); `BackupSettingsStore` in `backup_settings.dart` already reads/writes them.
+- `BackupService` (`lib/shared/backup/backup_service.dart`) already exposes everything Stage 3/4 need: `status` (`ValueNotifier<BackupStatus>`), `backupNow(trigger:)`, `pause()`/`resume()`, `settingsChanged()`, `isPaused`. No changes needed to this file for Stage 3; Stage 4's `RestoreService` calls into it but doesn't modify it.
 
 ## How we'll know it's done (verification)
 1. Type in a scratch page → within 30 min (or on quit) a new zip appears in the Drive folder **and** shows "uploaded" in Drive's web UI (checked from the browser — proves it left the machine).
