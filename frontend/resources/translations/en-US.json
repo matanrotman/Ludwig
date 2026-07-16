@@ -780,6 +780,34 @@
         "fixYourDataDescription": "If you're experiencing issues with your data, you can try to fix it here."
       }
     },
+    "backupPage": {
+      "menuLabel": "Backup",
+      "title": "Backup",
+      "description": "Automatically back up your workspace to Google Drive (or another synced folder) so it survives a lost or broken Mac.",
+      "automaticBackup": {
+        "title": "Automatic backup",
+        "toggleLabel": "Back up automatically",
+        "destinationNotFound": "No backup destination found — install Google Drive for desktop or choose a folder.",
+        "driveDetected": "Google Drive detected ✓",
+        "changeDestination": "Choose folder…",
+        "useAutoDetected": "Use Google Drive",
+        "intervalLabel": "Back up every",
+        "intervalOption": "{} minutes",
+        "backupNowDescription": "Take a snapshot right now, outside the regular schedule.",
+        "backupNowAction": "Back up now",
+        "lastBackup": {
+          "neverRun": "No backup has run yet.",
+          "running": "Backing up…",
+          "succeeded": "Last backup: {} — succeeded",
+          "failed": "Last backup: {} — failed"
+        }
+      },
+      "snapshots": {
+        "title": "Snapshots",
+        "empty": "No snapshots yet.",
+        "restoreAction": "Restore…"
+      }
+    },
     "shortcutsPage": {
       "menuLabel": "Shortcuts",
       "title": "Shortcuts",

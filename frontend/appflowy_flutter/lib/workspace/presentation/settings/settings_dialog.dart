@@ -9,6 +9,7 @@ import 'package:appflowy/workspace/application/settings/appearance/appearance_cu
 import 'package:appflowy/workspace/application/settings/appflowy_cloud_urls_bloc.dart';
 import 'package:appflowy/workspace/application/settings/settings_dialog_bloc.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/setting_ai_view/settings_ai_view.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/backup/settings_backup_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_account_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_billing_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_manage_data_view.dart';
@@ -141,6 +142,8 @@ class SettingsDialog extends StatelessWidget {
           userProfile: user,
           workspace: workspace,
         );
+      case SettingsPage.backup: // [fork:backup]
+        return const SettingsBackupView();
       case SettingsPage.notifications:
         return const SettingsNotificationsView();
       case SettingsPage.cloud:

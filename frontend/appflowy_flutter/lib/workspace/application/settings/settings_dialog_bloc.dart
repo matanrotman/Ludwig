@@ -16,6 +16,7 @@ enum SettingsPage {
   account,
   workspace,
   manageData,
+  backup, // [fork:backup]
   shortcuts,
   ai,
   plan,

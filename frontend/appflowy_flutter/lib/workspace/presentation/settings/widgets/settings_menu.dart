@@ -79,6 +79,13 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_database_m),
               changeSelectedPage: changeSelectedPage,
             ),
+            SettingsMenuElement( // [fork:backup]
+              page: SettingsPage.backup,
+              selectedPage: currentPage,
+              label: LocaleKeys.settings_backupPage_menuLabel.tr(),
+              icon: const FlowySvg(FlowySvgs.cloud_mode_m),
+              changeSelectedPage: changeSelectedPage,
+            ),
             SettingsMenuElement(
               page: SettingsPage.notifications,
               selectedPage: currentPage,
