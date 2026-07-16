@@ -163,3 +163,4 @@ Run these against the real app and record results in this file's Session Log:
   - (c) not runnable yet — no snapshot has been evicted to cloud-only (all 9 fully materialized; feature is a day old). Needs Drive's "Free up space" (GUI) on one snapshot, or natural aging.
   - (d), (e), (f) need the user at the machine (live app quit/kill/GUI-restore). (f) is the big one: full in-app restore drill against a scratch data folder, both safeguards witnessed.
   - (g) automatable but touches the user's real Drive (seeding ~50 tiny grammar-valid zips that later prune) — left for the user's explicit go-ahead.
+  **Committed at session end: `08066e099`.**
