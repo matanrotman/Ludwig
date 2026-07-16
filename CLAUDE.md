@@ -18,11 +18,16 @@ Also run the fork-sync check from "Fork maintenance" below — it's cheap, and d
 If we're resuming a specific feature, name the session after it (`claude -n rtl-support`, or `/rename rtl-support` once inside) so Claude Code's own session list stays organized the same way the specs folder is.
 
 ## Ending a session
-When I say "wrap up," "end session," or similar, before we stop:
-1. Update `STATUS.md` — replace the outdated parts, don't just append. It should always reflect *right now*, not a history.
-2. Add a dated entry to the "Session Log" at the bottom of whichever `specs/<feature-name>.md` we worked on.
-3. Re-run the fork-sync check from "Fork maintenance" below one more time — a fix made mid-session can move a fork's HEAD past what's currently pinned.
-4. If there's uncommitted work, suggest a commit so the code and the docs move together.
+When I say "wrap up," "end session," or similar, run this entire closure sequence automatically — don't wait for me to spell out each step, and don't skip steps because I only said the trigger phrase. Confirm back to me explicitly when it's done (a short summary of what happened at each step below), not silence.
+
+1. **Commit.** Stage and commit whatever THIS session's work produced. If the working tree has uncommitted files you didn't write and can't attribute to this session (e.g. another parallel session's in-progress work), leave them alone and name them explicitly rather than folding them into your commit — don't commit code you haven't reviewed just because it happens to be sitting there. If genuinely unsure whether something is in scope, ask me rather than guessing either direction.
+2. **Clean up.** Check for anything this session left behind that shouldn't ship: stray debug `print`/log statements in touched files, scratch test files (e.g. `zz_*`), temp diagnostic scripts. Remove them before the commit in step 1, not after.
+3. **Rebuild if needed.** If code changed after the last time you shipped a build to my dock app this session, rebuild (`flutter build macos --debug`) and re-verify by contents before calling the session done — a stale build has caused real confusion before (see "Verifying a fix actually works").
+4. **Update `STATUS.md`** — rewrite the relevant sections, don't just append. If a feature went through multiple rounds of back-and-forth this session, consolidate them into one current-state summary rather than leaving each round as its own ever-growing bullet; STATUS.md should read as "here's where things stand right now," not a transcript.
+5. **Add a dated entry to the "Session Log"** at the bottom of whichever `specs/<feature-name>.md` we worked on — unlike STATUS.md, this one is append-only history and should stay that way.
+6. **Re-run the fork-sync check** from "Fork maintenance" below one more time — a fix made mid-session can move a fork's HEAD past what's currently pinned.
+7. **Write a ready-to-paste prompt for the next session** — what's done, what's next, and any open question that needs my input before work can resume — and include it directly in your closing message (not buried in a file).
+8. **Report back**: what got committed (and what was deliberately left out, and why), what STATUS.md/spec changes were made, the fork-sync numbers, and the next-session prompt from step 7. This whole sequence should be visible to me, not something that happened silently.
 
 ## Fork maintenance (applies across every feature)
 - Isolate new functionality into new files/modules where possible instead of editing core files, to keep future merges with upstream low-conflict. Where you must touch shared/core files, say so and explain why.
