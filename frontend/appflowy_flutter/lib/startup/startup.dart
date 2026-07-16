@@ -151,6 +151,8 @@ class FlowyRunner {
           const InitAppWidgetTask(),
           const InitPlatformServiceTask(),
           const RecentServiceTask(),
+          // [fork:backup] Workspace backup (specs/google-drive-backup.md).
+          if (!mode.isIntegrationTest) const BackupLaunchTask(),
         ],
       ],
     );

@@ -131,4 +131,11 @@ class KVKeys {
   /// The value is a boolean string
   static const String hasClickedUpgradeToProButton =
       'hasClickedUpgradeToProButton';
+
+  // [fork:backup] Workspace-backup feature (specs/google-drive-backup.md).
+  /// The value is BackupSettings as json
+  static const String backupSettings = 'backupSettings';
+
+  /// The value is BackupStateRecord as json
+  static const String backupState = 'backupState';
 }

@@ -7,6 +7,7 @@ import 'package:appflowy/plugins/document/application/prelude.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
 import 'package:appflowy/plugins/trash/application/prelude.dart';
 import 'package:appflowy/shared/appflowy_cache_manager.dart';
+import 'package:appflowy/shared/backup/backup_service.dart';
 import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy/shared/easy_localiation_service.dart';
 import 'package:appflowy/startup/startup.dart';
@@ -79,6 +80,10 @@ void _resolveCommonService(
   IntegrationMode mode,
 ) async {
   getIt.registerFactory<FilePickerService>(() => FilePicker());
+
+  // [fork:backup] Workspace-backup service (specs/google-drive-backup.md).
+  // Construction is inert; BackupLaunchTask calls start().
+  getIt.registerLazySingleton<BackupService>(() => BackupService());
 
   getIt.registerFactory<ApplicationDataStorage>(
     () => mode.isTest ? MockApplicationDataStorage() : ApplicationDataStorage(),
