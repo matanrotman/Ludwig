@@ -7,8 +7,19 @@ These apply to every session and every feature in this project. Keep this file a
 - Walk me through UI/UX decisions collaboratively — don't guess at my preferences on anything visible or behavioral. Ask.
 - I want transparency: at each meaningful step, name the best practice you're applying and why, not just the result.
 
+## Designing for other users, not just me (project stance)
+This fork started as a personal build, but I intend it to be something other people can eventually use — especially people who want RTL support, personal/local backup, and the other features on my roadmap. **This does not mean everything has to work for everyone right now.** A feature is allowed to ship as a local-only version that only works for me first. What it must NOT do is bake in assumptions that make a future "open this up to other users" step expensive or a rewrite.
+
+Concretely, when we build or change anything:
+- **Design for the general case even when we implement the personal one.** Prefer a small config/abstraction seam over a hardcoded personal value. Example: the backup feature *detects* a Google Drive mount rather than hardcoding my account path — that instinct is the standard, even when the first version only handles my exact setup.
+- **Isolate the personal-only parts and name them,** so the "make this multi-user" work later is a known, bounded edit — not archaeology. If something is hardcoded to me, my Mac, macOS, or my accounts, say so explicitly (in the spec and, where it matters, a code comment) rather than leaving it implicit.
+- **Flag multi-user gaps as we go** instead of discovering them at distribution time: which OSes, which cloud/accounts, which of my personal settings a feature silently depends on.
+- **Distribution goal (macOS first):** others should be able to *download my build*, not compile their own. Design choices shouldn't quietly assume "the only user built this from source on this machine." The distribution work itself is scoped separately in `specs/distribution.md` — but keep its existence in mind (e.g. app identity, data location, default server) when a feature touches those areas.
+
+This is a design discipline, not a mandate to generalize everything now. When in doubt, ask me how far to take a given feature toward multi-user — the default is "personal implementation, general design."
+
 ## Scoping a new feature
-Don't start coding from a one-line request. Interview me first: ask about scope, UI/UX, edge cases, and trade-offs, a few questions at a time, in plain language with concrete comparisons ("like X app does Y") rather than open technical questions. Once we've covered it, write `specs/<feature-name>.md` — background, goals, what's in and out of scope, files/interfaces likely involved, open questions, a phased plan, and how we'll know it's done — and get my sign-off before writing any code.
+Don't start coding from a one-line request. Interview me first: ask about scope, UI/UX, edge cases, and trade-offs, a few questions at a time, in plain language with concrete comparisons ("like X app does Y") rather than open technical questions. Include the multi-user angle in scoping (see "Designing for other users" above): note which parts are personal-only-for-now and what a future general version would need. Once we've covered it, write `specs/<feature-name>.md` — background, goals, what's in and out of scope, files/interfaces likely involved, open questions, a phased plan, and how we'll know it's done — and get my sign-off before writing any code.
 
 ## Starting a session
 Read `STATUS.md` first, before anything else. Give me a short plain-language recap of where things stand and what you're about to do, and confirm with me before continuing. I can also say "catch me up" at any point to trigger this on demand.

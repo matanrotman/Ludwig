@@ -1,0 +1,53 @@
+# Distributing a Downloadable Build
+
+## Goal
+Let other people **download and run my build of AppFlowy without compiling it themselves** — starting with **macOS only** (the platform I run and can actually test). The audience is people who want the features this fork adds that upstream doesn't have well: RTL support, local/Drive backup, and roadmap features to come.
+
+## Status
+**Not started. This is a placeholder spec — it needs its own scoping interview before any work.** It exists so the distribution goal is captured rather than lost, and so features built in the meantime keep it in mind (see `CLAUDE.md` → "Designing for other users").
+
+Session-scope decision already made (2026-07-17): **macOS only** for now. Windows/Linux deferred — I can't verify those builds locally, and each adds real release/CI burden.
+
+### Leaning decision on identity/naming (2026-07-18 — user's direction, to confirm in the interview)
+**No rebrand. Keep the AppFlowy name; do NOT start a separate product.** The goal is "let people enjoy my features without compiling," not "build my own app." Concretely:
+- **Keep the name "AppFlowy,"** with a small honest qualifier so it's clearly not the official app and doesn't mislead — e.g. **"AppFlowy (RTL build)"** or **"AppFlowy — community build."** AGPL doesn't require a rename; the qualifier is about honesty toward upstream and clarity for users, not a legal must.
+- **Change only the invisible bundle identifier** (e.g. `com.appflowy.appflowy.flutter` → something like `com.matanrotman.appflowy`) **and the data-folder location**, so the build *coexists* with official AppFlowy on the same Mac instead of silently sharing its prefs and data folder (the same collision this fork's STATUS.md documents between its own debug/release builds). This is a couple of config lines, not a rebrand.
+- **Consequence to handle:** changing the bundle id relocates the app's data folder. For *me*, that means a one-time migration of my existing data to the new location must be part of shipping this (take a backup first — the blank-window hazard in STATUS.md). For a *fresh downloader* there's no existing data, so no migration — they just start clean.
+- Rationale in one line: this makes the build "a different, coexisting version of AppFlowy," which is exactly what the user wants — not an impostor of the official app, and not a new product.
+
+## Background — why this is more than "zip the .app and share it"
+Handing someone a build of a forked, AGPL app that shares its identity with an official product raises several real issues. None are blockers, but each needs a decision:
+
+- **App-identity collision with official AppFlowy.** The macOS build's bundle id is `com.appflowy.appflowy.flutter` and its product name is `AppFlowy` — *identical to the official app.* macOS keys a lot off bundle id: preferences (`~/Library/Preferences/com.appflowy.appflowy.flutter.plist`) and the app-support data folder are **shared across any build with that id** (this fork's own STATUS.md already documents the pain this causes between debug/release/test builds on one machine). A downloader who also runs official AppFlowy would have the two builds fighting over the same prefs and data directory. A distributed fork almost certainly needs its **own bundle id, app name, and data location** so it coexists cleanly. This is the single biggest technical decision here.
+- **Naming / trademark.** Distributing something *called* "AppFlowy" that is an unofficial fork is a sensitive area — upstream has publicly pushed back on unofficial builds being represented as the real thing (see STATUS.md → the "Stop lying that this is OSS" issue). A distinct name/branding for my build is probably the respectful and less-confusing choice. **My decision to make** — flag, don't assume.
+- **AGPL-3.0 obligations.** The repo is licensed AGPL-3.0 (see `LICENSE`). Distributing binaries triggers real obligations: recipients must be able to get the corresponding source, the license and notices must be preserved, and modifications must be conveyed under the same license. Source availability is already satisfied by the public fork on GitHub, but the release should link the exact source commit it was built from and keep the license intact. **This is a "get it right," not a "should we" — I'm already choosing to distribute; the spec just has to honor the license.**
+- **macOS Gatekeeper (code signing + notarization).** An unsigned/un-notarized `.app` downloaded from the internet triggers scary "damaged / unidentified developer" warnings and, on recent macOS, can be hard for a non-technical user to open at all. Options, roughly in order of user-friendliness and cost:
+  1. **Apple Developer account (~$99/yr) → sign + notarize.** Cleanest download experience; recurring cost and setup.
+  2. **Ship unsigned + document the right-click-open / `xattr` workaround.** Free; worse first-run experience; some users won't get past it.
+  - **My decision** — the spec should present the trade-off, not pick for me.
+- **What does a downloaded build connect to?** My build points at the AppFlowy Cloud beta server, and cloud sync is proven dead for source-built AppFlowy anyway (STATUS.md). A build handed to strangers shouldn't silently try to talk to a server it can't sync with, or land them in *my* workspace/account. Likely the right default is **local-only / no cloud** (or self-host), with backup being the safety net. Needs a decision, and it intersects with the backup feature.
+- **Updates.** Official AppFlowy auto-updates via a private channel this fork doesn't have. A distributed fork build would update by **manual re-download** unless we build something — fine for a first version, but set the expectation.
+- **Where it's hosted.** Natural answer: **GitHub Releases on the fork** (`matanrotman/AppFlowy`), with the binary attached and release notes linking the source commit. To confirm.
+
+## Open questions (resolve in the scoping interview)
+1. **New identity or keep `AppFlowy`?** → **Leaning resolved 2026-07-18 (see "Leaning decision on identity/naming" above): keep the name + qualifier, change only the bundle id + data-folder location, no rebrand.** Still to nail down in the interview: the exact qualifier text, the exact new bundle id, and the data-migration step for my existing install.
+2. **Signing:** pay for an Apple Developer account and notarize, or ship unsigned with documented workaround?
+3. **Default server/account for a fresh download:** local-only? self-host? something else? (Ties into backup being the safety net.)
+4. **Naming/branding** the build to avoid impersonating official AppFlowy.
+5. **Release mechanics:** GitHub Releases on the fork? Manual, or a `flutter build macos --release` + notarize script? (Note: STATUS.md warns the *release* build targets a different data dir than my debug dock app — a distribution build is a genuinely new build target to validate, not the dock app.)
+6. **Updates:** accept manual re-download for v1, or scope an updater later?
+7. **What exactly is the pitch** — which features are the reason to download this over official AppFlowy (RTL, backup, ribbon…)? Shapes release notes and the landing text.
+
+## Out of scope (for the first version, unless the interview changes it)
+- Windows and Linux builds.
+- Auto-update infrastructure.
+- App Store / Flathub / Snap distribution.
+- Any server the fork would host itself.
+
+## How we'll know it's done (draft — refine in the interview)
+- I can point a non-technical person at a link, they download it, open it on macOS without an insurmountable Gatekeeper wall, and the app runs with its own identity (not colliding with official AppFlowy), defaulting to a sane no-surprise state (no attempt to sync into my account/server).
+- The release links the exact source commit and preserves the AGPL license — obligations met.
+
+## Session Log
+- **2026-07-18 — identity/naming direction set (no code).** User decided: no rebrand, no separate product. Keep the AppFlowy name with an honest qualifier ("RTL build" / "community build"); change only the bundle id + data-folder location so the build coexists with official AppFlowy. Flagged the one-time data migration for the user's own install as part of eventually shipping this. Recorded as the leaning decision above; exact strings + migration step deferred to the interview. Also this session: confirmed the backup feature is already multi-user-capable on macOS (auto-detects any Google account, manual folder picker covers non-Drive users, degrades gracefully) — no backup changes needed for a macOS distribution; details folded into `specs/google-drive-backup.md`.
+- **2026-07-17 — spec created, no code.** Captured during the "position this fork for other users" session. Decided macOS-only for now. Recorded the real cross-cutting issues (bundle-id collision with official AppFlowy — verified `com.appflowy.appflowy.flutter` / product name `AppFlowy` are identical to official; AGPL-3.0 obligations — verified via `LICENSE`; Gatekeeper signing/notarization trade-off; what a downloaded build connects to; hosting on GitHub Releases; manual-update expectation). No interview run yet — this is the placeholder so the goal isn't lost and so in-flight features keep app-identity/data-location/default-server in mind.

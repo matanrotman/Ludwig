@@ -25,6 +25,9 @@ Give AppFlowy's document tables proper handling of direction and alignment, star
 - Manual RTL toggle / alignment controls UI (deferred to a later phase, see above).
 - Drag-selecting text from a paragraph into/out of a table — flagged during scoping as a general selection-handling gap, not RTL-specific; tracked as a separate future task, not part of this spec.
 
+## Multi-user readiness (added 2026-07-17 — see CLAUDE.md "Designing for other users")
+No concern here — RTL-aware table paste is a **universal** improvement with no personal-only assumptions (it keys off the pasted content's own direction, not any setting of mine). It reuses the same direction auto-detection as `rtl-support.md`, so it inherits that feature's readiness posture. Nothing to isolate or generalize later.
+
 ## Files / interfaces involved
 *(not yet explored in detail — fill in once implementation starts)*
 - AppFlowy's paste-handling code path for tables (likely in the editor package or its clipboard/paste service).

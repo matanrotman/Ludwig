@@ -14,6 +14,9 @@ Not started. No integration exists yet.
 - UI trigger: toolbar button, command menu, shortcut?
 - Error handling: what should happen if the server is unreachable mid-meeting?
 
+## Multi-user readiness (added 2026-07-17 — see CLAUDE.md "Designing for other users")
+This one is **inherently personal**: it targets my own self-hosted transcription server. That's fine to build local-only-for-me first, but the design rule still applies — the server endpoint (URL, any auth) must be **user-configurable, never hardcoded**, so a future multi-user version is "point at your own server" rather than a rewrite. The interview above should treat "where does the server address come from" as a first-class question, and the CLAUDE.md privacy rule applies (flag the external-service trade-off, use the user's own config). A general version would also need graceful behavior when no server is configured (the feature simply stays off), not a crash or a broken UI.
+
 ## Files / interfaces involved
 *Fill in once we've explored the codebase together.*
 

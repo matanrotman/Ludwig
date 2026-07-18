@@ -33,6 +33,7 @@ Ask a few at a time, plain language, concrete comparisons:
 5. **Mobile:** proposal is desktop-only ribbon, mobile untouched (mobile has its own toolbar system). Confirm.
 6. **RTL:** the ribbon must respect the app's RTL work — mirrored layout? (Likely yes given every prior feature; confirm and record.)
 7. **Scope guard:** which Word behaviors are explicitly OUT (styles gallery? format painter? find/replace relocation?) so the spec has a fence.
+8. **Multi-user design (CLAUDE.md "Designing for other users"):** the ribbon has no personal-only data, so it's universal by default — but confirm it stays that way (no assumption tied to my settings/data), since it's a headline UI other downloaders of the build would see immediately.
 
 ## Architecture facts for the ribbon build (codebase exploration 2026-07-17 — verified, with file:line)
 These supersede/extend the 2026-07-16 groundwork below. App = `frontend/appflowy_flutter`, Editor = `~/Projects/appflowy-editor-fork`.
