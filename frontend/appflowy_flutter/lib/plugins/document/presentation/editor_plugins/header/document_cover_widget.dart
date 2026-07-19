@@ -133,11 +133,14 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
 
     viewListener = ViewListener(viewId: widget.view.id)
       ..start(
-        onViewUpdated: (view) {
+        // [fork:title-fix] The parameter was named `view`, shadowing the state
+        // field of the same name, so `view = view` was a self-assignment and
+        // the field kept its initial (often empty-named) snapshot forever.
+        onViewUpdated: (updatedView) {
           setState(() {
-            viewIcon = EmojiIconData.fromViewIconPB(view.icon);
-            cover = view.cover;
-            view = view;
+            viewIcon = EmojiIconData.fromViewIconPB(updatedView.icon);
+            cover = updatedView.cover;
+            view = updatedView;
           });
         },
       );
@@ -213,7 +216,14 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
           onEnter: (event) => isCoverTitleHovered.value = true,
           onExit: (event) => isCoverTitleHovered.value = false,
           child: CoverTitle(
-            view: widget.view,
+            // [fork:title-fix] `view` (kept live by the ViewListener above),
+            // NOT `widget.view` — the latter is the snapshot captured when the
+            // page was opened, so a title typed after that is missing from it.
+            // CoverTitle seeds its text controller once in initState, and the
+            // editor's virtualized list disposes/recreates this header when a
+            // paste grows the document — reseeding from a stale empty name is
+            // exactly what made the title revert to "Untitled".
+            view: view,
           ),
         ),
       ),

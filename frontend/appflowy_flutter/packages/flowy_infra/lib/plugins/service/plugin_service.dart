@@ -14,8 +14,20 @@ class FlowyPluginService {
   static final FlowyPluginService _instance = FlowyPluginService._();
   static FlowyPluginService get instance => _instance;
 
+  // [fork:tcc-documents] Was `getApplicationDocumentsDirectory()`, which on a
+  // NON-SANDBOXED macOS build (ours: `com.apple.security.app-sandbox` = false)
+  // resolves to the user's real `~/Documents`. `_targets` then calls
+  // `listSync()` on it during theme loading at startup, so macOS raised its
+  // "AppFlowy would like to access files in your Documents folder" prompt on
+  // every launch — asking for personal documents in order to look for theme
+  // plugins that virtually nobody has.
+  //
+  // Application Support is where an app's own managed files belong, and it is
+  // not TCC-protected, so the prompt disappears rather than merely being
+  // granted. Trade-off: a user who had put custom theme plugins in
+  // ~/Documents would need to move them here.
   PluginLocationService _locationService = PluginLocationService(
-    fallback: getApplicationDocumentsDirectory(),
+    fallback: getApplicationSupportDirectory(),
   );
 
   void setLocation(PluginLocationService locationService) =>

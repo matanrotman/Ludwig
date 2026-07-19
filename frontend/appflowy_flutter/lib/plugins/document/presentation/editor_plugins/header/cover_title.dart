@@ -4,6 +4,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/shared_con
 import 'package:appflowy/shared/text_field/text_filed_with_metric_lines.dart';
 import 'package:appflowy/workspace/application/appearance_defaults.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
+import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/application/view_info/view_info_bloc.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -61,6 +62,25 @@ class _InnerCoverTitleState extends State<_InnerCoverTitle> {
     titleTextController.text = widget.view.name;
     titleTextController.addListener(_onViewNameChanged);
 
+    // [fork:title-fix] The ViewPB handed down here is the snapshot captured
+    // when the page was OPENED, and neither ViewBloc's `initial` event nor its
+    // listener re-fetches it. A page created and then titled in the same
+    // session therefore still carries name == "" in that snapshot.
+    //
+    // That stays invisible until something disposes this widget: the editor
+    // renders the document header as item 0 of a VIRTUALIZED list, so a paste
+    // that grows the document scrolls the header out of the cache extent and
+    // destroys it. On rebuild, initState re-seeds from the same stale empty
+    // name and the "Untitled" hint appears — while the sidebar, which reads a
+    // long-lived bloc, keeps showing the real title.
+    //
+    // Asking the backend for the current name closes that gap for good. It is
+    // deliberately scoped to the empty case, so it can never race or clobber a
+    // title the user is actively typing.
+    if (widget.view.name.isEmpty) {
+      _recoverNameFromBackend();
+    }
+
     titleFocusNode
       ..onKeyEvent = _onKeyEvent
       ..addListener(_onFocusChanged);
@@ -68,6 +88,31 @@ class _InnerCoverTitleState extends State<_InnerCoverTitle> {
     editorState.selectionNotifier.addListener(_onSelectionChanged);
 
     _requestInitialFocus();
+  }
+
+  /// [fork:title-fix] Fills in the title from the backend when the ViewPB we
+  /// were given has no name. Re-checks `mounted`, the controller's emptiness
+  /// AND focus after the await: if the user started typing while the request
+  /// was in flight, their text wins and this does nothing.
+  Future<void> _recoverNameFromBackend() async {
+    final result = await ViewBackendService.getView(widget.view.id);
+    result.fold(
+      (view) {
+        if (!mounted ||
+            view.name.isEmpty ||
+            titleTextController.text.isNotEmpty ||
+            titleFocusNode.hasFocus) {
+          return;
+        }
+        // Assigning `.text` notifies listeners, and _onViewNameChanged would
+        // debounce a rename back to the backend with the very value we just
+        // read from it. Detach for the assignment so this stays a pure read.
+        titleTextController.removeListener(_onViewNameChanged);
+        titleTextController.text = view.name;
+        titleTextController.addListener(_onViewNameChanged);
+      },
+      (error) => Log.error('cover title: could not recover view name: $error'),
+    );
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -44,6 +46,15 @@ const kSelfHostedTextInputFieldKey =
 const kSelfHostedWebTextInputFieldKey =
     ValueKey('self_hosted_web_url_input_text_field');
 
+/// [fork:settings-width] Fixed width of the settings dialog, in logical
+/// pixels. One number, one place — tune here if it ever feels off.
+///
+/// Deliberately WIDER than the old `window.width * 0.6` produced on a 1380pt
+/// window (828pt): the complaint was that settings felt cramped, not oversized.
+/// Fixed rather than proportional so the layout stops changing as the app
+/// window is resized.
+const double _kSettingsDialogWidth = 900.0;
+
 class SettingsDialog extends StatelessWidget {
   SettingsDialog(
     this.user, {
@@ -61,7 +72,13 @@ class SettingsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.6;
+    // [fork:settings-width] Was `size.width * 0.6`, so the dialog tracked the
+    // app window and every page inside it stretched to match. The settings
+    // content has a fixed natural width (a 204pt menu + a form), so the dialog
+    // is now a fixed size, shrinking only when the window is too small to hold
+    // it. `_kSettingsDialogWidth` is the single place to tune that.
+    final availableWidth = MediaQuery.of(context).size.width - 80;
+    final width = math.min(_kSettingsDialogWidth, availableWidth);
     final theme = AppFlowyTheme.of(context);
     final currentWorkspaceMemberRole =
         context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;

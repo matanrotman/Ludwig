@@ -18,6 +18,7 @@ class SettingsDropdown<T> extends StatefulWidget {
     this.expandWidth = true,
     this.selectOptionCompare,
     this.textStyle,
+    this.width,
   });
 
   final T selectedOption;
@@ -27,6 +28,18 @@ class SettingsDropdown<T> extends StatefulWidget {
   final List<Widget>? actions;
   final bool expandWidth;
   final TextStyle? textStyle;
+
+  /// [fork:settings-width] Hard width for the closed dropdown, in logical
+  /// pixels.
+  ///
+  /// Without it, `_RenderDropdownMenuBody.performLayout` sizes ITSELF to the
+  /// incoming constraints but lays the visible text field out against the menu
+  /// entries' intrinsic width — and the entries declare `Size(double.infinity,
+  /// 29)`. The field therefore ends up wider than the slot it was given and,
+  /// since `paint()` draws it at offset zero, it spills past the right edge of
+  /// whatever contains it and gets clipped mid-box. Passing a width makes that
+  /// inner constraint finite, so the field matches its slot exactly.
+  final double? width;
 
   @override
   State<SettingsDropdown<T>> createState() => _SettingsDropdownState<T>();
@@ -53,6 +66,7 @@ class _SettingsDropdownState<T> extends State<SettingsDropdown<T>> {
         Expanded(
           child: AFDropdownMenu<T>(
             controller: controller,
+            width: widget.width,
             expandedInsets: widget.expandWidth ? EdgeInsets.zero : null,
             initialSelection: widget.selectedOption,
             dropdownMenuEntries: widget.options,

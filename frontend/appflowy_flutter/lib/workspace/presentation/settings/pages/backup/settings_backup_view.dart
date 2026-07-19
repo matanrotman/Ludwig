@@ -181,6 +181,9 @@ class _DestinationRow extends StatelessWidget {
   }
 }
 
+/// [fork:settings-width] Width of the closed interval dropdown.
+const double _kIntervalDropdownWidth = 160.0;
+
 class _IntervalRow extends StatelessWidget {
   const _IntervalRow({required this.settings});
 
@@ -192,8 +195,13 @@ class _IntervalRow extends StatelessWidget {
       label: LocaleKeys.settings_backupPage_automaticBackup_intervalLabel.tr(),
       trailing: [
         SizedBox(
-          width: 160,
+          width: _kIntervalDropdownWidth,
           child: SettingsDropdown<int>(
+            // [fork:settings-width] The width goes to the dropdown itself, not
+            // just this SizedBox: the SizedBox alone bounds the slot but not
+            // the field inside it, which then paints past the slot's right
+            // edge and is clipped by the dialog. See SettingsDropdown.width.
+            width: _kIntervalDropdownWidth,
             expandWidth: false,
             selectedOption: settings.intervalMinutes,
             options: BackupSettings.allowedIntervals
