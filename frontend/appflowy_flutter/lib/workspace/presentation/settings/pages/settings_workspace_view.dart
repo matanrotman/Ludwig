@@ -5,7 +5,11 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/plugins/document/presentation/editor_style.dart';
+// [fork:ribbon]
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/application/ribbon_settings_cubit.dart';
 import 'package:appflowy/shared/af_role_pb_extension.dart';
+import 'package:appflowy/shared/feature_flags.dart';
+import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/shared/google_fonts_extension.dart';
 import 'package:appflowy/util/font_family_extension.dart';
 import 'package:appflowy/workspace/application/appearance_defaults.dart';
@@ -150,6 +154,8 @@ class SettingsWorkspaceView extends StatelessWidget {
                     children: const [
                       TextDirectionSelect(),
                       EnableRTLItemsSwitcher(),
+                      // [fork:ribbon]
+                      ShowFloatingToolbarSwitcher(),
                     ],
                   ),
                 ],
@@ -440,6 +446,44 @@ class TextDirectionSelect extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+// [fork:ribbon] The ribbon replaces the floating selection toolbar by default
+// (specs/ribbon-menu.md). This brings it back for users who want both.
+// Only meaningful while the ribbon flag is on, so it hides itself otherwise.
+@visibleForTesting
+class ShowFloatingToolbarSwitcher extends StatelessWidget {
+  const ShowFloatingToolbarSwitcher({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!FeatureFlag.ribbonMenu.isOn) {
+      return const SizedBox.shrink();
+    }
+
+    return BlocProvider.value(
+      value: getIt<RibbonSettingsCubit>(),
+      child: BlocBuilder<RibbonSettingsCubit, RibbonSettingsState>(
+        builder: (context, state) => Row(
+          children: [
+            const Expanded(
+              child: FlowyText.regular(
+                'Show the floating toolbar as well as the ribbon',
+                fontSize: 16,
+              ),
+            ),
+            const HSpace(16),
+            Toggle(
+              value: state.showFloatingToolbar,
+              onChanged: (value) => context
+                  .read<RibbonSettingsCubit>()
+                  .setShowFloatingToolbar(value),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

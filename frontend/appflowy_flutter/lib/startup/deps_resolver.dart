@@ -7,6 +7,7 @@ import 'package:appflowy/plugins/document/application/prelude.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
 import 'package:appflowy/plugins/trash/application/prelude.dart';
 import 'package:appflowy/shared/appflowy_cache_manager.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/application/ribbon_settings_cubit.dart';
 import 'package:appflowy/shared/backup/backup_service.dart';
 import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy/shared/easy_localiation_service.dart';
@@ -84,6 +85,11 @@ void _resolveCommonService(
   // [fork:backup] Workspace-backup service (specs/google-drive-backup.md).
   // Construction is inert; BackupLaunchTask calls start().
   getIt.registerLazySingleton<BackupService>(() => BackupService());
+
+  // [fork:ribbon] Ribbon UI state (specs/ribbon-menu.md). A singleton because
+  // collapse/tab state is global to the app, not per document page — otherwise
+  // it would reload from storage on every page open.
+  getIt.registerLazySingleton<RibbonSettingsCubit>(() => RibbonSettingsCubit());
 
   getIt.registerFactory<ApplicationDataStorage>(
     () => mode.isTest ? MockApplicationDataStorage() : ApplicationDataStorage(),

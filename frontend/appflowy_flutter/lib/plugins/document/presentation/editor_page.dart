@@ -13,7 +13,10 @@ import 'package:appflowy/plugins/inline_actions/handlers/date_reference.dart';
 import 'package:appflowy/plugins/inline_actions/handlers/inline_page_reference.dart';
 import 'package:appflowy/plugins/inline_actions/handlers/reminder_reference.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_service.dart';
+// [fork:ribbon]
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/application/ribbon_settings_cubit.dart';
 import 'package:appflowy/shared/feature_flags.dart';
+import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/shortcuts/settings_shortcuts_service.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
@@ -433,6 +436,15 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
         ),
       );
     }
+    // [fork:ribbon] The ribbon replaces the floating selection toolbar
+    // (specs/ribbon-menu.md). Settings → Appearance → "Show floating toolbar"
+    // brings it back. With the flag off this branch never runs, so today's
+    // behaviour is restored exactly.
+    if (FeatureFlag.ribbonMenu.isOn &&
+        !getIt<RibbonSettingsCubit>().state.showFloatingToolbar) {
+      return Center(child: editor);
+    }
+
     final appTheme = AppFlowyTheme.of(context);
     return Center(
       child: BlocProvider.value(

@@ -138,4 +138,22 @@ class KVKeys {
 
   /// The value is BackupStateRecord as json
   static const String backupState = 'backupState';
+
+  // [fork:ribbon] Ribbon menu (specs/ribbon-menu.md).
+  /// Whether the ribbon is collapsed. One state for the whole app, not per
+  /// page — the user's explicit choice at scoping.
+  ///
+  /// The value is a boolean string.
+  static const String ribbonCollapsed = 'ribbonCollapsed';
+
+  /// The tab the ribbon was last showing, so it survives a restart.
+  ///
+  /// The value is a tab id string.
+  static const String ribbonActiveTab = 'ribbonActiveTab';
+
+  /// Whether to keep showing the floating selection toolbar even though the
+  /// ribbon is on. Off by default: the ribbon replaces it.
+  ///
+  /// The value is a boolean string.
+  static const String showFloatingToolbar = 'showFloatingToolbar';
 }

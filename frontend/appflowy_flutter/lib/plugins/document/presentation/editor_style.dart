@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
@@ -50,6 +51,35 @@ class EditorStyleCustomizer {
           left: 40,
           right: 40 + EditorStyleCustomizer.optionMenuWidth,
         );
+
+  /// [fork:rtl] Direction-aware document padding.
+  ///
+  /// The base [documentPadding] is written for LTR: it reserves an extra
+  /// [optionMenuWidth] on the *right*. This mirrors that reservation for RTL so
+  /// the wider side follows the reading direction. LTR is returned unchanged,
+  /// so this is a no-op for LTR users.
+  ///
+  /// ⚠️ INCOMPLETE — this does NOT yet fix the asymmetry the user reported
+  /// (2026-07-19). Measured on the real target afterwards: left margin ~97px,
+  /// right ~116px, i.e. still ~19px wider on the right and visually unchanged.
+  /// ~19px is close to [optionMenuWidth] / 2, which points at the real cause:
+  /// the document column is *centred* inside a width that already reserves the
+  /// option-menu gutter, so centring absorbs whatever this padding does and
+  /// shifts the column by half the gutter instead. Fixing it properly means
+  /// addressing that centring/gutter interaction, not this padding.
+  /// Kept because it is correct for the non-centred case (document width at or
+  /// above the available width), but it is groundwork, not the fix.
+  static EdgeInsets documentPaddingFor(ui.TextDirection direction) {
+    if (UniversalPlatform.isMobile) {
+      return EdgeInsets.zero;
+    }
+    return direction == ui.TextDirection.rtl
+        ? EdgeInsets.only(
+            left: 40 + EditorStyleCustomizer.optionMenuWidth,
+            right: 40,
+          )
+        : documentPadding;
+  }
 
   static double get nodeHorizontalPadding =>
       UniversalPlatform.isMobile ? 24 : 0;

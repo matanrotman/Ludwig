@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
@@ -12,10 +14,16 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shared_context/shared_context.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/transaction_handler/editor_transaction_service.dart';
 import 'package:appflowy/plugins/document/presentation/editor_style.dart';
+// [fork:ribbon]
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/application/ribbon_settings_cubit.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/ribbon_menu.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/ribbon_tabs.dart';
+import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/flowy_error_page.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
@@ -164,6 +172,17 @@ class _DocumentPageState extends State<DocumentPage>
 
     final width = context.read<DocumentAppearanceCubit>().state.width;
 
+    // [fork:rtl] The document's own reading direction decides which side gets
+    // the wider margin. Sourced from the layout direction today because that is
+    // what wraps the editor in a Directionality; when per-page direction lands
+    // (specs/ribbon-menu.md Phase 2) this should read the page's own setting.
+    final documentPadding = EditorStyleCustomizer.documentPaddingFor(
+      context.read<AppearanceSettingsCubit>().state.layoutDirection ==
+              LayoutDirection.rtlLayout
+          ? ui.TextDirection.rtl
+          : ui.TextDirection.ltr,
+    );
+
     // avoid the initial selection calculation change when the editorState is not changed
     initialSelection ??= _calculateInitialSelection(editorState);
 
@@ -177,7 +196,7 @@ class _DocumentPageState extends State<DocumentPage>
           styleCustomizer: EditorStyleCustomizer(
             context: context,
             width: width,
-            padding: EditorStyleCustomizer.documentPadding,
+            padding: documentPadding,
             editorState: editorState,
           ),
           header: buildCoverAndIcon(context, state),
@@ -196,7 +215,7 @@ class _DocumentPageState extends State<DocumentPage>
           styleCustomizer: EditorStyleCustomizer(
             context: context,
             width: width,
-            padding: EditorStyleCustomizer.documentPadding,
+            padding: documentPadding,
             editorState: editorState,
           ),
           header: buildCoverAndIcon(context, state),
@@ -230,6 +249,18 @@ class _DocumentPageState extends State<DocumentPage>
             // the banner only shows on desktop
             if (state.isDeleted && UniversalPlatform.isDesktop)
               buildBanner(context),
+            // [fork:ribbon] Pinned formatting strip (specs/ribbon-menu.md).
+            // Mounted here, as a sibling above the editor, rather than via the
+            // editor's `header:` param — a header scrolls away with the
+            // document, and the ribbon must stay put.
+            if (FeatureFlag.ribbonMenu.isOn && UniversalPlatform.isDesktop)
+              BlocProvider.value(
+                value: getIt<RibbonSettingsCubit>(),
+                child: RibbonMenu(
+                  editorState: editorState,
+                  tabs: buildRibbonTabs(),
+                ),
+              ),
             Expanded(child: child),
           ],
         ),

@@ -44,6 +44,11 @@ enum FeatureFlag {
   // used for the shared section
   sharedSection,
 
+  // [fork:ribbon] used for the Word-style ribbon menu above the document.
+  // if it's on, a tabbed formatting strip is pinned above the editor and the
+  // floating selection toolbar is suppressed by default.
+  ribbonMenu,
+
   // used for ignore the conflicted feature flag
   unknown;
 
@@ -128,6 +133,9 @@ enum FeatureFlag {
       case FeatureFlag.membersSettings:
         return true;
       case FeatureFlag.sharedSection:
+      // [fork:ribbon] off by default; flag off must restore today's behaviour
+      // exactly, including the floating selection toolbar.
+      case FeatureFlag.ribbonMenu:
       case FeatureFlag.unknown:
         return false;
     }
@@ -153,6 +161,9 @@ enum FeatureFlag {
         return 'if it\'s on, the inline sub-page mention feature will be available';
       case FeatureFlag.sharedSection:
         return 'if it\'s on, the shared section will be available';
+      // [fork:ribbon]
+      case FeatureFlag.ribbonMenu:
+        return 'if it\'s on, a tabbed ribbon menu is pinned above the document and replaces the floating selection toolbar';
       case FeatureFlag.unknown:
         return '';
     }
