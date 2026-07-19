@@ -14,14 +14,50 @@ So: the cloud is not a backup, cannot be made one locally, and the user's writin
 - **Backup now, sync later** — phase 1 is backup-only, designed not to block phase 2.
 - **Own "Backup" settings section** — NOT inside Cloud settings. Cloud settings means "which server does the app talk to" and switching it re-logins/swaps data folders; backup must not touch that machinery.
 - **Full data-folder archive** per snapshot (compressed copy of the active workspace, ~6MB today). Perfect restores; not human-readable in Drive.
-- **Every 30 min while running (only if something changed) + always on quit.** Retention: last 50 snapshots + daily thinning beyond that. Worst-case loss ≈ 30 minutes.
+- **Every 30 min while running (only if something changed) + always on quit.** Worst-case loss ≈ 30 minutes. *(Retention superseded 2026-07-19 — see "Retention and snapshot size" below.)*
 - **In-app restore button** (user accepted the +1 session of careful work). Safeguards required: automatic pre-restore snapshot of the current state, and a typed confirmation ("restore" or the snapshot date) before anything is replaced.
 - **Auth approach: none.** Google Drive for desktop is installed, running, and signed in on this Mac (`~/Library/CloudStorage/GoogleDrive-matan.rotman@gmail.com`). The app writes snapshot zips into a folder inside that mount; Google's own client uploads them. No OAuth code, no Google console setup, no secrets anywhere near the repo. The setting is really "backup destination folder," defaulting to the Drive mount — so Dropbox/iCloud users get the same feature free, and other forkers need only "install Google Drive."
+
+## Retention and snapshot size (decided 2026-07-19, supersedes the original retention line)
+
+Prompted by two user questions — "how far back should we keep backups?" and "1.4 MB a snapshot seems a lot, shouldn't we compress?" — measured against the 12 real snapshots then in Drive (17 MB total).
+
+**What the measurement showed** (one real snapshot, `20260718-005552`):
+
+| Component | Raw | Share of the *compressed* zip |
+|---|---|---|
+| App logs (`log.*`) + RocksDB `LOG*` | 2.5 MB (49%) | ~13% — they compress ~17× |
+| `collab_db_history/*.zip` | 0.9 MB (17%) | **~60%** — already compressed, incompressible |
+| `collab_db` + sqlite (**the actual content**) | 1.0 MB (19%) | ~20% |
+| Search indexes + `vector.db` | 0.4 MB (7%) | ~10% |
+
+Three conclusions, all confirmed with the user:
+
+1. **Compression is already solved — zip does it.** 5.2 MB raw → 1.4 MB stored, and restore already expands it. There was no missing best practice here. The zip is large mostly because AppFlowy's *own* `collab_db_history` archives inside it are already-compressed and can't be squeezed further.
+2. **The real waste is duplication BETWEEN snapshots, not inside one.** Those `collab_db_history` zips were verified byte-identical across snapshots two days apart — ~10 MB of the 17 MB was literally the same bytes stored twelve times. The fix for that is deduplication (Time Machine / Borg / restic style). **Decided: do NOT build it.** At 17 MB total the win is meaningless, and a deduplicated store cannot be unpacked with plain `unzip` — which would break the core promise in `RESTORE.md` that the user can recover their writing with standard tools and no AppFlowy-specific software. Self-contained zips are worth more than the space.
+3. **Exclusions are worth it; the old retention policy was the actual problem.**
+
+**Exclusions** (`snapshot_exclusions.dart`, new): logs (`log.*`, RocksDB `LOG`/`LOG.old.*`) and derived search indexes (`indexes/**`, `vector.db`). Against the real live folder this drops **78 files, 63% of raw bytes**, taking a snapshot from ~1.6 MB to ~1.2 MB. Rationale beyond size: the dead cloud-sync retry loop writes ~1 MB of fresh log text *per day forever* (see STATUS.md), so logs inflate every future snapshot even during a week with no writing. Indexes are rebuilt by the app after a restore (search may be briefly slow — nothing is lost). **`collab_db_history` is deliberately KEPT** despite being the single biggest component: it is a second, independent copy of the content and that redundancy is worth more than the megabyte.
+- Matching is on **path segments and basenames, never substrings**, so a user file like `catalog.md`, `travel-blog.md` or `my-indexes-of-refraction.md` can never be caught by a rule. This is explicitly tested.
+- Both rules are individually opt-out-able (`SnapshotExclusions.none` gives a bit-exact mirror), so a future settings toggle needs no engine change.
+- The manifest records `exclusionRules` + `excludedFileCount` so a human reading `manifest.json` inside a snapshot can tell the files are absent **by design, not lost**. Additive fields; `formatVersion` stays 1 and old snapshots still restore.
+
+**Retention — tiered ("grandfather-father-son"), ~1 year.** The old policy (newest 50 + one per calendar day *forever*) never expired anything: ~550 MB/year, growing without bound. The new ladder:
+
+| Age | Kept |
+|---|---|
+| < 2 days | everything (hard cap: newest 50, excess falls through to daily) |
+| 2–30 days | newest per day |
+| 30 days – 6 months | newest per week |
+| 6 months – 1 year | newest per month |
+| > 1 year | deleted |
+
+Pre-restore snapshots stay exempt and capped at the newest 3 — their value is recency, not history. Steady state lands around 60–80 MB and then stops growing. A future-dated snapshot (clock skew, hand-copied file) is always kept — we never delete something we can't confidently age. `now` is injected rather than read from the clock, so every rung is unit-testable.
 
 ## What's in scope (Phase 1)
 1. A background backup service in the app: change detection → zip the active workspace data folder → atomic write into the destination folder (write to temp name, rename when complete — sync clients only see finished files).
 2. "Backup" settings page: destination folder picker (default: detected Drive mount), interval, on/off, "last backup" status line, snapshot list, Restore… flow with the two safeguards above.
-3. Retention pruning (50 recent + dailies), done client-side on the local mount.
+3. Retention pruning (tiered ladder — see "Retention and snapshot size"), done client-side on the local mount.
 4. Consistency: never zip a live database mid-write. Investigate the app's existing `BACKUP_COLLab_DB` event (`flowy_user::services::db`, seen 30× in logs — the app already has an internal snapshot mechanism) and prefer building on it; otherwise snapshot at quiet points (on quit is naturally safe; the 30-min tick must flush/pause writes or use the internal mechanism).
 5. A short RESTORE.md + in-repo setup doc for other fork users.
 
@@ -151,13 +187,14 @@ Run these against the real app and record results in this file's Session Log:
 1. Type in a scratch page → within 30 min (or on quit) a new zip appears in the Drive folder **and** shows "uploaded" in Drive's web UI (checked from the browser — proves it left the machine).
 2. Kill the app mid-session → relaunch → no corruption, next snapshot fine.
 3. Full restore drill on a disposable copy: restore a snapshot into a scratch data folder, launch the app against it, confirm pages open. (Never against the live folder in testing — same incident rule as always.)
-4. Retention: seed >50 fake snapshots, confirm pruning keeps 50 + dailies and deletes nothing else.
+4. Retention: seed >50 fake snapshots spread across the age ladder, confirm pruning thins each rung as specified in "Retention and snapshot size" and deletes nothing else (foreign files and `.tmp` files untouched).
 5. The two restore safeguards demonstrably fire (pre-restore snapshot exists; typed confirmation required).
 
 ## Sign-off
 **Execution plan presented 2026-07-16 after the user asked to "make a plan to execute" — treating plan approval as the sign-off gate. Code starts only after the user approves the plan above.**
 
 ## Session Log
+- **2026-07-19 — retention + snapshot-size decisions, BUILT.** User asked two questions during Stage 5 setup: how far back to keep backups, and whether snapshot size could be improved by compression. Measured 12 real snapshots rather than estimating; full findings and rationale in "Retention and snapshot size" above. Headline: **compression was already solved** (zip, 5.2 MB → 1.4 MB) and my first read was wrong — logs are 49% of raw bytes but only ~13% of the zip, while AppFlowy's own already-compressed `collab_db_history` is ~60% of it. **Dedup considered and rejected on purpose** (would break `RESTORE.md`'s plain-`unzip` guarantee for a ~10 MB win). Shipped: `snapshot_exclusions.dart` (new sidecar; logs + derived indexes; segment/basename matching so user files are never caught; individually opt-out-able) wired into `snapshot_engine.dart`, additive `exclusionRules`/`excludedFileCount` manifest fields (formatVersion stays 1, old snapshots still restore), and a rewritten `retention_pruner.dart` implementing the tiered ~1-year ladder with injectable `now`. Verified against the real live folder: 78 files / 63% of raw bytes excluded, nothing in `collab_db` or the sqlite DBs touched. 70/70 backup unit tests green (was 54), `flutter analyze` clean.
 - **2026-07-18 — multi-user readiness review, no code.** Part of the "position this fork for other users" session. User's assumption going in was "no one but me can use the backup feature"; **reading the code disproved it.** Verified: `drive_mount_detector.dart` scans for any `GoogleDrive-*` mount (not the user's account) and handles localized "My Drive" names; a manual folder picker already exists (`backup_bloc.dart:80` `pickDestination()` + `useAutoDetectedDestination()`), making the feature work for non-Drive and non-macOS users; the resolve path fails soft (`backup_service.dart:301` null-`HOME` guard → `detect()` → null → "no destination" idle, no crash — checked specifically for a latent force-unwrap, none found). Conclusion: **zero changes needed for the macOS-first distribution target**; Windows/Linux auto-detect + de-Google-ified labels + OS-neutral `RESTORE.md` are polish, flagged not scheduled. Added the "Multi-user readiness" section above and corrected STATUS.md, which had understated the feature. No behavior changed.
 - **2026-07-16 — spec written from scoping interview; no code.** Root-cause investigation that motivated this lives in STATUS.md ("Cloud sync") and the session log there. Interview decisions recorded above.
 - **2026-07-16 (later) — open questions resolved by code investigation; Phase 1 execution plan added.** Key finding: the app already makes daily internal `collab_db` zips (`CollabDBZipBackup`, fired at sign-in — real zips on disk since 07-12), but it isn't Dart-triggerable, so Phase 1 zips the whole workspace folder Dart-side with crash-consistent semantics + retention depth + restore validation as the mitigation stack. Escalation path to a Rust "backup now" event identified if drills ever surface a torn snapshot.

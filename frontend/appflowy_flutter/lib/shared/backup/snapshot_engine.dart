@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:isolate';
 
+import 'package:appflowy/shared/backup/snapshot_exclusions.dart';
 import 'package:appflowy/shared/backup/snapshot_manifest.dart';
 import 'package:appflowy/shared/backup/snapshot_repository.dart';
 import 'package:archive/archive.dart';
@@ -17,6 +18,7 @@ class SnapshotRequest {
     required this.fileName,
     required this.appVersion,
     required this.trigger,
+    this.exclusions = const SnapshotExclusions(),
   });
 
   final String sourceDirPath;
@@ -24,6 +26,10 @@ class SnapshotRequest {
   final String fileName;
   final String appVersion;
   final BackupTrigger trigger;
+
+  /// What to leave out. Defaults to the standard policy (logs + derived search
+  /// indexes); pass [SnapshotExclusions.none] for a bit-exact folder mirror.
+  final SnapshotExclusions exclusions;
 }
 
 class SnapshotResult {
@@ -76,6 +82,7 @@ SnapshotResult _createSnapshotSync(SnapshotRequest request) {
   final skipped = <String>[];
   var fileCount = 0;
   var totalBytes = 0;
+  var excludedCount = 0;
 
   // No explicit directory entries: the archive package emits them in a form
   // Info-ZIP's `unzip -t` rejects ("invalid compressed data to inflate"),
@@ -86,6 +93,12 @@ SnapshotResult _createSnapshotSync(SnapshotRequest request) {
     final relative = p.relative(entity.path, from: source.path);
     final zipPath = p.join('data', relative);
     if (entity is io.File) {
+      // Deliberate omissions (logs, derived indexes) — recorded as a count in
+      // the manifest, NOT in skippedFiles, which means "wanted but unreadable".
+      if (request.exclusions.shouldExclude(relative)) {
+        excludedCount += 1;
+        continue;
+      }
       try {
         final bytes = entity.readAsBytesSync();
         archive.addFile(ArchiveFile(zipPath, bytes.length, bytes));
@@ -114,6 +127,8 @@ SnapshotResult _createSnapshotSync(SnapshotRequest request) {
     fileCount: fileCount,
     totalBytes: totalBytes,
     skippedFiles: skipped,
+    exclusionRules: request.exclusions.activeRuleNames,
+    excludedFileCount: excludedCount,
   );
   final manifestBytes = utf8.encode(manifest.toJsonString());
   archive.addFile(

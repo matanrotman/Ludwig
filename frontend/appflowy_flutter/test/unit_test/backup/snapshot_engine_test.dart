@@ -1,6 +1,7 @@
 import 'dart:io' as io;
 
 import 'package:appflowy/shared/backup/snapshot_engine.dart';
+import 'package:appflowy/shared/backup/snapshot_exclusions.dart';
 import 'package:appflowy/shared/backup/snapshot_manifest.dart';
 import 'package:appflowy/shared/backup/snapshot_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,8 +57,10 @@ void main() {
         .listSync()
         .where((e) => e.path.endsWith('.tmp'));
     expect(leftovers, isEmpty);
-    // Log files are INCLUDED in the zip (signal-only exclusion elsewhere).
-    expect(result.fileCount, 4);
+    // The workspace has 4 files, but `log.2026-07-16` is excluded by default
+    // (see SnapshotExclusions), so 3 are archived. skippedFiles stays empty —
+    // it means "wanted but unreadable", not "deliberately left out".
+    expect(result.fileCount, 3);
     expect(result.skippedFiles, isEmpty);
 
     // Extract and compare every file byte-for-byte.
@@ -69,11 +72,18 @@ void main() {
     expect(manifest, isNotNull);
     expect(manifest!.formatVersion, SnapshotManifest.currentFormatVersion);
     expect(manifest.sourceFolderName, 'data_dev_test.server');
-    expect(manifest.fileCount, 4);
+    expect(manifest.fileCount, 3);
+    // The manifest states the omission is by design, so a human reading it
+    // later never mistakes a missing log for a lost file.
+    expect(manifest.exclusionRules, ['logs', 'searchIndexes']);
+    expect(manifest.excludedFileCount, 1);
+    expect(io.File(p.join(staging, 'log.2026-07-16')).existsSync(), isFalse);
 
+    const exclusions = SnapshotExclusions();
     for (final entity in ws.listSync(recursive: true)) {
       if (entity is! io.File) continue;
       final rel = p.relative(entity.path, from: ws.path);
+      if (exclusions.shouldExclude(rel)) continue;
       final restored = io.File(p.join(staging, rel));
       expect(await restored.exists(), isTrue, reason: '$rel missing');
       expect(
@@ -82,6 +92,25 @@ void main() {
         reason: '$rel differs',
       );
     }
+  });
+
+  test('SnapshotExclusions.none archives a bit-exact mirror', () async {
+    final ws = await makeWorkspace();
+    final result = await createSnapshot(
+      SnapshotRequest(
+        sourceDirPath: ws.path,
+        snapshotsDirPath: p.join(sandbox.path, 'dest', 'snapshots'),
+        fileName: SnapshotRepository.fileNameFor(
+          kind: SnapshotKind.backup,
+          appVersion: '0.11.4',
+          timestamp: DateTime(2026, 7, 16, 13),
+        ),
+        appVersion: '0.11.4',
+        trigger: BackupTrigger.manual,
+        exclusions: SnapshotExclusions.none,
+      ),
+    );
+    expect(result.fileCount, 4, reason: 'the log file is archived too');
   });
 
   test('zip passes the system unzip -t (manual-restore path)', () async {

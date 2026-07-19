@@ -30,6 +30,8 @@ class SnapshotManifest {
     required this.totalBytes,
     this.platform = 'macos',
     this.skippedFiles = const [],
+    this.exclusionRules = const [],
+    this.excludedFileCount = 0,
   });
 
   static const int currentFormatVersion = 1;
@@ -47,6 +49,15 @@ class SnapshotManifest {
   /// drop a lock file mid-walk). Recorded rather than failing the snapshot.
   final List<String> skippedFiles;
 
+  /// Which [SnapshotExclusions] rules were active — e.g. `['logs',
+  /// 'searchIndexes']`. Present so a human reading manifest.json can tell that
+  /// those files are absent BY DESIGN, not lost. Distinct from [skippedFiles],
+  /// which means "wanted but unreadable".
+  final List<String> exclusionRules;
+
+  /// How many files those rules left out.
+  final int excludedFileCount;
+
   Map<String, dynamic> toJson() => {
         'formatVersion': formatVersion,
         'appVersion': appVersion,
@@ -57,6 +68,8 @@ class SnapshotManifest {
         'totalBytes': totalBytes,
         'platform': platform,
         'skippedFiles': skippedFiles,
+        'exclusionRules': exclusionRules,
+        'excludedFileCount': excludedFileCount,
       };
 
   String toJsonString() => const JsonEncoder.withIndent('  ').convert(toJson());
@@ -79,6 +92,13 @@ class SnapshotManifest {
         skippedFiles: (json['skippedFiles'] as List<dynamic>? ?? [])
             .cast<String>()
             .toList(),
+        // Additive since 2026-07-19; absent in older snapshots, which were
+        // taken with no exclusions at all. formatVersion stays 1 — an old
+        // build reading a new manifest simply ignores these keys.
+        exclusionRules: (json['exclusionRules'] as List<dynamic>? ?? [])
+            .cast<String>()
+            .toList(),
+        excludedFileCount: json['excludedFileCount'] as int? ?? 0,
       );
     } catch (_) {
       return null;
