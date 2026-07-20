@@ -5,6 +5,8 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 // [fork:ribbon]
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/ribbon_collapse_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shortcuts/custom_delete_command.dart';
+// [fork:rtl]
+import 'package:appflowy/plugins/document/presentation/editor_plugins/shortcuts/visual_line_selection_commands.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/undo_redo/custom_undo_redo_commands.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/emoji_picker/emoji_picker.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -46,6 +48,9 @@ List<CommandShortcutEvent> commandShortcutEvents = [
 
   // [fork:ribbon] specs/ribbon-menu.md
   toggleRibbonCommand,
+
+  // [fork:rtl] specs/rtl-support.md — visual-line / paragraph selection
+  ...visualLineSelectionCommands,
 
   // remove standard shortcuts for copy, cut, paste, todo
   ...standardCommandShortcutEvents
