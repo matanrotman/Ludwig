@@ -154,6 +154,10 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 - Code generation before `flutter run`: `cargo make code_generation` (from `frontend/`).
 
 ## Next step
+0. **START HERE — two RTL selection items, same underlying area, both scoped 2026-07-20 in `specs/rtl-support.md`.**
+   - **Bug: RTL selection jumps left when clicking past the text edge.** Reported by the user; every wrapped line except the first. A detailed hypothesis is written up (soft-wrap boundary ambiguity + `Position` carrying no `TextAffinity`) but **not yet reproduced** — confirm it on the real target before writing a fix.
+   - **Feature: Option+Ctrl+Shift+arrows** — Left/Right extend to the visual line edge (Word-style), Up/Down extend one paragraph per press, RTL semantics are *visual*. **Needs a small additive fork method** (`getLineBoundaryInPosition` on `SelectableMixin`); an in-session claim that it was app-side-only was wrong and is corrected in the spec.
+   - Do the bug first — the feature is built on the same line-boundary machinery.
 *(Superseded items 0–2 from 2026-07-19 are resolved — see "Active feature" above. The margin cause turned out NOT to be centring; the coming-soon placeholder glyph is done; Phase 2 is built.)*
 1. **Verify the remaining Phase 2 items live**, then commit. Still unverified at the time of writing: the RTL-page title/margin case (LTR page was verified), and a measured before/after of the rendered text edges.
 2. ~~Settings → Workspace does not scroll.~~ **NOT A BUG — retracted 2026-07-20.** Claude reported this after synthetic scroll events failed to move the dialog; the user confirmed it scrolls fine by hand. The lesson is about the tooling, not the app: **a computer-use `scroll` that does nothing is not evidence of a broken scroll view.** The floating-toolbar toggle is reachable and therefore still unverified rather than blocked.
