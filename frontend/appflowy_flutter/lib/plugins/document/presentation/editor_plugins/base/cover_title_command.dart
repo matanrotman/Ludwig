@@ -98,6 +98,19 @@ final CommandShortcutEvent arrowUpToTitle = CommandShortcutEvent(
       if (!selection.isCollapsed || !selection.start.path.equals([0])) {
         return false;
       }
+      // Only from the first VISUAL line of the first block. "First block"
+      // alone is not enough: when it wraps, arrow-up from a lower visual
+      // line must walk up through the block's own lines first, not jump
+      // straight to the title (reported 2026-07-20). When the line span is
+      // unavailable (unmounted render object), fall back to firing, which
+      // is the pre-fix behavior and only affects the wrapped case.
+      final line = editorState
+          .getNodeAtPath([0])
+          ?.selectable
+          ?.getLineBoundaryInPosition(selection.end);
+      if (line != null && line.start.offset > 0) {
+        return false;
+      }
       return true;
     },
   ),
