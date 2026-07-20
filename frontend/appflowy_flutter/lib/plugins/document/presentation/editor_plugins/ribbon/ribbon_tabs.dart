@@ -17,7 +17,12 @@
 // The state of every item here was audited against the app and the editor fork
 // on 2026-07-19; see the inventory table in specs/ribbon-menu.md.
 
+import 'dart:async';
+
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+// [fork:rtl] Phase 2 — per-page direction.
+import 'package:appflowy/plugins/document/application/page_text_direction.dart';
+import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/align_toolbar_item/custom_text_align_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/custom_copy_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/custom_cut_command.dart';
@@ -157,6 +162,54 @@ RibbonAction _blockAttributeAction({
         _blockAttributeIs(editorState, attributeKey, value),
     onPressed: (_, editorState) =>
         _setBlockAttribute(editorState, attributeKey, value),
+  );
+}
+
+/// [fork:rtl] A whole-page direction toggle (Phase 2).
+///
+/// Unlike the Text tab's direction buttons — which set a `blockComponentTextDirection`
+/// attribute on the selected block — these persist to the *view*, in
+/// `View.extra`, so the choice belongs to the page and survives reopening.
+///
+/// Both its state and its effect live outside the editor, so it reads the view
+/// from [ViewBloc] rather than from [EditorState]: hence
+/// [RibbonAction.isHighlightedInContext] and the unused `editorState` below.
+/// It is also deliberately always enabled — a page has a direction whether or
+/// not the cursor is currently in it.
+RibbonAction _pageDirectionAction({
+  required String id,
+  required String label,
+  required PageTextDirection direction,
+  required FlowySvgData icon,
+}) {
+  return RibbonAction(
+    id: id,
+    label: label,
+    icon: icon,
+    isEnabled: (_) => true,
+    // watch, not read: this is evaluated during the button's build, and the
+    // toggled-on state has to follow the view changing underneath it.
+    isHighlightedInContext: (context, _) =>
+        context.watch<ViewBloc>().state.view.pageTextDirection == direction,
+    onPressed: (context, _) {
+      final view = context.read<ViewBloc>().state.view;
+      // Pressing the active direction again clears it, returning the page to
+      // the app-wide default — the same "click to toggle off" the block-level
+      // direction buttons have.
+      final next = view.pageTextDirection == direction
+          ? PageTextDirection.inherit
+          : direction;
+      unawaited(
+        setPageTextDirection(view, next).then((_) {
+          if (context.mounted) {
+            // The write lands in the backend; the ViewBloc has to be told to
+            // re-read it, or the editor keeps rendering the old direction until
+            // the page is reopened.
+            context.read<ViewBloc>().add(const ViewEvent.initial());
+          }
+        }),
+      );
+    },
   );
 }
 
@@ -460,11 +513,24 @@ RibbonTab _pageTab() {
         id: 'page_direction',
         caption: 'Page direction',
         actions: [
-          // Phase 2 — the headline capability. Cheaper than it looks: direction
-          // is already read per-document, merely stored globally. Moving that
-          // storage to View.extra is the work.
-          _comingSoon('page_ltr', 'Page left to right'),
-          _comingSoon('page_rtl', 'Page right to left'),
+          _pageDirectionAction(
+            id: 'page_ltr',
+            label: 'Page left to right',
+            direction: PageTextDirection.ltr,
+            icon: FlowySvgs.textdirection_ltr_m,
+          ),
+          _pageDirectionAction(
+            id: 'page_rtl',
+            label: 'Page right to left',
+            direction: PageTextDirection.rtl,
+            icon: FlowySvgs.textdirection_rtl_m,
+          ),
+          _pageDirectionAction(
+            id: 'page_auto',
+            label: 'Automatic page direction',
+            direction: PageTextDirection.auto,
+            icon: FlowySvgs.textdirection_auto_m,
+          ),
         ],
       ),
       RibbonGroup(

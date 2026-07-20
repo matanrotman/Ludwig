@@ -40,6 +40,7 @@ class RibbonAction {
     this.comingSoon = false,
     this.isEnabled,
     this.isHighlighted,
+    this.isHighlightedInContext,
     this.onPressed,
     this.builder,
   }) : assert(
@@ -71,6 +72,12 @@ class RibbonAction {
   /// Whether the action is currently *active* (e.g. bold text is selected),
   /// so the button can render in a toggled-on state.
   final bool Function(EditorState editorState)? isHighlighted;
+
+  /// Same as [isHighlighted], for actions whose on/off state lives outside the
+  /// editor — page-level settings read from a bloc rather than from the
+  /// document. Takes precedence over [isHighlighted] when both are set.
+  final bool Function(BuildContext context, EditorState editorState)?
+      isHighlightedInContext;
 
   final void Function(BuildContext context, EditorState editorState)? onPressed;
 

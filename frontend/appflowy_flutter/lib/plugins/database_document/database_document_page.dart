@@ -164,7 +164,6 @@ class _DatabaseDocumentPageState extends State<DatabaseDocumentPage> {
           return state.when(
             loading: () => const SizedBox.shrink(),
             ready: (databaseController, rowController) {
-              final padding = EditorStyleCustomizer.documentPadding;
               return BlocProvider(
                 create: (context) => RowDetailBloc(
                   fieldController: databaseController.fieldController,
@@ -181,11 +180,18 @@ class _DatabaseDocumentPageState extends State<DatabaseDocumentPage> {
                       userProfile:
                           context.read<RelatedRowDetailPageBloc>().userProfile,
                     ),
+                    // [fork:rtl] The property list is a *header* widget, so it
+                    // does not get the block option gutter for free the way
+                    // body blocks do — it has to inset by the full distance the
+                    // text starts at, on both sides. Reading `padding.left` /
+                    // `padding.right` misaligned it by the gutter's width (44
+                    // before the gutter grew, 73 after). Same class of bug as
+                    // the cover title; see EditorStyleCustomizer.
                     Padding(
                       padding: EdgeInsets.only(
                         top: 24,
-                        left: padding.left,
-                        right: padding.right,
+                        left: EditorStyleCustomizer.documentTextInset,
+                        right: EditorStyleCustomizer.documentTextInset,
                       ),
                       child: RowPropertyList(
                         viewId: databaseController.viewId,

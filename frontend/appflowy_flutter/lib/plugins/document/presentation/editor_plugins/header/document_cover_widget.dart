@@ -1,5 +1,8 @@
 import 'dart:io';
 import 'dart:math';
+// [fork:rtl] Prefixed to match editor_style.dart, whose direction helpers this
+// file calls.
+import 'dart:ui' as ui;
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -204,26 +207,50 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
     );
   }
 
+  /// [fork:rtl] The direction the header should read in — the page's, not the
+  /// app layout's. See `EditorStyleCustomizer.headerTextDirection`.
+  ui.TextDirection _headerDirection(BuildContext context) =>
+      EditorStyleCustomizer.headerTextDirection(
+        defaultTextDirection:
+            widget.editorState.editorStyle.defaultTextDirection,
+        text: view.name,
+        layoutDirection: Directionality.of(context),
+      );
+
   Widget _buildAlignedTitle(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: widget.editorState.editorStyle.maxWidth ?? double.infinity,
-        ),
-        padding: widget.editorState.editorStyle.padding +
-            const EdgeInsets.symmetric(horizontal: 44),
-        child: MouseRegion(
-          onEnter: (event) => isCoverTitleHovered.value = true,
-          onExit: (event) => isCoverTitleHovered.value = false,
-          child: CoverTitle(
-            // [fork:title-fix] `view` (kept live by the ViewListener above),
-            // NOT `widget.view` — the latter is the snapshot captured when the
-            // page was opened, so a title typed after that is missing from it.
-            // CoverTitle seeds its text controller once in initState, and the
-            // editor's virtualized list disposes/recreates this header when a
-            // paste grows the document — reseeding from a stale empty name is
-            // exactly what made the title revert to "Untitled".
-            view: view,
+    return Directionality(
+      // Wrapping (rather than setting `textDirection` on the field) also fixes
+      // the field's *alignment*: TextField defaults to `TextAlign.start`, which
+      // resolves against the ambient direction — so one wrapper moves both the
+      // glyph order and which margin the title sits against.
+      textDirection: _headerDirection(context),
+      child: Center(
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth:
+                widget.editorState.editorStyle.maxWidth ?? double.infinity,
+          ),
+          // [fork:rtl] Lines the title up with the first line of body text. The
+          // old `symmetric(horizontal: 44)` was a stale copy of the block option
+          // gutter's width, which has since grown to ~73 — leaving the title 29px
+          // outside the text (measured on the real target, 2026-07-19).
+          padding: widget.editorState.editorStyle.padding +
+              EditorStyleCustomizer.textAlignmentInsetFor(
+                widget.editorState.editorStyle.padding,
+              ),
+          child: MouseRegion(
+            onEnter: (event) => isCoverTitleHovered.value = true,
+            onExit: (event) => isCoverTitleHovered.value = false,
+            child: CoverTitle(
+              // [fork:title-fix] `view` (kept live by the ViewListener above),
+              // NOT `widget.view` — the latter is the snapshot captured when the
+              // page was opened, so a title typed after that is missing from it.
+              // CoverTitle seeds its text controller once in initState, and the
+              // editor's virtualized list disposes/recreates this header when a
+              // paste grows the document — reseeding from a stale empty name is
+              // exactly what made the title revert to "Untitled".
+              view: view,
+            ),
           ),
         ),
       ),
@@ -239,25 +266,34 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
       bottom: hasCover ? kToolbarHeight - kIconHeight / 2 : kToolbarHeight,
       left: 0,
       right: 0,
-      child: Center(
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth:
-                widget.editorState.editorStyle.maxWidth ?? double.infinity,
-          ),
-          padding: widget.editorState.editorStyle.padding +
-              const EdgeInsets.symmetric(horizontal: 44),
-          child: Row(
-            children: [
-              DocumentIcon(
-                editorState: widget.editorState,
-                node: widget.node,
-                icon: viewIcon,
-                documentId: view.id,
-                onChangeIcon: (icon) => _saveIconOrCover(icon: icon),
-              ),
-              Spacer(),
-            ],
+      // [fork:rtl] The icon belongs to the title, so it follows the same
+      // direction — otherwise an RTL page's icon sits at the far end of the row
+      // from the title beneath it.
+      child: Directionality(
+        textDirection: _headerDirection(context),
+        child: Center(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth:
+                  widget.editorState.editorStyle.maxWidth ?? double.infinity,
+            ),
+            // [fork:rtl] Same alignment fix as the title above.
+            padding: widget.editorState.editorStyle.padding +
+                EditorStyleCustomizer.textAlignmentInsetFor(
+                  widget.editorState.editorStyle.padding,
+                ),
+            child: Row(
+              children: [
+                DocumentIcon(
+                  editorState: widget.editorState,
+                  node: widget.node,
+                  icon: viewIcon,
+                  documentId: view.id,
+                  onChangeIcon: (icon) => _saveIconOrCover(icon: icon),
+                ),
+                Spacer(),
+              ],
+            ),
           ),
         ),
       ),
@@ -291,9 +327,11 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
         ? min(renderBoxWidth, appearanceCubit.state.width)
         : appearanceCubit.state.width;
 
-    // left padding + editor width + right padding = the width of the editor
+    // [fork:rtl] Centring gap, then however far in the body text starts. This
+    // read `documentPadding.right` before, which was only ever a stand-in for
+    // the same quantity and drifted 29px out of date once the gutter grew.
     final leftOffset = (constraints.maxWidth - editorWidth) / 2.0 +
-        EditorStyleCustomizer.documentPadding.right;
+        EditorStyleCustomizer.documentTextInset;
 
     // ensure the offset is not negative
     return max(0, leftOffset);

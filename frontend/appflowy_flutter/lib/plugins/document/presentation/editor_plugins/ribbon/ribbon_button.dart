@@ -3,6 +3,10 @@
 // The one button widget every ribbon action renders through, so the strip looks
 // uniform and every tooltip follows the same "name + live shortcut" rule.
 
+// `Path` here must be dart:ui's, not appflowy_editor's node-path typedef of the
+// same name — hence the prefix.
+import 'dart:ui' as ui;
+
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -45,7 +49,9 @@ class _RibbonButtonState extends State<RibbonButton> {
     final disabledReason = action.disabledReason(widget.editorState);
     final isDisabled = disabledReason != null;
     final isHighlighted = !isDisabled &&
-        (action.isHighlighted?.call(widget.editorState) ?? false);
+        (action.isHighlightedInContext?.call(context, widget.editorState) ??
+            action.isHighlighted?.call(widget.editorState) ??
+            false);
 
     final Color iconColor;
     if (isDisabled) {
@@ -77,14 +83,7 @@ class _RibbonButtonState extends State<RibbonButton> {
               size: const Size.square(18.0),
               color: iconColor,
             )
-          : Text(
-              // Fallback for actions that have no icon yet — better than an
-              // empty square while the ribbon is being filled in.
-              action.label.isEmpty
-                  ? '?'
-                  : action.label.substring(0, 1).toUpperCase(),
-              style: theme.textStyle.body.standard(color: iconColor),
-            ),
+          : _PlaceholderGlyph(color: iconColor),
     );
 
     if (!isDisabled) {
@@ -135,4 +134,64 @@ class _RibbonButtonState extends State<RibbonButton> {
     }
     return buffer.toString();
   }
+}
+
+/// Stand-in for actions that have no icon yet.
+///
+/// One shared glyph for every icon-less action, rather than the action's first
+/// letter: a row of unrelated initials ("F H F F", "S M P") reads as noise or
+/// as broken icons, whereas a single repeated dashed outline reads as "nothing
+/// here yet" — which is exactly what these coming-soon buttons are. Swap an
+/// action to a real [FlowySvg] and this disappears for it automatically.
+class _PlaceholderGlyph extends StatelessWidget {
+  const _PlaceholderGlyph({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        size: const Size.square(14.0),
+        painter: _DashedSquarePainter(color: color),
+      );
+}
+
+class _DashedSquarePainter extends CustomPainter {
+  const _DashedSquarePainter({required this.color});
+
+  final Color color;
+
+  static const double _dash = 2.5;
+  static const double _gap = 2.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    final path = ui.Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          const Radius.circular(2.0),
+        ),
+      );
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(
+          metric.extractPath(distance, distance + _dash),
+          paint,
+        );
+        distance += _dash + _gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedSquarePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

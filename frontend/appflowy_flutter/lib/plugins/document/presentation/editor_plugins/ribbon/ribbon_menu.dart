@@ -7,6 +7,9 @@
 // which scrolls away with the document.
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+// [fork:ribbon] The ribbon starts from the sidebar's side — see build().
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
+import 'package:appflowy/workspace/application/settings/appearance/sidebar_dock_side.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
@@ -42,55 +45,72 @@ class RibbonMenu extends StatelessWidget {
 
     final theme = AppFlowyTheme.of(context);
 
-    // The ribbon is deliberately ALWAYS left-to-right, like Word's — and like
-    // the sidebar, it belongs to the application frame rather than to the page.
-    // Even though its buttons act on the current page, flipping the whole strip
-    // when a page's direction changes would move every control under the user's
-    // hands. Decided with the user 2026-07-19; see specs/ribbon-menu.md.
+    // The ribbon starts from the same side the SIDEBAR docks to: sidebar on the
+    // right ⇒ tabs and buttons start from the right, and vice versa. This
+    // reverses the 2026-07-19 "always left-to-right" decision (user changed
+    // their mind 2026-07-20).
     //
-    // Note this is NOT the same question as the document's own margins, which
-    // DO follow the page (see `EditorStyleCustomizer.documentPaddingFor`).
+    // ⚠️ It follows [SidebarDockSide], NOT `LayoutDirection` — the two are
+    // deliberately independent (see `sidebar_dock_side.dart`), and picking the
+    // wrong one silently does nothing. `LayoutDirection` is about *document
+    // content*; the sidebar's dock side is about *app chrome*, which is what
+    // the ribbon is. Concretely: this user runs an English (LTR) interface with
+    // the sidebar docked right, so inheriting the ambient `Directionality` left
+    // the ribbon stubbornly left-aligned — the first attempt at this did
+    // exactly that.
+    //
+    // Also deliberately NOT the page's direction: a per-page RTL/LTR switch
+    // must not rearrange the toolbar. That is the distinction the reversal
+    // preserves — the document's own margins and title DO follow the page
+    // (`EditorStyleCustomizer.documentPaddingFor`), the chrome around it
+    // follows the frame.
+    final sidebarOnRight = resolveSidebarOnRight(
+      context,
+      context.watch<AppearanceSettingsCubit>().state.sidebarDockSide,
+    );
+
     return Directionality(
-      textDirection: TextDirection.ltr,
+      textDirection:
+          sidebarOnRight ? TextDirection.rtl : TextDirection.ltr,
       child: BlocBuilder<RibbonSettingsCubit, RibbonSettingsState>(
-        builder: (context, settings) {
-          // Avoid flashing the expanded default before the stored state loads.
-          if (!settings.isLoaded) {
-            return const SizedBox.shrink();
-          }
+      builder: (context, settings) {
+        // Avoid flashing the expanded default before the stored state loads.
+        if (!settings.isLoaded) {
+          return const SizedBox.shrink();
+        }
 
-          final activeTab = tabs.firstWhere(
-            (t) => t.id == settings.activeTabId,
-            orElse: () => tabs.first,
-          );
+        final activeTab = tabs.firstWhere(
+          (t) => t.id == settings.activeTabId,
+          orElse: () => tabs.first,
+        );
 
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.surfaceColorScheme.primary,
-              border: Border(
-                bottom: BorderSide(color: theme.borderColorScheme.primary),
-              ),
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.surfaceColorScheme.primary,
+            border: Border(
+              bottom: BorderSide(color: theme.borderColorScheme.primary),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _RibbonTabBar(
-                  tabs: tabs,
-                  activeTabId: activeTab.id,
-                  isCollapsed: settings.isCollapsed,
-                ),
-                // Rebuilding the groups on every selection change is what keeps
-                // button enabled/highlighted states honest as the cursor moves.
-                if (!settings.isCollapsed)
-                  ValueListenableBuilder<Selection?>(
-                    valueListenable: editorState.selectionNotifier,
-                    builder: (context, _, __) => _RibbonGroupsRow(
-                      tab: activeTab,
-                      editorState: editorState,
-                      shortcuts: shortcuts,
-                    ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RibbonTabBar(
+                tabs: tabs,
+                activeTabId: activeTab.id,
+                isCollapsed: settings.isCollapsed,
+              ),
+              // Rebuilding the groups on every selection change is what keeps
+              // button enabled/highlighted states honest as the cursor moves.
+              if (!settings.isCollapsed)
+                ValueListenableBuilder<Selection?>(
+                  valueListenable: editorState.selectionNotifier,
+                  builder: (context, _, __) => _RibbonGroupsRow(
+                    tab: activeTab,
+                    editorState: editorState,
+                    shortcuts: shortcuts,
                   ),
+                ),
               ],
             ),
           );

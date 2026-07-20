@@ -35,6 +35,7 @@ class EditorStyleCustomizer {
     required this.padding,
     this.width,
     this.editorState,
+    this.pageTextDirection,
   });
 
   final BuildContext context;
@@ -42,50 +43,157 @@ class EditorStyleCustomizer {
   final double? width;
   final EditorState? editorState;
 
+  /// [fork:rtl] This page's own direction ('ltr' / 'rtl' / 'auto'), when it has
+  /// one. Null means the page has never been set and should follow the app-wide
+  /// default, which is the pre-Phase-2 behaviour every existing page keeps.
+  /// See `page_text_direction.dart`.
+  final String? pageTextDirection;
+
   static const double maxDocumentWidth = 480 * 4;
   static const double minDocumentWidth = 480;
 
-  static EdgeInsets get documentPadding => UniversalPlatform.isMobile
-      ? EdgeInsets.zero
-      : EdgeInsets.only(
-          left: 40,
-          right: 40 + EditorStyleCustomizer.optionMenuWidth,
-        );
+  /// Bare margin between the editor pane edge and the document, before any
+  /// allowance for the block option gutter.
+  static const double baseDocumentMargin = 40.0;
 
-  /// [fork:rtl] Direction-aware document padding.
+  /// [fork:rtl] Gap between the block option buttons and the block's text,
+  /// consumed by `editor_configuration.dart`'s `actionTrailingBuilder`.
   ///
-  /// The base [documentPadding] is written for LTR: it reserves an extra
-  /// [optionMenuWidth] on the *right*. This mirrors that reservation for RTL so
-  /// the wider side follows the reading direction. LTR is returned unchanged,
-  /// so this is a no-op for LTR users.
+  /// Lives here rather than at the use site because [blockOptionGutterWidth]
+  /// has to stay in step with it — that coupling is the whole reason the page
+  /// margins drifted (see below).
+  static const double blockActionTrailingGap = 30.0;
+
+  /// Total horizontal space the block option menu takes out of every block.
   ///
-  /// ⚠️ INCOMPLETE — this does NOT yet fix the asymmetry the user reported
-  /// (2026-07-19). Measured on the real target afterwards: left margin ~97px,
-  /// right ~116px, i.e. still ~19px wider on the right and visually unchanged.
-  /// ~19px is close to [optionMenuWidth] / 2, which points at the real cause:
-  /// the document column is *centred* inside a width that already reserves the
-  /// option-menu gutter, so centring absorbs whatever this padding does and
-  /// shifts the column by half the gutter instead. Fixing it properly means
-  /// addressing that centring/gutter interaction, not this padding.
-  /// Kept because it is correct for the non-centred case (document width at or
-  /// above the available width), but it is groundwork, not the fix.
+  /// ⚠️ This is **in-flow space, not an overlay.** The option menu is a real
+  /// `Row` child on the *leading* side of each block
+  /// (`block_component_action_wrapper.dart`), held open permanently by
+  /// `Visibility(maintainSize: true)`, so it pushes the text inward on that
+  /// side only. The trailing side must reserve the same amount by hand or the
+  /// page ends up visibly lopsided.
+  ///
+  /// = [optionMenuWidth] (the buttons: 18 + 2 + 18 + 5 ≈ 43, rounded to 44)
+  /// + [blockActionTrailingGap].
+  ///
+  /// History worth keeping: upstream returns `SizedBox.shrink()` for this
+  /// trailing gap, so upstream's gutter really is ~44 — which is why
+  /// [optionMenuWidth] alone was the correct compensation there. Our commit
+  /// `ffc069150` widened the gap to 30px on live-testing feedback and grew the
+  /// gutter to ~73 without updating any of the three places that compensate
+  /// for it, leaving every page 29px lopsided. Derive, don't re-hardcode.
+  static double get blockOptionGutterWidth =>
+      UniversalPlatform.isMobile ? 0 : optionMenuWidth + blockActionTrailingGap;
+
+  /// Where body text actually starts, measured from the editor pane edge.
+  ///
+  /// Both edges land here once [documentPaddingFor] has balanced the gutter, so
+  /// anything that needs to line up with the text — the title, the page icon,
+  /// the header toolbar — should measure against this rather than re-deriving
+  /// it from a padding side.
+  static double get documentTextInset =>
+      baseDocumentMargin + blockOptionGutterWidth;
+
+  /// Extra inset that lines a *non-block* widget up with the body text.
+  ///
+  /// Blocks get the gutter for free (it is a child of their own `Row`); the
+  /// header widgets are returned outside that wrapper — see
+  /// `custom_page_block_component.dart:89`, which returns the header raw — so
+  /// they have to add it by hand.
+  ///
+  /// Takes the padding rather than a direction because the header widgets sit
+  /// under the *app layout's* `Directionality`, which is not necessarily the
+  /// page's direction. The padding already encodes the page's direction (the
+  /// smaller side is the one the gutter is on), so reading it back keeps the
+  /// header in step with the body even when page and layout disagree.
+  static EdgeInsets textAlignmentInsetFor(EdgeInsets documentPadding) =>
+      documentPadding.left <= documentPadding.right
+          ? EdgeInsets.only(left: blockOptionGutterWidth)
+          : EdgeInsets.only(right: blockOptionGutterWidth);
+
+  /// [fork:rtl] Which way the page's *header* widgets — the title and the
+  /// icon/cover row — should read.
+  ///
+  /// Padding alone was not enough: the header sits under the **app layout's**
+  /// `Directionality`, so setting a page to LTR while the app is laid out RTL
+  /// left the title right-aligned and hard against the wrong margin. The body
+  /// text moved and the title did not (reported 2026-07-20).
+  ///
+  /// [defaultTextDirection] is `EditorStyle.defaultTextDirection`, which already
+  /// resolves page-setting-then-global (see `desktop()` below) — so this deals
+  /// only in what that produced, and never re-reads the page itself.
+  ///
+  /// `auto` is resolved from the title's own text, matching how each block
+  /// decides for itself. Note the text is the *committed* view name, so an
+  /// `auto` title settles its direction when the name commits rather than on
+  /// every keystroke; explicit ltr/rtl are immediate.
+  ///
+  /// Inherited quirk worth knowing: `determineTextDirection` counts ASCII
+  /// digits as LTR evidence, so a title like "2026 סיכום" resolves LTR. That is
+  /// the editor's behaviour for every block too, so the title stays consistent
+  /// with the body; it is asserted in `page_margin_and_direction_test.dart`.
+  static ui.TextDirection headerTextDirection({
+    required String? defaultTextDirection,
+    required String text,
+    required ui.TextDirection layoutDirection,
+  }) {
+    switch (defaultTextDirection) {
+      case blockComponentTextDirectionLTR:
+        return ui.TextDirection.ltr;
+      case blockComponentTextDirectionRTL:
+        return ui.TextDirection.rtl;
+      case blockComponentTextDirectionAuto:
+        // No strongly-directional character (empty, digits, punctuation) means
+        // there is nothing to go on — defer to the frame rather than guessing.
+        return determineTextDirection(text) ?? layoutDirection;
+      default:
+        return layoutDirection;
+    }
+  }
+
+  static EdgeInsets get documentPadding =>
+      documentPaddingFor(ui.TextDirection.ltr);
+
+  /// [fork:rtl] Direction-aware document padding, balanced against the block
+  /// option gutter so both page margins render equal.
+  ///
+  /// The gutter ([blockOptionGutterWidth]) eats in-flow space on the *leading*
+  /// side of every block, so that side needs only [baseDocumentMargin] of
+  /// padding to reach its target margin, while the trailing side has to pay the
+  /// gutter's width itself. Both text edges then land at
+  /// `baseDocumentMargin + blockOptionGutterWidth` from the editor pane.
+  ///
+  /// Measured on the real macOS target (1332px pane, before this fix):
+  /// LTR text edges sat at 113 / 84, RTL at 40 / 157 — lopsided by 29px, which
+  /// is exactly `blockOptionGutterWidth - optionMenuWidth`. Verify changes here
+  /// by measuring rendered text edges, never by eye: the earlier attempt at
+  /// this blamed the `Center()` in `custom_page_block_component.dart:119`, but
+  /// that centring is symmetric by construction (the padding sits *inside* the
+  /// `maxWidth` constraint, so `Center` sees a fixed-width box) and cannot
+  /// shift the column at all.
+  ///
+  /// Note the leading margin is unchanged by this: only the trailing side
+  /// widens, to match. Nothing moves inward.
   static EdgeInsets documentPaddingFor(ui.TextDirection direction) {
     if (UniversalPlatform.isMobile) {
       return EdgeInsets.zero;
     }
+    final gutterSide = baseDocumentMargin + blockOptionGutterWidth;
     return direction == ui.TextDirection.rtl
-        ? EdgeInsets.only(
-            left: 40 + EditorStyleCustomizer.optionMenuWidth,
-            right: 40,
-          )
-        : documentPadding;
+        ? EdgeInsets.only(left: gutterSide, right: baseDocumentMargin)
+        : EdgeInsets.only(left: baseDocumentMargin, right: gutterSide);
   }
 
   static double get nodeHorizontalPadding =>
       UniversalPlatform.isMobile ? 24 : 0;
 
-  static EdgeInsets get documentPaddingWithOptionMenu =>
-      documentPadding + EdgeInsets.only(left: optionMenuWidth);
+  // [fork:rtl] Upstream's `documentPaddingWithOptionMenu` was removed here. It
+  // read `documentPadding + EdgeInsets.only(left: optionMenuWidth)`, which
+  // produced equal padding on both sides back when the gutter was exactly
+  // `optionMenuWidth` — i.e. it expressed the same idea as [documentTextInset],
+  // but hardcoded against a gutter width that no longer holds. It had no
+  // callers left, so a stale duplicate of that arithmetic was a trap rather
+  // than a convenience. Use [documentTextInset] if a symmetric inset is needed.
 
   static double get optionMenuWidth => UniversalPlatform.isMobile ? 0 : 44;
 
@@ -126,7 +234,10 @@ class EditorStyleCustomizer {
       cursorColor: cursorColor,
       selectionColor: appearance.selectionColor ??
           DefaultAppearanceSettings.getDefaultSelectionColor(context),
-      defaultTextDirection: appearance.defaultTextDirection,
+      // [fork:rtl] The page's own direction wins; the global preference is the
+      // fallback for pages that have never been set.
+      defaultTextDirection:
+          pageTextDirection ?? appearance.defaultTextDirection,
       textStyleConfiguration: TextStyleConfiguration(
         lineHeight: 1.4,
         // on Windows, if applyHeightToFirstAscent is true, the first line will be too high.
@@ -176,7 +287,8 @@ class EditorStyleCustomizer {
     final lineHeight = pageStyle.lineHeightLayout.lineHeight;
     final fontFamily = pageStyle.fontFamily ??
         context.read<AppearanceSettingsCubit>().state.font;
-    final defaultTextDirection =
+    // [fork:rtl] Same precedence as desktop(): page setting, then global.
+    final defaultTextDirection = pageTextDirection ??
         context.read<DocumentAppearanceCubit>().state.defaultTextDirection;
     final textScaleFactor =
         context.read<AppearanceSettingsCubit>().state.textScaleFactor;

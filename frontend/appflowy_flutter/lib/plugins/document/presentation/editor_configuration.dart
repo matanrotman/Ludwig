@@ -240,7 +240,14 @@ void _customBlockOptionActions(
         // anything) — see appflowy-editor's
         // block_component_action_wrapper_test.dart. Still pending a live
         // look at 30px specifically before treating it as settled.
-        return const SizedBox(width: 30);
+        //
+        // The value itself now lives in EditorStyleCustomizer, because the page
+        // margins have to reserve a matching amount on the opposite side and
+        // drifted out of step with it once already (see
+        // [EditorStyleCustomizer.blockOptionGutterWidth]). Change it there.
+        return const SizedBox(
+          width: EditorStyleCustomizer.blockActionTrailingGap,
+        );
       };
 
       builder.actionBuilder = (context, state) {

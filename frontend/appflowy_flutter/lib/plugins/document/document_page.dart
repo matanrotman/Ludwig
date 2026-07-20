@@ -5,11 +5,14 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
+// [fork:rtl]
+import 'package:appflowy/plugins/document/application/page_text_direction.dart';
 import 'package:appflowy/plugins/document/presentation/banner.dart';
 import 'package:appflowy/plugins/document/presentation/editor_drop_handler.dart';
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ai/widgets/ai_writer_scroll_wrapper.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/page_surface.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shared_context/shared_context.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/transaction_handler/editor_transaction_service.dart';
@@ -172,15 +175,33 @@ class _DocumentPageState extends State<DocumentPage>
 
     final width = context.read<DocumentAppearanceCubit>().state.width;
 
-    // [fork:rtl] The document's own reading direction decides which side gets
-    // the wider margin. Sourced from the layout direction today because that is
-    // what wraps the editor in a Directionality; when per-page direction lands
-    // (specs/ribbon-menu.md Phase 2) this should read the page's own setting.
+    // [fork:rtl] The page's own reading direction decides which side gets the
+    // wider margin, because the block option gutter — the thing the margin has
+    // to compensate for — sits on the *text's* leading side, not the app
+    // layout's. Sourcing this from the layout direction (as it did before
+    // Phase 2) breaks the moment the two disagree: measured on the real target,
+    // an RTL page under an LTR layout rendered margins of 40 / 187 because both
+    // the padding and the gutter reserved space on the same side.
+    //
+    // Read from the ViewBloc rather than `widget.view` so a direction change
+    // from the ribbon repaints immediately instead of on next open.
+    final view = context.watch<ViewBloc>().state.view;
+    final pageDirection = view.pageTextDirection;
+    final resolvedDirection = pageDirection.editorValue ??
+        context.read<DocumentAppearanceCubit>().state.defaultTextDirection;
+
     final documentPadding = EditorStyleCustomizer.documentPaddingFor(
-      context.read<AppearanceSettingsCubit>().state.layoutDirection ==
-              LayoutDirection.rtlLayout
-          ? ui.TextDirection.rtl
-          : ui.TextDirection.ltr,
+      switch (resolvedDirection) {
+        'rtl' => ui.TextDirection.rtl,
+        'ltr' => ui.TextDirection.ltr,
+        // 'auto' (and anything unrecognised) has no single answer at page
+        // level — each block decides for itself — so fall back to the app
+        // layout, which is what the surrounding Directionality uses.
+        _ => context.read<AppearanceSettingsCubit>().state.layoutDirection ==
+                LayoutDirection.rtlLayout
+            ? ui.TextDirection.rtl
+            : ui.TextDirection.ltr,
+      },
     );
 
     // avoid the initial selection calculation change when the editorState is not changed
@@ -198,6 +219,7 @@ class _DocumentPageState extends State<DocumentPage>
             width: width,
             padding: documentPadding,
             editorState: editorState,
+            pageTextDirection: pageDirection.editorValue,
           ),
           header: buildCoverAndIcon(context, state),
           initialSelection: initialSelection,
@@ -217,6 +239,7 @@ class _DocumentPageState extends State<DocumentPage>
             width: width,
             padding: documentPadding,
             editorState: editorState,
+            pageTextDirection: pageDirection.editorValue,
           ),
           header: buildCoverAndIcon(context, state),
           initialSelection: initialSelection,
@@ -261,7 +284,19 @@ class _DocumentPageState extends State<DocumentPage>
                   tabs: buildRibbonTabs(),
                 ),
               ),
-            Expanded(child: child),
+            // [fork:page-surface] Wraps only the editor area, so the ribbon
+            // above keeps sitting on the app chrome rather than on the page.
+            // The width is the document column's own, so the sheet lines up
+            // with the text on it.
+            Expanded(
+              child: UniversalPlatform.isDesktop
+                  ? PageSurface(
+                      pageWidth:
+                          context.read<DocumentAppearanceCubit>().state.width,
+                      child: child,
+                    )
+                  : child,
+            ),
           ],
         ),
       ),
