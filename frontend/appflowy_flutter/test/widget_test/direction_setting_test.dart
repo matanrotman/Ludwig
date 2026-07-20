@@ -2,7 +2,6 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/user/application/user_settings_service.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/appearance/chrome_theme_mode.dart';
 import 'package:appflowy/workspace/application/settings/appearance/sidebar_dock_side.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_workspace_view.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_radio_select.dart';
@@ -67,7 +66,6 @@ void main() {
             ),
       1.0,
       SidebarDockSide.auto,
-      ChromeThemeMode.followPages,
     );
     final mockAppearanceSettingsBloc = MockAppearanceSettingsBloc();
     when(() => mockAppearanceSettingsBloc.state).thenReturn(

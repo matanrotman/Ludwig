@@ -15,7 +15,6 @@ import 'package:appflowy/workspace/application/action_navigation/navigation_acti
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/notification/notification_service.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/appearance/chrome_theme_mode.dart';
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
 import 'package:appflowy/workspace/application/settings/notifications/notification_settings_cubit.dart';
 import 'package:appflowy/workspace/application/sidebar/rename_view/rename_view_bloc.dart';
@@ -241,13 +240,7 @@ class _ApplicationWidgetState extends State<ApplicationWidget> {
                     debugShowCheckedModeBanner: false,
                     theme: state.lightTheme,
                     darkTheme: state.darkTheme,
-                    // [fork:page-surface] The app frame can differ from the
-                    // pages' dark/light mode; the pages get theirs back via
-                    // PageThemeScope inside the document area.
-                    themeMode: resolveChromeThemeMode(
-                      state.chromeThemeMode,
-                      state.themeMode,
-                    ),
+                    themeMode: state.themeMode,
                     localizationsDelegates: context.localizationDelegates,
                     supportedLocales: context.supportedLocales,
                     locale: state.locale,

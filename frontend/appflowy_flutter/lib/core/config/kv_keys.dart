@@ -62,12 +62,6 @@ class KVKeys {
   /// `workspace/application/settings/appearance/sidebar_dock_side.dart`.
   static const String sidebarDockSide = 'sidebarDockSide';
 
-  /// Appearance of the app frame (sidebar, toolbars, dialogs),
-  /// independent of the pages' dark/light mode.
-  ///
-  /// See [ChromeThemeMode] in
-  /// `workspace/application/settings/appearance/chrome_theme_mode.dart`.
-  static const String chromeThemeMode = 'chromeThemeMode';
 
   static const String kCloudType = 'kCloudType';
   static const String kAppflowyCloudBaseURL = 'kAppFlowyCloudBaseURL';

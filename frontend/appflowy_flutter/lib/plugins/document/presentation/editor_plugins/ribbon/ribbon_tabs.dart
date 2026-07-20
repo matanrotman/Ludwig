@@ -22,13 +22,14 @@ import 'dart:async';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 // [fork:rtl] Phase 2 — per-page direction.
 import 'package:appflowy/plugins/document/application/page_text_direction.dart';
+import 'package:appflowy/plugins/document/application/page_theme_mode.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/align_toolbar_item/custom_text_align_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/custom_copy_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/custom_cut_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/custom_paste_command.dart';
-import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'ribbon_action.dart';
@@ -162,6 +163,51 @@ RibbonAction _blockAttributeAction({
         _blockAttributeIs(editorState, attributeKey, value),
     onPressed: (_, editorState) =>
         _setBlockAttribute(editorState, attributeKey, value),
+  );
+}
+
+/// [fork:page-surface] The ribbon's Appearance toggle — flips THIS page's
+/// light/dark look, independent of the app-wide theme in Settings.
+///
+/// The rule (user, 2026-07-20): Settings → Appearance controls the layout and
+/// the default page look; the ribbon controls this page's look. So this writes
+/// a per-page override to `View.extra` (page_theme_mode.dart) rather than the
+/// global `themeMode`. Always enabled — a page has a look whether or not the
+/// cursor is in it — and reads the view from [ViewBloc], like the page
+/// direction toggle.
+RibbonAction _pageThemeToggleAction() {
+  return RibbonAction(
+    id: 'theme_toggle',
+    label: 'Light / dark mode (this page)',
+    icon: FlowySvgs.settings_selected_theme_m,
+    isEnabled: (_) => true,
+    // Highlighted when this page carries an explicit override (i.e. it is
+    // deliberately different from — or pinned against — the app theme).
+    isHighlightedInContext: (context, _) =>
+        context.watch<ViewBloc>().state.view.pageThemeMode !=
+        PageThemeMode.inherit,
+    onPressed: (context, _) {
+      final view = context.read<ViewBloc>().state.view;
+      // Flip the page's *effective* brightness: its override if set, else the
+      // app theme the page is currently inheriting. The result is stored as an
+      // explicit per-page override.
+      final appIsDark = Theme.of(context).brightness == Brightness.dark;
+      final effectiveIsDark = view.pageThemeMode.brightness == null
+          ? appIsDark
+          : view.pageThemeMode.brightness == Brightness.dark;
+      final next = effectiveIsDark ? PageThemeMode.light : PageThemeMode.dark;
+      // If the flip lands back on the app theme, clear the override so the
+      // page returns to inheriting (and follows future Settings changes).
+      final appMode = appIsDark ? PageThemeMode.dark : PageThemeMode.light;
+      final toWrite = next == appMode ? PageThemeMode.inherit : next;
+      unawaited(
+        setPageThemeMode(view, toWrite).then((_) {
+          if (context.mounted) {
+            context.read<ViewBloc>().add(const ViewEvent.initial());
+          }
+        }),
+      );
+    },
   );
 }
 
@@ -602,16 +648,7 @@ RibbonTab _toolsTab() {
         id: 'appearance',
         caption: 'Appearance',
         actions: [
-          RibbonAction(
-            id: 'theme_toggle',
-            label: 'Light / dark mode',
-            icon: FlowySvgs.settings_selected_theme_m,
-            // Always available — unlike the formatting buttons this needs no
-            // cursor, so it must not inherit the default "needs a selection".
-            isEnabled: (_) => true,
-            onPressed: (context, _) =>
-                context.read<AppearanceSettingsCubit>().toggleThemeMode(),
-          ),
+          _pageThemeToggleAction(),
         ],
       ),
       RibbonGroup(

@@ -12,6 +12,7 @@ import 'package:appflowy/plugins/document/presentation/editor_drop_handler.dart'
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ai/widgets/ai_writer_scroll_wrapper.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover.dart';
+import 'package:appflowy/plugins/document/application/page_theme_mode.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_surface.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_theme_scope.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
@@ -286,14 +287,16 @@ class _DocumentPageState extends State<DocumentPage>
                 ),
               ),
             // [fork:page-surface] Wraps only the editor area, so the ribbon
-            // above keeps sitting on the app chrome rather than on the page.
+            // above keeps sitting on the app layout rather than on the page.
             // The width is the document column's own, so the sheet lines up
-            // with the text on it. PageThemeScope gives this same subtree
-            // the PAGES' dark/light mode, which may differ from the app
-            // frame's (chrome_theme_mode.dart).
+            // with the text on it. PageThemeScope applies this page's own
+            // light/dark override (set from the ribbon) to just this subtree;
+            // it is a no-op when the page inherits the app theme
+            // (page_theme_mode.dart).
             Expanded(
               child: UniversalPlatform.isDesktop
                   ? PageThemeScope(
+                      pageThemeMode: view.pageThemeMode,
                       child: PageSurface(
                         pageWidth:
                             context.read<DocumentAppearanceCubit>().state.width,

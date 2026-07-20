@@ -696,14 +696,6 @@
         "left": "Left",
         "right": "Right"
       },
-      "chromeAppearance": {
-        "title": "App frame appearance",
-        "description": "The sidebar, toolbars and menus. Defaults to \"Same as device\", so the Appearance toggle above recolors only your pages. Pick Light or Dark to pin the frame, or \"Same as pages\" to make the whole app follow the toggle together.",
-        "followPages": "Same as pages",
-        "light": "Light",
-        "dark": "Dark",
-        "system": "Same as device"
-      },
       "dateTime": {
         "title": "Date & time",
         "example": "{} at {} ({})",

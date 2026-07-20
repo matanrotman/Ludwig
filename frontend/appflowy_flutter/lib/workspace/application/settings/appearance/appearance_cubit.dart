@@ -8,7 +8,6 @@ import 'package:appflowy/user/application/user_settings_service.dart';
 import 'package:appflowy/util/color_to_hex_string.dart';
 import 'package:appflowy/workspace/application/appearance_defaults.dart';
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
-import 'package:appflowy/workspace/application/settings/appearance/chrome_theme_mode.dart';
 import 'package:appflowy/workspace/application/settings/appearance/sidebar_dock_side.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
@@ -70,12 +69,10 @@ class AppearanceSettingsCubit extends Cubit<AppearanceSettingsState> {
                   ),
             1.0,
             SidebarDockSide.auto,
-            kDefaultChromeThemeMode,
           ),
         ) {
     readTextScaleFactor();
     readSidebarDockSideSetting();
-    readChromeThemeModeSetting();
   }
 
   final AppearanceSettingsPB _appearanceSettings;
@@ -115,18 +112,6 @@ class AppearanceSettingsCubit extends Cubit<AppearanceSettingsState> {
     emit(state.copyWith(sidebarDockSide: side));
   }
 
-  /// Sets the app frame's appearance independently of the pages'
-  /// dark/light mode. Persisted locally only, like [setSidebarDockSide].
-  /// [fork:page-surface] See chrome_theme_mode.dart.
-  Future<void> setChromeThemeMode(ChromeThemeMode mode) async {
-    await saveChromeThemeMode(mode);
-    emit(state.copyWith(chromeThemeMode: mode));
-  }
-
-  Future<void> readChromeThemeModeSetting() async {
-    final mode = await readChromeThemeMode();
-    emit(state.copyWith(chromeThemeMode: mode));
-  }
 
   /// Update selected theme in the user's settings and emit an updated state
   /// with the AppTheme named [themeName].
@@ -450,7 +435,6 @@ class AppearanceSettingsState with _$AppearanceSettingsState {
     required Color? documentSelectionColor,
     required double textScaleFactor,
     required SidebarDockSide sidebarDockSide,
-    required ChromeThemeMode chromeThemeMode,
   }) = _AppearanceSettingsState;
 
   factory AppearanceSettingsState.initial(
@@ -470,7 +454,6 @@ class AppearanceSettingsState with _$AppearanceSettingsState {
     Color? documentSelectionColor,
     double textScaleFactor,
     SidebarDockSide sidebarDockSide,
-    ChromeThemeMode chromeThemeMode,
   ) {
     return AppearanceSettingsState(
       appTheme: appTheme,
@@ -489,7 +472,6 @@ class AppearanceSettingsState with _$AppearanceSettingsState {
       documentSelectionColor: documentSelectionColor,
       textScaleFactor: textScaleFactor,
       sidebarDockSide: sidebarDockSide,
-      chromeThemeMode: chromeThemeMode,
     );
   }
 
