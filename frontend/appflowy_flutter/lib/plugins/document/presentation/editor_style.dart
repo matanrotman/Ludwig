@@ -8,6 +8,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/base/font_
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_menu.dart';
 import 'package:appflowy/shared/google_fonts_extension.dart';
+import 'package:appflowy/util/color_contrast.dart';
 import 'package:appflowy/util/font_family_extension.dart';
 import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
@@ -259,7 +260,12 @@ class EditorStyleCustomizer {
           decoration: TextDecoration.lineThrough,
         ),
         href: baseTextStyle(fontFamily).copyWith(
-          color: theme.colorScheme.primary,
+          // [fork:page-surface] Keep links legible on this page's background —
+          // the default cyan is only ~2.2:1 on a white sheet (color_contrast.dart).
+          color: ensureContrast(
+            theme.colorScheme.primary,
+            theme.colorScheme.surface,
+          ),
           decoration: TextDecoration.underline,
         ),
         code: GoogleFonts.robotoMono(
@@ -310,7 +316,11 @@ class EditorStyleCustomizer {
           decoration: TextDecoration.lineThrough,
         ),
         href: baseTextStyle.copyWith(
-          color: theme.colorScheme.primary,
+          // [fork:page-surface] See desktop() — keep links legible on the page.
+          color: ensureContrast(
+            theme.colorScheme.primary,
+            theme.colorScheme.surface,
+          ),
           decoration: TextDecoration.underline,
         ),
         code: GoogleFonts.robotoMono(

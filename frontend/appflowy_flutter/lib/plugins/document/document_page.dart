@@ -209,41 +209,48 @@ class _DocumentPageState extends State<DocumentPage>
     // avoid the initial selection calculation change when the editorState is not changed
     initialSelection ??= _calculateInitialSelection(editorState);
 
-    final Widget child;
-    if (UniversalPlatform.isMobile) {
-      child = BlocBuilder<DocumentPageStyleBloc, DocumentPageStyleState>(
-        builder: (context, styleState) => AppFlowyEditorPage(
-          editorState: editorState,
-          // if the view's name is empty, focus on the title
-          autoFocus: widget.view.name.isEmpty ? false : null,
-          styleCustomizer: EditorStyleCustomizer(
-            context: context,
-            width: width,
-            padding: documentPadding,
+    // [fork:page-surface] Built as a closure of `ctx`, not eagerly, so that on
+    // desktop it is built INSIDE PageThemeScope — the EditorStyleCustomizer and
+    // the cover/title then resolve every theme colour (text, links, code, …)
+    // from the PAGE's theme, not the app layout's. Otherwise a page overridden
+    // to a different brightness kept the layout's text/link colours and lost
+    // contrast (dark text on a dark page, and vice versa). Mobile has no
+    // PageThemeScope, so it just gets the outer context.
+    Widget buildEditorContent(BuildContext ctx) {
+      if (UniversalPlatform.isMobile) {
+        return BlocBuilder<DocumentPageStyleBloc, DocumentPageStyleState>(
+          builder: (context, styleState) => AppFlowyEditorPage(
             editorState: editorState,
-            pageTextDirection: pageDirection.editorValue,
+            // if the view's name is empty, focus on the title
+            autoFocus: widget.view.name.isEmpty ? false : null,
+            styleCustomizer: EditorStyleCustomizer(
+              context: context,
+              width: width,
+              padding: documentPadding,
+              editorState: editorState,
+              pageTextDirection: pageDirection.editorValue,
+            ),
+            header: buildCoverAndIcon(context, state),
+            initialSelection: initialSelection,
           ),
-          header: buildCoverAndIcon(context, state),
-          initialSelection: initialSelection,
-        ),
-      );
-    } else {
-      child = EditorDropHandler(
+        );
+      }
+      return EditorDropHandler(
         viewId: widget.view.id,
         editorState: editorState,
-        isLocalMode: context.read<DocumentBloc>().isLocalMode,
+        isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
         child: AppFlowyEditorPage(
           editorState: editorState,
           // if the view's name is empty, focus on the title
           autoFocus: widget.view.name.isEmpty ? false : null,
           styleCustomizer: EditorStyleCustomizer(
-            context: context,
+            context: ctx,
             width: width,
             padding: documentPadding,
             editorState: editorState,
             pageTextDirection: pageDirection.editorValue,
           ),
-          header: buildCoverAndIcon(context, state),
+          header: buildCoverAndIcon(ctx, state),
           initialSelection: initialSelection,
           placeholderText: (node) =>
               node.type == ParagraphBlockKeys.type && !node.isInTable
@@ -300,10 +307,11 @@ class _DocumentPageState extends State<DocumentPage>
                       child: PageSurface(
                         pageWidth:
                             context.read<DocumentAppearanceCubit>().state.width,
-                        child: child,
+                        // Builder so the editor is built under the page theme.
+                        child: Builder(builder: buildEditorContent),
                       ),
                     )
-                  : child,
+                  : buildEditorContent(context),
             ),
           ],
         ),
