@@ -67,7 +67,7 @@ Color _deskColorFor(Color sheet) {
 ///
 /// [pageWidth] is the document column's own width setting
 /// (`DocumentAppearanceCubit.state.width`).
-class PageSurface extends StatelessWidget {
+class PageSurface extends StatefulWidget {
   const PageSurface({
     super.key,
     required this.pageWidth,
@@ -76,6 +76,48 @@ class PageSurface extends StatelessWidget {
 
   final double pageWidth;
   final Widget child;
+
+  @override
+  State<PageSurface> createState() => _PageSurfaceState();
+}
+
+class _PageSurfaceState extends State<PageSurface> {
+  /// Current gap between the ribbon and the top of the sheet.
+  ///
+  /// Held in a [ValueNotifier] rather than in [State] so a scroll repaints only
+  /// the padding, not the whole editor beneath it — this updates on every
+  /// scroll frame, and rebuilding the document each time would be wasteful.
+  final ValueNotifier<double> _topMargin = ValueNotifier(_kDeskMarginTop);
+
+  @override
+  void dispose() {
+    _topMargin.dispose();
+    super.dispose();
+  }
+
+  /// Closes the gap above the page as the document scrolls down, so the page
+  /// slides up against a desk that stays put — the thing that makes it read as
+  /// a separate sheet rather than a painted background (user's request,
+  /// 2026-07-20).
+  ///
+  /// Driven by [ScrollNotification], which bubbles *up* from the editor's own
+  /// scrollable to this ancestor. That is deliberate: it needs no access to the
+  /// editor's `ScrollController` and so adds nothing to the upstream merge
+  /// surface.
+  bool _onScroll(ScrollNotification notification) {
+    // Only the document's own vertical scrolling should move the page. Nested
+    // scrollables — a wide table, a code block, the slash menu — also send
+    // notifications up this tree, and letting them drive the margin would make
+    // the page twitch while scrolling something else entirely.
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+    _topMargin.value = (_kDeskMarginTop - notification.metrics.pixels)
+        .clamp(0.0, _kDeskMarginTop);
+    // False: this is an observer, not a consumer. Swallowing the notification
+    // would break anything else listening for scrolls.
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,24 +134,33 @@ class PageSurface extends StatelessWidget {
           // without narrowing the editor would let text spill onto the desk.
           final desk = math.max(
             _kMinDeskMargin,
-            (constraints.maxWidth - pageWidth) / 2,
+            (constraints.maxWidth - widget.pageWidth) / 2,
           );
 
-          return Padding(
-            padding: EdgeInsets.only(
-              left: desk,
-              right: desk,
-              // No bottom: the sheet runs off the bottom of the viewport on
-              // purpose. A bottom edge would imply the document ends there,
-              // which is rarely true and looks wrong mid-scroll.
-              top: _kDeskMarginTop,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: sheetColor,
-                boxShadow: theme.shadow.medium,
+          return NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _topMargin,
+              // Passed through untouched so the editor is not rebuilt when the
+              // margin changes.
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: sheetColor,
+                  boxShadow: theme.shadow.medium,
+                ),
+                child: widget.child,
               ),
-              child: child,
+              builder: (context, topMargin, sheet) => Padding(
+                padding: EdgeInsets.only(
+                  left: desk,
+                  right: desk,
+                  // No bottom: the sheet runs off the bottom of the viewport on
+                  // purpose. A bottom edge would imply the document ends there,
+                  // which is rarely true and looks wrong mid-scroll.
+                  top: topMargin,
+                ),
+                child: sheet,
+              ),
             ),
           );
         },
