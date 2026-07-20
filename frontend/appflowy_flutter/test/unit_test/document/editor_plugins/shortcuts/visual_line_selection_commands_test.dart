@@ -9,19 +9,69 @@
 // the real macOS target — headless tests cannot see real RTL geometry,
 // see CLAUDE.md).
 
+import 'package:appflowy/plugins/document/presentation/editor_plugins/base/cover_title_command.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/shared_context/shared_context.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shortcuts/visual_line_selection_commands.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
-Node paragraph(String text, {List<Node>? children}) {
+Node paragraph(String text, {List<Node>? children, String? direction}) {
   return Node(
     type: ParagraphBlockKeys.type,
     attributes: {
       ParagraphBlockKeys.delta: (Delta()..insert(text)).toJson(),
+      if (direction != null) blockComponentTextDirection: direction,
     },
     children: children ?? [],
   );
+}
+
+// ~40 Hebrew words — wraps to several visual lines on the 800px test
+// surface. Direction `auto` resolves RTL from the Hebrew content, same as
+// the fork's own soft-wrap tests.
+final wrappedRtlText = List.generate(40, (i) => 'מילים').join(' ');
+
+Future<EditorState> pumpEditor(
+  WidgetTester tester,
+  List<Node> nodes, {
+  SharedEditorContext? sharedContext,
+}) async {
+  final document = Document(root: pageNode(children: nodes));
+  final editorState = EditorState(document: document);
+  Widget editor = AppFlowyEditor(editorState: editorState);
+  if (sharedContext != null) {
+    editor = Provider<SharedEditorContext>.value(
+      value: sharedContext,
+      child: editor,
+    );
+  }
+  await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+  await tester.pumpAndSettle();
+  return editorState;
+}
+
+/// The tiled visual-line spans of the block at [path], via the same
+/// fork API the commands use (validated against caret rects in the
+/// fork's own soft_wrap_caret_affinity_test.dart).
+List<Selection> lineSpans(EditorState editorState, List<int> path) {
+  final node = editorState.getNodeAtPath(path)!;
+  final selectable = node.selectable!;
+  final length = node.delta!.length;
+  final spans = <Selection>[];
+  var offset = 0;
+  while (offset <= length) {
+    final line = selectable.getLineBoundaryInPosition(
+      Position(path: path, offset: offset),
+    )!;
+    spans.add(line);
+    if (line.end.offset >= length) {
+      break;
+    }
+    offset = line.end.offset + 1;
+  }
+  return spans;
 }
 
 EditorState editorWith(List<Node> nodes, Selection selection) {
@@ -53,7 +103,8 @@ void main() {
       );
     });
 
-    test('RTL: left = logical END (forward in reading order), '
+    test(
+        'RTL: left = logical END (forward in reading order), '
         'right = logical start', () {
       expect(
         visualLineEdgeTarget(line: line, towardLeft: true, isRtl: true),
@@ -67,7 +118,8 @@ void main() {
   });
 
   group('extend selection by paragraph:', () {
-    test('down from mid-paragraph extends to that paragraph\'s end, '
+    test(
+        'down from mid-paragraph extends to that paragraph\'s end, '
         'keeping the anchor', () {
       final editorState = editorWith(
         [paragraph('one one'), paragraph('two two')],
@@ -84,7 +136,8 @@ void main() {
       );
     });
 
-    test('down again from a paragraph end takes in the whole next '
+    test(
+        'down again from a paragraph end takes in the whole next '
         'paragraph', () {
       final editorState = editorWith(
         [paragraph('one one'), paragraph('two two')],
@@ -122,7 +175,8 @@ void main() {
       );
     });
 
-    test('down at the very end of the document changes nothing but is '
+    test(
+        'down at the very end of the document changes nothing but is '
         'handled', () {
       final end = Selection(
         start: Position(path: [0]),
@@ -152,7 +206,8 @@ void main() {
       );
     });
 
-    test('up again from a paragraph start takes in the whole previous '
+    test(
+        'up again from a paragraph start takes in the whole previous '
         'paragraph', () {
       final editorState = editorWith(
         [paragraph('one one'), paragraph('two two')],
@@ -184,6 +239,116 @@ void main() {
       expect(
         selectParagraphDownCommand.handler(editorState),
         KeyEventResult.ignored,
+      );
+    });
+  });
+
+  group('visual line stepping (repeatable, user request 2026-07-20 r2):', () {
+    testWidgets(
+        'pressing Left again in RTL walks the extent down one visual line '
+        'per press, and Right retraces the same steps (deselection)',
+        (tester) async {
+      final editorState = await pumpEditor(tester, [
+        paragraph(wrappedRtlText, direction: 'auto'),
+      ]);
+      final lines = lineSpans(editorState, [0]);
+      expect(
+        lines.length,
+        greaterThanOrEqualTo(3),
+        reason: 'test paragraph must wrap — setup broken',
+      );
+
+      // Anchor mid visual line 2. In RTL, Left is logically forward.
+      final anchor = Position(
+        path: [0],
+        offset: lines[1].start.offset + 2,
+      );
+      editorState.selection = Selection.collapsed(anchor);
+
+      selectToVisualLineLeftCommand.handler(editorState);
+      expect(editorState.selection!.start, anchor, reason: 'anchor fixed');
+      expect(
+        editorState.selection!.end.offset,
+        lines[1].end.offset,
+        reason: '1st press: to the end of line 2',
+      );
+
+      selectToVisualLineLeftCommand.handler(editorState);
+      expect(
+        editorState.selection!.end.offset,
+        lines[2].end.offset,
+        reason: '2nd press: one more visual line (line 3)',
+      );
+
+      selectToVisualLineRightCommand.handler(editorState);
+      expect(
+        editorState.selection!.end.offset,
+        lines[2].start.offset,
+        reason: 'opposite arrow shrinks back to line 3\'s start',
+      );
+
+      selectToVisualLineRightCommand.handler(editorState);
+      expect(
+        editorState.selection!.end.offset,
+        lines[1].start.offset,
+        reason: 'and again: back to line 2\'s start',
+      );
+    });
+
+    testWidgets(
+        'at the block\'s last position, the forward press crosses into the '
+        'next text block\'s first visual line', (tester) async {
+      final editorState = await pumpEditor(tester, [
+        paragraph(wrappedRtlText, direction: 'auto'),
+        paragraph('קצר', direction: 'auto'),
+      ]);
+      final length = editorState.getNodeAtPath([0])!.delta!.length;
+      final anchor = Position(path: [0], offset: length - 2);
+      editorState.selection = Selection.collapsed(anchor);
+
+      // First press reaches the block's end (last line's edge)…
+      selectToVisualLineLeftCommand.handler(editorState);
+      expect(editorState.selection!.end, Position(path: [0], offset: length));
+      // …next press flows into the second block's first line end.
+      selectToVisualLineLeftCommand.handler(editorState);
+      expect(editorState.selection!.end, Position(path: [1], offset: 3));
+    });
+  });
+
+  group('arrow up to title (fixed 2026-07-20 r2):', () {
+    testWidgets(
+        'fires only from the first VISUAL line of the first block — a '
+        'lower line of a wrapped first paragraph is ignored', (tester) async {
+      final sharedContext = SharedEditorContext();
+      addTearDown(sharedContext.dispose);
+      final editorState = await pumpEditor(
+        tester,
+        [paragraph(wrappedRtlText, direction: 'auto')],
+        sharedContext: sharedContext,
+      );
+      final lines = lineSpans(editorState, [0]);
+      expect(lines.length, greaterThanOrEqualTo(2));
+
+      // Caret on visual line 2 → must NOT jump to the title.
+      editorState.selection = Selection.collapsed(
+        Position(path: [0], offset: lines[1].start.offset + 1),
+      );
+      expect(arrowUpToTitle.handler(editorState), KeyEventResult.ignored);
+      expect(
+        editorState.selection,
+        isNotNull,
+        reason: 'selection must survive — the editor moves up a line',
+      );
+
+      // Caret on visual line 1 → the title takes over.
+      editorState.selection = Selection.collapsed(
+        Position(path: [0], offset: 1),
+      );
+      expect(arrowUpToTitle.handler(editorState), KeyEventResult.handled);
+      expect(
+        editorState.selection,
+        isNull,
+        reason: 'selection cleared when focus moves to the title',
       );
     });
   });

@@ -70,23 +70,103 @@ KeyEventResult _extendToVisualLineEdge(
   // the anchor at selection.start stays put, matching how the editor's
   // own shift+arrow commands extend.
   final extent = selection.end;
-  final selectable = editorState.getNodeAtPath(extent.path)?.selectable;
+  final node = editorState.getNodeAtPath(extent.path);
+  final selectable = node?.selectable;
   final line = selectable?.getLineBoundaryInPosition(extent);
-  if (selectable == null || line == null) {
+  if (node == null || selectable == null || line == null) {
     return KeyEventResult.ignored;
   }
-  final target = visualLineEdgeTarget(
+  final isRtl = selectable.textDirection() == TextDirection.rtl;
+  Position? target = visualLineEdgeTarget(
     line: line,
     towardLeft: towardLeft,
-    isRtl: selectable.textDirection() == TextDirection.rtl,
+    isRtl: isRtl,
   );
-  if (target.offset != extent.offset) {
+  if (target.offset == extent.offset) {
+    // Already at this line's edge — keep walking one visual line per
+    // press in the same on-screen direction (user request 2026-07-20 r2:
+    // "click again on the arrow, it should select the next line — same
+    // for deselection"). Pressing the opposite arrow retraces the same
+    // steps, so a multi-line extension shrinks line by line.
+    //
+    // Within a block, only the logically-forward edge needs this step: a
+    // backward-edge offset IS the previous line's boundary, so the next
+    // press re-resolves onto that line by itself (upstream affinity).
+    // The exceptions are block edges — offset 0 going backward, the
+    // block's last offset going forward — where the step crosses into
+    // the neighboring text block.
+    target = _adjacentVisualLineEdge(
+      editorState,
+      node,
+      extent,
+      forward: towardLeft == isRtl,
+    );
+  }
+  if (target != null && target != extent) {
     editorState.updateSelectionWithReason(
       selection.copyWith(end: target),
       reason: SelectionUpdateReason.uiEvent,
     );
   }
   return KeyEventResult.handled;
+}
+
+/// The edge of the visual line adjacent to [extent], in logical
+/// [forward]/backward direction, crossing into the neighboring text block
+/// when [extent] sits at this block's first/last position.
+///
+/// Falls back to the neighboring block's start/end (block precision
+/// instead of line precision) when that block's render object is not
+/// mounted, and to null at the document's edges.
+Position? _adjacentVisualLineEdge(
+  EditorState editorState,
+  Node node,
+  Position extent, {
+  required bool forward,
+}) {
+  final delta = node.delta;
+  final selectable = node.selectable;
+  if (delta == null || selectable == null) {
+    return null;
+  }
+  if (forward) {
+    if (extent.offset < delta.length) {
+      // One past the boundary resolves (upstream) onto the next visual
+      // line; its forward edge is that line's end.
+      final nextLine = selectable.getLineBoundaryInPosition(
+        Position(path: node.path, offset: extent.offset + 1),
+      );
+      return nextLine?.end;
+    }
+    final next = _nextTextNodeInDocumentOrder(node);
+    if (next == null) {
+      return null;
+    }
+    final firstLine = editorState
+        .getNodeAtPath(next.path)
+        ?.selectable
+        ?.getLineBoundaryInPosition(Position(path: next.path));
+    return firstLine?.end ?? Position(path: next.path);
+  } else {
+    if (extent.offset > 0) {
+      final previousLine = selectable.getLineBoundaryInPosition(
+        Position(path: node.path, offset: extent.offset - 1),
+      );
+      return previousLine?.start;
+    }
+    final previous = node.previousNodeWhere((n) => n.delta != null);
+    if (previous == null) {
+      return null;
+    }
+    final lastLine = editorState
+        .getNodeAtPath(previous.path)
+        ?.selectable
+        ?.getLineBoundaryInPosition(
+          Position(path: previous.path, offset: previous.delta!.length),
+        );
+    return lastLine?.start ??
+        Position(path: previous.path, offset: previous.delta!.length);
+  }
 }
 
 /// In an RTL block the visual LEFT edge of a line is its logical END; in
