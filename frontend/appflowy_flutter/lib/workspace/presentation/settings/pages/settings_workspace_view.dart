@@ -15,6 +15,7 @@ import 'package:appflowy/util/font_family_extension.dart';
 import 'package:appflowy/workspace/application/appearance_defaults.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
+import 'package:appflowy/workspace/application/settings/appearance/chrome_theme_mode.dart';
 import 'package:appflowy/workspace/application/settings/appearance/sidebar_dock_side.dart';
 import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/application/settings/date_time/time_format_ext.dart';
@@ -122,6 +123,18 @@ class SettingsWorkspaceView extends StatelessWidget {
               SettingsCategory(
                 title: LocaleKeys.settings_workspacePage_appearance_title.tr(),
                 children: const [AppearanceSelector()],
+              ),
+              const SettingsCategorySpacer(),
+
+              // [fork:page-surface] The app frame's appearance, independent
+              // of the pages' dark/light mode above (chrome_theme_mode.dart).
+              SettingsCategory(
+                title: LocaleKeys.settings_workspacePage_chromeAppearance_title
+                    .tr(),
+                description: LocaleKeys
+                    .settings_workspacePage_chromeAppearance_description
+                    .tr(),
+                children: const [_ChromeAppearanceSelect()],
               ),
               const VSpace(16),
               // const SettingsCategorySpacer(),
@@ -592,6 +605,48 @@ class _SidebarDockSideSelect extends StatelessWidget {
       },
     );
   }
+}
+
+// [fork:page-surface] The app frame's appearance, independent of the
+// pages' dark/light mode. See chrome_theme_mode.dart.
+class _ChromeAppearanceSelect extends StatelessWidget {
+  const _ChromeAppearanceSelect();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AppearanceSettingsCubit, AppearanceSettingsState>(
+      builder: (context, state) {
+        final selected = state.chromeThemeMode;
+
+        return SettingsRadioSelect<ChromeThemeMode>(
+          onChanged: (item) => context
+              .read<AppearanceSettingsCubit>()
+              .setChromeThemeMode(item.value),
+          items: ChromeThemeMode.values
+              .map(
+                (mode) => SettingsRadioItem(
+                  value: mode,
+                  label: _label(mode),
+                  isSelected: selected == mode,
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  String _label(ChromeThemeMode mode) => switch (mode) {
+        ChromeThemeMode.followPages => LocaleKeys
+            .settings_workspacePage_chromeAppearance_followPages
+            .tr(),
+        ChromeThemeMode.light =>
+          LocaleKeys.settings_workspacePage_chromeAppearance_light.tr(),
+        ChromeThemeMode.dark =>
+          LocaleKeys.settings_workspacePage_chromeAppearance_dark.tr(),
+        ChromeThemeMode.system =>
+          LocaleKeys.settings_workspacePage_chromeAppearance_system.tr(),
+      };
 }
 
 class _DateFormatDropdown extends StatelessWidget {

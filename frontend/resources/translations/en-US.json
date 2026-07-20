@@ -696,6 +696,14 @@
         "left": "Left",
         "right": "Right"
       },
+      "chromeAppearance": {
+        "title": "App frame appearance",
+        "description": "The sidebar, toolbars and menus. \"Same as pages\" keeps the whole app on the Appearance setting above; any other choice lets the pages and the app frame differ.",
+        "followPages": "Same as pages",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "Same as device"
+      },
       "dateTime": {
         "title": "Date & time",
         "example": "{} at {} ({})",
