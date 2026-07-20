@@ -47,8 +47,13 @@ class PageThemeScope extends StatelessWidget {
     final state = context.watch<AppearanceSettingsCubit>().state;
     final themeData =
         override == Brightness.light ? state.lightTheme : state.darkTheme;
-    // Mirror the AppFlowyTheme layer exactly as app_widget.dart builds it for
-    // the app, at the page's brightness.
+    // Mirror the AppFlowyTheme layer as app_widget.dart builds it for the app,
+    // at the page's brightness. Use the plain (non-animated) [AppFlowyTheme]
+    // provider, NOT AnimatedAppFlowyTheme: the app-level one animates theme
+    // transitions, but wrapping the editor in an implicitly-animated widget
+    // here would rebuild the whole editor subtree every animation frame, which
+    // can disrupt editor focus/keyboard input. The override should apply
+    // instantly anyway.
     final fontFamily = state.font.orDefault(defaultFontFamily).fontFamilyName;
     final afTheme = override == Brightness.light
         ? AppFlowyDefaultTheme().light(fontFamily: fontFamily)
@@ -56,7 +61,7 @@ class PageThemeScope extends StatelessWidget {
 
     return Theme(
       data: themeData,
-      child: AnimatedAppFlowyTheme(
+      child: AppFlowyTheme(
         data: afTheme,
         child: child,
       ),
