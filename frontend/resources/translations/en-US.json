@@ -698,7 +698,7 @@
       },
       "chromeAppearance": {
         "title": "App frame appearance",
-        "description": "The sidebar, toolbars and menus. \"Same as pages\" keeps the whole app on the Appearance setting above; any other choice lets the pages and the app frame differ.",
+        "description": "The sidebar, toolbars and menus. Defaults to \"Same as device\", so the Appearance toggle above recolors only your pages. Pick Light or Dark to pin the frame, or \"Same as pages\" to make the whole app follow the toggle together.",
         "followPages": "Same as pages",
         "light": "Light",
         "dark": "Dark",

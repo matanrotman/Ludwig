@@ -2,32 +2,43 @@
 // (requested 2026-07-20: "dark/light mode should only affect page and
 // desk, not the entire layout").
 //
-// The existing Appearance dark/light/system setting keeps driving the
-// PAGES (the desk and the sheet the user writes on). This setting drives
-// the app frame — sidebar, ribbon, top bar, dialogs — independently.
-// The default, [followPages], reproduces the pre-split behavior exactly,
-// so a user who never touches it sees no change.
+// The Appearance dark/light/system control drives the PAGES (the desk and
+// the sheet the user writes on). This setting drives the app frame —
+// sidebar, ribbon, top bar, dialogs — independently.
+//
+// The DEFAULT is [system]: the app frame follows the OS appearance, so the
+// in-app light/dark toggle recolors ONLY the page — which is the whole
+// point of the feature. On this user's Mac (Dark) that keeps the frame
+// dark, so nothing about their current look changes; it just stops the
+// page toggle from dragging the frame along with it. [followPages] (the
+// old unified behavior, where the frame tracks the page toggle) is kept as
+// an explicit option for anyone who wants the whole app to move together.
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:flutter/material.dart';
 
+/// The default when no preference is stored — the app frame follows the OS,
+/// so the in-app light/dark toggle affects only the page.
+const kDefaultChromeThemeMode = ChromeThemeMode.system;
+
 enum ChromeThemeMode {
-  /// The app frame follows the pages' dark/light mode — the pre-split
-  /// behavior, and the default.
+  /// The app frame tracks the pages' in-app dark/light toggle — the old
+  /// unified behavior. An explicit opt-in, no longer the default.
   followPages,
   light,
   dark,
 
-  /// Follow the device's appearance.
+  /// Follow the device's OS appearance. The default.
   system;
 
   static ChromeThemeMode fromKey(String? key) => switch (key) {
+        'followPages' => ChromeThemeMode.followPages,
         'light' => ChromeThemeMode.light,
         'dark' => ChromeThemeMode.dark,
         'system' => ChromeThemeMode.system,
-        _ => ChromeThemeMode.followPages,
+        _ => kDefaultChromeThemeMode,
       };
 
   String toKey() => name;

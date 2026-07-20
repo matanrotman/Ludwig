@@ -70,9 +70,17 @@ void main() {
       }
     });
 
-    test('unknown or missing keys fall back to followPages', () {
-      expect(ChromeThemeMode.fromKey(null), ChromeThemeMode.followPages);
-      expect(ChromeThemeMode.fromKey('bogus'), ChromeThemeMode.followPages);
+    test('unknown or missing keys fall back to the default (system)', () {
+      expect(ChromeThemeMode.fromKey(null), kDefaultChromeThemeMode);
+      expect(ChromeThemeMode.fromKey('bogus'), kDefaultChromeThemeMode);
+      expect(kDefaultChromeThemeMode, ChromeThemeMode.system);
+    });
+
+    test('followPages is still parseable as an explicit opt-in', () {
+      expect(
+        ChromeThemeMode.fromKey('followPages'),
+        ChromeThemeMode.followPages,
+      );
     });
   });
 }

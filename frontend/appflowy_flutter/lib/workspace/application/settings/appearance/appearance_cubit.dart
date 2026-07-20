@@ -70,7 +70,7 @@ class AppearanceSettingsCubit extends Cubit<AppearanceSettingsState> {
                   ),
             1.0,
             SidebarDockSide.auto,
-            ChromeThemeMode.followPages,
+            kDefaultChromeThemeMode,
           ),
         ) {
     readTextScaleFactor();
