@@ -14,8 +14,15 @@ import 'dart:math' as math;
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
-/// Corner rounding at the top of the sheet.
-const double _kPageCornerRadius = 8.0;
+/// Desk left above the sheet, so the page has a visible **top edge**.
+///
+/// The page shows three edges — top, left, right — and runs off the bottom of
+/// the viewport. Corners are square: rounding them made the sheet read as a
+/// panel or a card rather than a page (user's call, 2026-07-20).
+///
+/// One number to tune if the gap ever feels wrong; it is deliberately the same
+/// as the minimum side margin so the visible border reads as even.
+const double _kDeskMarginTop = _kMinDeskMargin;
 
 /// Desk always left visible on each side of the sheet.
 ///
@@ -84,17 +91,17 @@ class PageSurface extends StatelessWidget {
           );
 
           return Padding(
-            padding: EdgeInsets.symmetric(horizontal: desk),
+            padding: EdgeInsets.only(
+              left: desk,
+              right: desk,
+              // No bottom: the sheet runs off the bottom of the viewport on
+              // purpose. A bottom edge would imply the document ends there,
+              // which is rarely true and looks wrong mid-scroll.
+              top: _kDeskMarginTop,
+            ),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: sheetColor,
-                // Top corners only: the sheet runs off the bottom of the
-                // viewport on purpose. A bottom edge would imply the document
-                // ends there, which is rarely true and looks wrong mid-scroll.
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(_kPageCornerRadius),
-                  topRight: Radius.circular(_kPageCornerRadius),
-                ),
                 boxShadow: theme.shadow.medium,
               ),
               child: child,
