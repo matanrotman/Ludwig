@@ -33,7 +33,12 @@ const double _kDeskMarginTop = _kMinDeskMargin;
 /// page always reads as a page. Costs `2 ×` this much text width at wide
 /// settings — accepted by the user 2026-07-20 in exchange for the page always
 /// being visible.
-const double _kMinDeskMargin = 48.0;
+///
+/// Tuned 48 → 32 on 2026-07-20 after the user saw it: 48 read as too much
+/// desk. Both the top and side margins come from this one value on purpose, so
+/// the visible border stays even — split them only if the user asks for an
+/// uneven border deliberately.
+const double _kMinDeskMargin = 32.0;
 
 /// How much darker the desk is than the sheet, in HSL lightness.
 ///
