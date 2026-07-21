@@ -21,6 +21,7 @@ import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/inline_rename_field.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
@@ -503,32 +504,35 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
 
   final _doubleClickDetector = DoubleClickDetector();
 
+  // [fork:sidebar-improvements] Phase 2: while true, the row's name text is
+  // replaced by an InlineRenameField (thin frame, edits in place).
+  bool _isRenaming = false;
+
   void _handleViewTap() {
+    if (_isRenaming) {
+      return;
+    }
     if (_doubleClickDetector.isDoubleClick(DateTime.now())) {
-      // Second click of a double-click: open the inline rename box (the
-      // F2 flow) instead of re-opening the view. Rows that never render a
-      // selected state can't mount the rename popover — for those the
-      // second click is swallowed, like the old click throttle did.
-      if (widget.disableSelectedStatus != true) {
-        _openInlineRename();
-      }
+      // Second click of a double-click: rename in place instead of
+      // re-opening the view (the swallowed second click doubles as the old
+      // click throttle).
+      setState(() => _isRenaming = true);
       return;
     }
     widget.onSelected(context, widget.view);
   }
 
-  void _openInlineRename() {
-    if (widget.isSelected) {
-      getIt<RenameViewBloc>().add(const RenameViewEvent.open());
-    } else {
-      // The first click of this double-click just opened the view; the
-      // rename popover only mounts once the row rebuilds as selected, so
-      // wait a frame before showing it.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          getIt<RenameViewBloc>().add(const RenameViewEvent.open());
-        }
-      });
+  void _commitRename(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isNotEmpty && trimmed != widget.view.name) {
+      context.read<ViewBloc>().add(ViewEvent.rename(trimmed));
+    }
+    _stopRenaming();
+  }
+
+  void _stopRenaming() {
+    if (mounted) {
+      setState(() => _isRenaming = false);
     }
   }
 
@@ -576,16 +580,22 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
       // icon
       _buildViewIconButton(),
       const HSpace(6),
-      // title
+      // title — swapped for an in-place editor while renaming
       Expanded(
-        child: widget.extendBuilder != null
-            ? Row(
-                children: [
-                  Flexible(child: name),
-                  ...widget.extendBuilder!(widget.view),
-                ],
+        child: _isRenaming
+            ? InlineRenameField(
+                initialName: widget.view.nameOrDefault,
+                onSubmitted: _commitRename,
+                onDismissed: _stopRenaming,
               )
-            : name,
+            : widget.extendBuilder != null
+                ? Row(
+                    children: [
+                      Flexible(child: name),
+                      ...widget.extendBuilder!(widget.view),
+                    ],
+                  )
+                : name,
       ),
     ];
 
