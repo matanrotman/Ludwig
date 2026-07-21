@@ -579,6 +579,15 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
       if (widget.rightIconsBuilder != null) {
         children.addAll(widget.rightIconsBuilder!(context, widget.view));
       } else {
+        // + button first, ··· last: the more-actions button must stay the
+        // outermost icon (farthest from the view name) — see
+        // specs/sidebar-improvements.md.
+        // only support add button for document layout
+        if (widget.view.layout == ViewLayoutPB.Document) {
+          // + button
+          children.add(_buildViewAddButton(context));
+          children.add(const HSpace(8.0));
+        }
         // ··· more action button
         children.add(
           _buildViewMoreActionButton(
@@ -594,12 +603,6 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
             ),
           ),
         );
-        // only support add button for document layout
-        if (widget.view.layout == ViewLayoutPB.Document) {
-          // + button
-          children.add(const HSpace(8.0));
-          children.add(_buildViewAddButton(context));
-        }
         children.add(const HSpace(4.0));
       }
     }

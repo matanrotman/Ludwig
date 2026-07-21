@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
@@ -107,7 +108,7 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
           Positioned(
             left: sidebarOnRight ? 4 : null,
             right: sidebarOnRight ? null : 4,
-            child: _buildRightIcon(isHovered),
+            child: _buildRightIcon(isHovered, sidebarOnRight),
           ),
         ],
       ),
@@ -138,43 +139,49 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
     );
   }
 
-  Widget _buildRightIcon(bool isHovered) {
+  Widget _buildRightIcon(bool isHovered, bool sidebarOnRight) {
+    final moreButton = SpaceMorePopup(
+      space: widget.space,
+      onEditing: (value) => onEditing.value = value,
+      onAction: _onAction,
+      isHovered: isHovered,
+    );
+    final addButton = FlowyTooltip(
+      message: LocaleKeys.sideBar_addAPage.tr(),
+      child: ViewAddButton(
+        parentViewId: widget.space.id,
+        onEditing: (_) {},
+        onSelected: (
+          pluginBuilder,
+          name,
+          initialDataBytes,
+          openAfterCreated,
+          createNewView,
+        ) {
+          if (pluginBuilder.layoutType == ViewLayoutPB.Document) {
+            name = '';
+          }
+          if (createNewView) {
+            widget.onAdded(pluginBuilder.layoutType!);
+          }
+        },
+        isHovered: isHovered,
+      ),
+    );
     return ValueListenableBuilder(
       valueListenable: onEditing,
       builder: (context, onEditing, child) => Opacity(
         opacity: isHovered || onEditing ? 1 : 0,
         child: Row(
-          children: [
-            SpaceMorePopup(
-              space: widget.space,
-              onEditing: (value) => this.onEditing.value = value,
-              onAction: _onAction,
-              isHovered: isHovered,
-            ),
-            const HSpace(8.0),
-            FlowyTooltip(
-              message: LocaleKeys.sideBar_addAPage.tr(),
-              child: ViewAddButton(
-                parentViewId: widget.space.id,
-                onEditing: (_) {},
-                onSelected: (
-                  pluginBuilder,
-                  name,
-                  initialDataBytes,
-                  openAfterCreated,
-                  createNewView,
-                ) {
-                  if (pluginBuilder.layoutType == ViewLayoutPB.Document) {
-                    name = '';
-                  }
-                  if (createNewView) {
-                    widget.onAdded(pluginBuilder.layoutType!);
-                  }
-                },
-                isHovered: isHovered,
-              ),
-            ),
-          ],
+          // Physical order to match this header's physical Positioned
+          // offsets (see _buildSpaceName): the ··· button must stay the
+          // outermost icon — farthest from the space name — on both dock
+          // sides, so the pair flips with the dock side rather than with
+          // the ambient Directionality. See specs/sidebar-improvements.md.
+          textDirection: ui.TextDirection.ltr,
+          children: sidebarOnRight
+              ? [moreButton, const HSpace(8.0), addButton]
+              : [addButton, const HSpace(8.0), moreButton],
         ),
       ),
     );
