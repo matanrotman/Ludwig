@@ -20,6 +20,7 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
@@ -500,21 +501,35 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
 
   bool isIconPickerOpened = false;
 
-  DateTime? _lastClickTime;
-  static const _clickThrottleDuration = Duration(milliseconds: 200);
+  final _doubleClickDetector = DoubleClickDetector();
 
   void _handleViewTap() {
-    final now = DateTime.now();
-
-    if (_lastClickTime != null) {
-      final timeSinceLastClick = now.difference(_lastClickTime!);
-      if (timeSinceLastClick < _clickThrottleDuration) {
-        return;
+    if (_doubleClickDetector.isDoubleClick(DateTime.now())) {
+      // Second click of a double-click: open the inline rename box (the
+      // F2 flow) instead of re-opening the view. Rows that never render a
+      // selected state can't mount the rename popover — for those the
+      // second click is swallowed, like the old click throttle did.
+      if (widget.disableSelectedStatus != true) {
+        _openInlineRename();
       }
+      return;
     }
-
-    _lastClickTime = now;
     widget.onSelected(context, widget.view);
+  }
+
+  void _openInlineRename() {
+    if (widget.isSelected) {
+      getIt<RenameViewBloc>().add(const RenameViewEvent.open());
+    } else {
+      // The first click of this double-click just opened the view; the
+      // rename popover only mounts once the row rebuilds as selected, so
+      // wait a frame before showing it.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          getIt<RenameViewBloc>().add(const RenameViewEvent.open());
+        }
+      });
+    }
   }
 
   @override

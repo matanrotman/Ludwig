@@ -104,9 +104,16 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
 ## Phased plan (small → large, each phase shippable and live-verified alone)
 
 - **Phase 1 — icon swap (change 4).** Two small ordered-row edits. Verify LTR + RTL.
-- **Phase 2 — double-click rename (change 2).** `onDoubleTap` on page rows opening the
-  F2 inline popover (respecting the row's 200ms click-throttle so the first click's
-  open-page doesn't race); space-header double-click with a space inline-rename widget.
+- **Phase 2 — double-click rename (change 2), PAGES ONLY.** Manual double-click
+  detection inside the row's existing tap handler (a `GestureDetector.onDoubleTap`
+  would delay every page-open by the disambiguation window; the old 200ms click
+  throttle is subsumed by the 300ms double-click window). Second click opens the F2
+  inline popover instead of re-opening the view.
+  **Scope adjustment (found during build, 2026-07-21): the SPACE half moves to
+  Phase 4** — clicking a space's name is currently owned by the space-switcher
+  popover (`SpacePopup`, `clickHandler: gestureDetector`), so double-click on the
+  name would fight the switcher opening on the first click. Phase 4 retires that
+  popover, which is exactly what frees the name for double-click rename.
 - **Phase 3 — trash (change 3).** Remove banner; navigate-away-on-delete; TrashBloc-fed
   full/empty icon with the new custom SVG. User reviews the icon in-app before we call it
   done.
