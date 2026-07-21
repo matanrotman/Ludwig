@@ -143,9 +143,50 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
   navigate-away-on-delete picks the right neighbor; multi-space expansion persistence.
 - The user confirms each change matches the interview decision it came from.
 
+## Phase 4 implementation record (built 2026-07-21, same session — key decisions)
+
+- **SpaceBloc is UNTOUCHED** (no freezed regen, mobile unaffected). Everything is
+  app-side: `sidebar_space_list.dart` + `space_list_header.dart` (new sidecars) replace
+  the private `_Space` widget in `sidebar_space.dart` (core edit = a swap + deletion).
+- **Expansion persistence quirk fixed in passing:** the bloc's own writer REMOVED the
+  key on collapse, and absent reads as expanded — so collapse never survived a restart
+  upstream. The list writes explicit `false` (read-modify-write on the same
+  `KVKeys.expandedViews` map; the bloc's reader handles explicit false fine).
+- **`SpaceEvent.open` is deliberately never dispatched on cross-space page opens** —
+  its side effect opens the target space's FIRST page (via the `lastCreatedPage`
+  listener in sidebar.dart), which would hijack navigation. The space-follow notifier
+  (`switchToSpaceNotifier`) now just expands the space. ⌘O still dispatches
+  `switchToNextSpace` and keeps its old meaning (next space + its first page).
+- **Per-space page creation bypasses `SpaceEvent.createPage`** (it can only target
+  currentSpace): `ViewBackendService.createView` with the explicit space, then
+  `TabsBloc.openPlugin`. Same for the top "New Page" button, which now resolves its
+  target as the space of the currently open page (via `getViewAncestors`), falling
+  back to currentSpace, then the first space.
+- **`ManageSpacePopup` gained an optional `space` param** (defaults to currentSpace =
+  old behavior); every per-space "…" action passes its space explicitly.
+- **The "…" menu Rename and double-click both use the in-place InlineRenameField** —
+  the space rename dialog is retired.
+- **Header mirroring model changed:** the old header mirrored with the sidebar DOCK
+  side (physical Positioned offsets); the new header is a flex row like page rows, so
+  it mirrors with the ambient text direction and the ··· stays outermost name-relative.
+  Visual consequence for a docked-right LTR layout: the space name now sits on the
+  LEFT like page names do, where the old header put it on the right. Consistent with
+  page rows; user to judge live.
+- **Retired-but-kept upstream files (desktop-unused now):** `sidebar_space_header.dart`
+  (+ its icon-order widget test, which documents the old dock-side flip),
+  `shared_widget.dart`'s `CurrentSpace`/`SpacePopup`, `sidebar_space_menu.dart`. Kept
+  untouched for upstream-merge friendliness.
+
 ## Session Log
 
+- **2026-07-21 (session 2 of the feature) — Phases 1–3 verified by the user; Phase 2
+  reworked to in-place rename on feedback; Phase 4 BUILT, awaiting live verification.**
+  User verdicts: icon swap "good", trash "great", rename wanted in-place instead of the
+  popover → rebuilt as `InlineRenameField` (thin frame in the row, Enter commits, Esc
+  cancels, focus-loss commits) used by both page rows and the new space headers.
+  Phase 4 decisions recorded above. 12+3 tests green, analyzer clean (3 pre-existing
+  lints in sidebar.dart untouched), shipped to the dock app, contents-verified.
 - **2026-07-21 — scoping interview done, spec written.** Codebase mapped first (space
   switcher renders one tree; two rename UIs exist; trash button is blind to trash state;
   icon order confirmed "+" outermost; RTL seams inventoried). All interview decisions
-  recorded above. Awaiting sign-off; no code written.
+  recorded above. Sign-off received same day.

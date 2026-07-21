@@ -35,6 +35,7 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar_user.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_folder.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_new_page_button.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_new_space_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/sidebar_space.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_migration.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/sidebar_workspace.dart';
@@ -398,6 +399,9 @@ class _SidebarState extends State<_Sidebar> {
               const VSpace(6.0),
               // new page button
               const SidebarNewPageButton(),
+              // [fork:sidebar-improvements] Phase 4: "New Space" directly
+              // below "New Page" (moved out of the retired space switcher).
+              const SidebarNewSpaceButton(),
             ],
 
             // scrollable document list
