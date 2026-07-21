@@ -7,7 +7,7 @@ import 'package:appflowy/plugins/document/application/document_appearance_cubit.
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 // [fork:rtl]
 import 'package:appflowy/plugins/document/application/page_text_direction.dart';
-import 'package:appflowy/plugins/document/presentation/banner.dart';
+import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_drop_handler.dart';
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ai/widgets/ai_writer_scroll_wrapper.dart';
@@ -31,7 +31,6 @@ import 'package:appflowy/workspace/application/action_navigation/action_navigati
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
-import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -151,6 +150,13 @@ class _DocumentPageState extends State<DocumentPage>
                   BlocListener<ActionNavigationBloc, ActionNavigationState>(
                     listenWhen: (_, curr) => curr.action != null,
                     listener: onNotificationAction,
+                  ),
+                  // [fork:sidebar-improvements] Phase 3: when this page is
+                  // moved to trash, leave it instead of showing a banner.
+                  BlocListener<DocumentBloc, DocumentState>(
+                    listenWhen: (prev, curr) =>
+                        !prev.isDeleted && curr.isDeleted,
+                    listener: (context, state) => onMovedToTrash(),
                   ),
                 ],
                 child: AiWriterScrollWrapper(
@@ -278,9 +284,11 @@ class _DocumentPageState extends State<DocumentPage>
         editorState: state.editorState!,
         child: Column(
           children: [
-            // the banner only shows on desktop
-            if (state.isDeleted && UniversalPlatform.isDesktop)
-              buildBanner(context),
+            // [fork:sidebar-improvements] The "this page is in trash" banner
+            // is removed: moving the open page to trash navigates away
+            // instead (see the DocumentBloc listener below), and the sidebar
+            // trash icon signals a non-empty trash. Restore/delete-permanently
+            // live in the Trash view.
             // [fork:ribbon] Pinned formatting strip (specs/ribbon-menu.md).
             // Mounted here, as a sibling above the editor, rather than via the
             // editor's `header:` param — a header scrolls away with the
@@ -319,15 +327,23 @@ class _DocumentPageState extends State<DocumentPage>
     );
   }
 
-  Widget buildBanner(BuildContext context) {
-    return DocumentBanner(
-      viewName: widget.view.nameOrDefault,
-      onRestore: () =>
-          context.read<DocumentBloc>().add(const DocumentEvent.restorePage()),
-      onDelete: () => context
-          .read<DocumentBloc>()
-          .add(const DocumentEvent.deletePermanently()),
-    );
+  // [fork:sidebar-improvements] Phase 3 (specs/sidebar-improvements.md).
+  // Reuses the permanent-delete flow's navigation: onDeleted →
+  // didDeleteStackWidget opens the neighboring sibling (else the last one,
+  // else a blank page). A background tab holding the trashed page closes
+  // instead, so it can't hijack the visible tab.
+  void onMovedToTrash() {
+    if (!UniversalPlatform.isDesktop) {
+      return;
+    }
+    final tabsBloc = getIt<TabsBloc>();
+    final isInCurrentTab =
+        tabsBloc.state.currentPageManager.plugin.id == widget.view.id;
+    if (isInCurrentTab) {
+      widget.onDeleted();
+    } else {
+      tabsBloc.add(TabsEvent.closeTab(widget.view.id));
+    }
   }
 
   Widget buildCoverAndIcon(BuildContext context, DocumentState state) {

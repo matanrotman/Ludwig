@@ -7,6 +7,7 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_toast.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_trash_icon.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/setting_appflowy_cloud.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/appearance/sidebar_dock_side.dart';
@@ -82,9 +83,9 @@ class SidebarTrashButton extends StatelessWidget {
       builder: (context, value, child) {
         return SidebarFooterButton(
           leftIconSize: const Size.square(18.0),
-          leftIcon: const FlowySvg(
-            FlowySvgs.icon_delete_s,
-          ),
+          // [fork:sidebar-improvements] live icon: full-trash variant when
+          // the trash has items (sidebar_trash_icon.dart).
+          leftIcon: const SidebarTrashIcon(),
           text: LocaleKeys.trash_text.tr(),
           onTap: () {
             getIt<MenuSharedState>().latestOpenView = null;

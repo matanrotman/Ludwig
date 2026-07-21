@@ -117,6 +117,12 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
 - **Phase 3 — trash (change 3).** Remove banner; navigate-away-on-delete; TrashBloc-fed
   full/empty icon with the new custom SVG. User reviews the icon in-app before we call it
   done.
+  - Navigate-away reuses the EXISTING permanent-delete flow (`onDeleted` →
+    `didDeleteStackWidget`: previous sibling by index, else last, else blank) — zero new
+    navigation logic. A background tab holding the trashed page closes instead.
+  - **Known follow-up, deliberately left:** `database_document_page.dart` (database ROW
+    documents — a separate code path) still shows the old banner; same deferral as its
+    direction work (STATUS.md "Next step").
 - **Phase 4 — spaces spread (change 1).** The restructure: all-spaces list, independent
   carets, persisted expansion, "New Space" row below "New Page", currentSpace derived from
   the open page, switcher popover retired. Biggest phase, its own session.
