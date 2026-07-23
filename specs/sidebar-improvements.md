@@ -179,6 +179,56 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
 
 ## Session Log
 
+- **2026-07-23 (session 3 of the feature) — Phase 4 LIVE-VERIFIED by the user; 3 bugs
+  found and fixed (commit `7173fe076`); the header-position question is CLOSED.**
+  The user walked the checklist in their own app.
+  - **Passed:** (a) every space visible, two expanded at once, **collapse survived a
+    full restart** (the persistence quirk fixed in Phase 4 holds); (d) the "…" menu on a
+    non-first space targets that space; (f) the trash icon flips full/empty.
+  - **(e) CLOSED — no rework.** The user's verdict on the space-header name position was
+    "they look fine." The Phase 4 note predicted the name would read as moved to the
+    *left*; the user described it as sitting on the right and being fine either way, so
+    the observation didn't match the prediction but the outcome is a pass. **Headers stay
+    as built; do not revisit dock-aware headers.**
+  - **Bug 1 — rename frame was a loud blue.** It used `colorScheme.primary` (the theme
+    *accent*). Now `_frameColor()` derives it from `colorScheme.surface` and nudges
+    lightness ±0.30 in HSL: brighter than the sidebar in dark mode, darker in light.
+    Theme-derived, so it follows per-page theme overrides too. Tuning = one number.
+  - **Bug 2 — click-away silently dropped renames.** The field committed only on *focus
+    loss*, but most of the sidebar takes no focus when clicked (space header rows are a
+    bare `GestureDetector`; empty sidebar space is inert), so no focus event fired. Only
+    a click that happened to hit a focusable target saved — which produced the user's
+    tell-tale report, "doesn't save the first one, doesn't save the second one, saves the
+    third one." **That pattern was the diagnosis**: not flakiness, but a dependence on
+    what the click happened to land on. Fixed with `TapRegion.onTapOutside`, which fires
+    on any outside pointer-down regardless of focus; `_finish`'s `done` guard prevents a
+    double outcome. **Proven failing-then-passing** (test fails `+4 -1` without the fix).
+  - **Bug 3 — the per-space "+" menu flashed and vanished (<1s).** The trailing hover
+    icons only exist while `showActions` (`onHover || onEditing`) is true, so when the
+    pointer left the row to travel to the open menu, the "+" button was removed from the
+    tree **and took its own popover with it**. `ViewAddButton` reports its popover state
+    via `onEditing` for exactly this reason; in `space_list_header.dart` it was wired to
+    `(_) {}`. **`SpaceMorePopup` wires it correctly — which is precisely why the "…" menu
+    worked and "+" did not.** Generalisable lesson: *when one of two sibling controls
+    misbehaves, diff them against each other before theorising.*
+    - **No automated test, deliberately.** Rendering `ViewAddButton` in a widget test
+      requires `PluginSandbox` in GetIt — the whole plugin registry — plus an
+      `AppearanceSettingsCubit` mock. Judged more brittle than a one-line wiring fix
+      warrants. Rests on inspection + the "…" consistency argument + live check.
+    - **This also unblocked checklist item (c):** per-space "+" targeting was never
+      broken; the menu simply couldn't be reached to test it.
+  - **⌘O beep — investigated, NOT fixed, not ours.** ⌘O navigates correctly but macOS
+    emits the unhandled-key beep. `hotkey_manager` registers it at `HotKeyScope.inapp`
+    without consuming the native event. Provenance checked: the binding is **upstream
+    code, byte-identical in `upstream/main`** (`hotkeys.dart:191-198`), untouched by this
+    feature, and likely affects every AppFlowy hotkey — a shared-core (possibly
+    upstream-worthy) fix, not a sidebar one. Logged in the shortcuts backlog.
+  - **New roadmap item (user):** a full **icon-set revamp**, scheduled *after* ribbon
+    behavior is finished, as its own scoping pass. The trash full/empty pair stays.
+  - 8/8 widget tests green, analyzer clean, shipped to the dock app and content-verified
+    (`_frameColor` present). **The 3 fixes shipped after the user stopped testing, so
+    they are NOT yet user-verified — that is next session's first item.**
+
 - **2026-07-21 (session 2 of the feature) — Phases 1–3 verified by the user; Phase 2
   reworked to in-place rename on feedback; Phase 4 BUILT, awaiting live verification.**
   User verdicts: icon swap "good", trash "great", rename wanted in-place instead of the
