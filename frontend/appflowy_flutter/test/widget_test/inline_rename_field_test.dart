@@ -107,4 +107,86 @@ void main() {
     expect(submitted, 'saved anyway');
     expect(dismissed, 0);
   });
+
+  // Regression (user feedback 2026-07-23): arrow keys moved the caret the wrong
+  // way visually in a Hebrew page name. Flutter's stock bindings move the caret
+  // in LOGICAL order, so in RTL text ArrowLeft steps to the previous character
+  // — which is drawn to the RIGHT. These assert offsets, not pixels, so the
+  // headless fixed-width font can't distort them (see CLAUDE.md's rule about
+  // trusting headless tests only for non-geometric facts).
+  //
+  // In pure RTL text: visually-left == logically-forward == offset INCREASES.
+  group('arrow keys move the caret visually in RTL names', () {
+    Future<TextEditingController> pumpNamed(
+      WidgetTester tester,
+      String name,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          // The user runs an LTR interface, so the ambient direction is LTR
+          // even when the name itself is Hebrew — the case that was broken.
+          home: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Scaffold(
+              body: InlineRenameField(
+                initialName: name,
+                onSubmitted: (v) => submitted = v,
+                onDismissed: () => dismissed++,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return tester.widget<TextField>(find.byType(TextField)).controller!;
+    }
+
+    testWidgets('RTL name: ArrowLeft goes visually left', (tester) async {
+      final controller = await pumpNamed(tester, 'שלום עולם');
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(
+        controller.selection.baseOffset,
+        5,
+        reason: 'visually left in RTL is logically forward',
+      );
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(
+        controller.selection.baseOffset,
+        3,
+        reason: 'visually right in RTL is logically backward',
+      );
+    });
+
+    testWidgets('RTL name: Shift+Arrow extends the same way', (tester) async {
+      final controller = await pumpNamed(tester, 'שלום עולם');
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pumpAndSettle();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.pumpAndSettle();
+
+      expect(controller.selection.baseOffset, 4, reason: 'anchor stays put');
+      expect(controller.selection.extentOffset, 5);
+    });
+
+    testWidgets('LTR name keeps stock behaviour', (tester) async {
+      final controller = await pumpNamed(tester, 'hello world');
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(controller.selection.baseOffset, 3);
+    });
+  });
 }
