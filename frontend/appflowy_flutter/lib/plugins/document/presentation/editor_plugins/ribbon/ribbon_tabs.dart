@@ -32,7 +32,10 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'paragraph_spacing.dart';
 import 'ribbon_action.dart';
+import 'ribbon_dropdown.dart';
+import 'text_transforms.dart';
 
 /// Alignment values accepted by [blockComponentAlign] (fork:
 /// `base_component_keys.dart` documents these as left / right / center).
@@ -331,6 +334,118 @@ RibbonAction _blockTypeAction({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3 (2026-07-23): clear formatting, change case, spacing.
+// ---------------------------------------------------------------------------
+
+/// Strips inline marks from the selection, or from the whole paragraph when
+/// there is only a caret.
+///
+/// Inline-only by decision: a heading stays a heading, alignment and lists
+/// survive. See `text_transforms.dart`.
+RibbonAction _clearFormattingAction() {
+  return RibbonAction(
+    id: 'clear_formatting',
+    label: 'Clear formatting',
+    icon: FlowySvgs.eraser_m,
+    isEnabled: _hasTarget,
+    onPressed: (_, editorState) =>
+        unawaited(clearInlineFormatting(editorState)),
+  );
+}
+
+/// The Change Case dropdown — Word's five transforms in one ribbon slot.
+///
+/// Entries are built when the menu opens, not up front, so each one can report
+/// whether it would actually change the target text. On Hebrew (and any other
+/// unicase script) every transform is a no-op, so every entry disables itself
+/// and says why rather than looking broken when pressing it does nothing.
+RibbonAction _changeCaseAction() {
+  return RibbonAction(
+    id: 'change_case',
+    label: 'Change case',
+    icon: FlowySvgs.type_text_m,
+    builder: (context, editorState) => RibbonDropdownButton(
+      id: 'change_case',
+      label: 'Change case',
+      icon: FlowySvgs.type_text_m,
+      isEnabled: _hasTarget(editorState),
+      entriesBuilder: (_) {
+        final target = _selectedPlainText(editorState);
+        return [
+          for (final letterCase in LetterCase.values)
+            RibbonMenuEntry(
+              label: letterCase.label,
+              isEnabled: letterCase.changesAnything(target),
+              disabledHint: 'Would not change this text.\n'
+                  'Hebrew and Arabic have no upper or lower case.',
+              onSelected: () =>
+                  unawaited(applyLetterCase(editorState, letterCase)),
+            ),
+        ];
+      },
+    ),
+  );
+}
+
+/// The plain text a case transform would act on — used only to decide which
+/// entries can do anything.
+String _selectedPlainText(EditorState editorState) {
+  final selection = effectiveSelection(editorState);
+  if (selection == null) {
+    return '';
+  }
+  final normalized = selection.normalized;
+  final buffer = StringBuffer();
+  for (final node in editorState.getNodesInSelection(normalized)) {
+    final delta = node.delta;
+    if (delta == null) {
+      continue;
+    }
+    final text = delta.toPlainText();
+    final start =
+        node.path.equals(normalized.start.path) ? normalized.start.offset : 0;
+    final end = node.path.equals(normalized.end.path)
+        ? normalized.end.offset
+        : text.length;
+    if (start < end && end <= text.length) {
+      buffer.write(text.substring(start, end));
+    }
+  }
+  return buffer.toString();
+}
+
+/// A preset dropdown writing one spacing attribute onto the selected blocks.
+RibbonAction _spacingAction({
+  required String id,
+  required String label,
+  required String attributeKey,
+  required FlowySvgData icon,
+  required List<({String label, double value})> presets,
+}) {
+  return RibbonAction(
+    id: id,
+    label: label,
+    icon: icon,
+    builder: (context, editorState) => RibbonDropdownButton(
+      id: id,
+      label: label,
+      icon: icon,
+      isEnabled: _hasTarget(editorState),
+      entriesBuilder: (_) => [
+        for (final preset in presets)
+          RibbonMenuEntry(
+            label: preset.label,
+            isSelected: blockSpacingIs(editorState, attributeKey, preset.value),
+            onSelected: () => unawaited(
+              setBlockSpacingAttribute(editorState, attributeKey, preset.value),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
 /// A placeholder for a capability AppFlowy does not have yet.
 RibbonAction _comingSoon(String id, String label, [FlowySvgData? icon]) {
   return RibbonAction(
@@ -490,10 +605,31 @@ RibbonTab _contentTab() {
             value: _alignRight,
             icon: FlowySvgs.toolbar_text_align_right_m,
           ),
-          // Only three align values exist in the editor today.
+          // Justify needs a fork change and is grouped with Phase 4's other
+          // fork-crossing items: alignment resolves through a Flutter
+          // `Alignment`, which has no justify value, so the string cannot
+          // survive the conversion. See specs/ribbon-menu.md → Phase 3 scoping.
           _comingSoon('justify', 'Justify'),
-          _comingSoon('line_spacing', 'Line spacing'),
-          _comingSoon('paragraph_spacing', 'Paragraph spacing'),
+          _spacingAction(
+            id: 'line_spacing',
+            label: 'Line spacing',
+            attributeKey: blockComponentLineHeight,
+            icon: FlowySvgs.m_page_style_presets_m,
+            presets: [
+              for (final preset in LineSpacingPreset.values)
+                (label: preset.label, value: preset.multiplier),
+            ],
+          ),
+          _spacingAction(
+            id: 'paragraph_spacing',
+            label: 'Space after paragraph',
+            attributeKey: blockComponentSpaceAfter,
+            icon: FlowySvgs.m_aa_paragraph_m,
+            presets: [
+              for (final preset in ParagraphSpacingPreset.values)
+                (label: preset.label, value: preset.pixels),
+            ],
+          ),
         ],
       ),
       RibbonGroup(
@@ -529,8 +665,10 @@ RibbonTab _contentTab() {
         actions: [
           // Link is a popover (URL entry), same reasoning as the colour pickers.
           _comingSoon('link', 'Link'),
-          _comingSoon('sentence_case', 'Sentence case'),
-          _comingSoon('clear_formatting', 'Clear formatting'),
+          // Widened from the signed-off "Sentence case" to Word's full set at
+          // the user's request (2026-07-23) — one slot, five transforms.
+          _changeCaseAction(),
+          _clearFormattingAction(),
           // Both need a new delta attribute in the editor fork — Phase 4.
           _comingSoon('superscript', 'Superscript'),
           _comingSoon('subscript', 'Subscript'),

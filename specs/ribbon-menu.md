@@ -97,9 +97,9 @@ Known caveat from the earlier investigation: the page-style bloc lives under `li
 ## Phased plan
 - **Phase 1 — the frame.** Everything in "in scope" above. Ends with a usable ribbon showing the complete intended shape.
 - **Phase 2 — per-page RTL/LTR.** The most-wanted capability and among the cheapest. Move direction storage to `View.extra`, add the desktop read path, wire the Page tab buttons.
-- **Phase 3 — the small app-side gaps.** Clear formatting, sentence case, justify, paragraph spacing.
-- **Phase 4 — the fork-crossing gaps.** Superscript, subscript, footnote — each needs a new delta attribute in the editor fork, a fork commit, and a pin re-sync. Grouped so there's one fork round-trip, not three.
-- **Phase 5 — the partials.** Font size per selection, desktop line spacing, page colour, margins, ruler.
+- **Phase 3 — the small app-side gaps.** Clear formatting, change case, paragraph spacing **and line height** (both per paragraph). ~~justify~~ — moved to Phase 4, see "Phase 3 scoping" below. Line height moved *in* from Phase 5: it shares a seam with paragraph spacing and splitting them would mean doing the same work twice.
+- **Phase 4 — the fork-crossing gaps.** Superscript, subscript, footnote, **and justify** — each needs a fork change, a fork commit, and a pin re-sync. Grouped so there's one fork round-trip, not four.
+- **Phase 5 — the partials.** Font size per selection, ~~desktop line spacing~~ (moved to Phase 3), page colour, margins, ruler.
 - **Phase 6 — the context-aware right-click menu.** Needs the fork's context-menu widget rebuilt (today's is primitive: no icons, no submenus, no screen-edge flip). Mirror upstream 6.1.0's "context menu builder" API shape (PR #1152) so a future merge collapses cleanly.
 - **Not scheduled:** the large Elements/Tools features, each needing its own spec.
 
@@ -172,6 +172,63 @@ Captured while building Phase 1; each gets built in its own session.
 - **Font picker** — a dropdown with a **filter/search box**. Each font's *name* renders **in that font**, so the list previews itself.
 - **Font size** — a **type-in box flanked by two carets** ("elevator" styling): one to increase, one to decrease. Not a plain dropdown.
 - **Paragraph styles** — the ability to edit the **hierarchy of styles** (heading levels and body), in the style of Google Docs' "paragraph styles". This is a new capability, not in the original inventory, and likely needs its own spec.
+
+## Phase 3 scoping (2026-07-23, session 8) — awaiting sign-off
+Four code findings came first; two of them moved a item between phases, so they are
+recorded before the decisions they caused.
+
+### Findings (verified in code, 2026-07-23)
+1. **Justify cannot be done app-side — it moves to Phase 4.** Alignment flows
+   `blockComponentAlign` string (`left|center|right`) → `align_mixin.dart:8` → a Flutter
+   **`Alignment`** → `alignment_extension.dart`'s `toTextAlign` → `TextAlign`. The middle
+   step kills it: `Alignment` is a *box position*, and there is no `Alignment` value meaning
+   justify — justify is a paragraph-layout instruction, not a position. Supporting it means
+   carrying the align string past that conversion, and **six** block components
+   (paragraph, heading, quote, bulleted/numbered list, todo) read `alignment` for real box
+   positioning as well, so it is a restructure rather than an added `case`.
+2. **Paragraph spacing and line height are BOTH per-node-capable app-side — no fork change.**
+   This corrects an earlier worry in this session that per-paragraph spacing would need the
+   fork. Both seams already receive the node:
+   `BlockComponentConfiguration.padding` is `EdgeInsets Function(Node)`
+   (`block_component_configuration.dart:93`) and `textStyle` is a
+   `BlockComponentTextStyleBuilder` taking a `Node` (`:35`, `:106`). So a paragraph can carry
+   its own spacing and its own line height as block attributes, read app-side — exactly the
+   mechanism `blockComponentAlign` already uses.
+3. **Desktop is the only platform missing a read path**, which is why these look "missing"
+   rather than "broken". Mobile already reads `DocumentPageStyleBloc` for both
+   (`editor_configuration.dart:108-127`, `editor_style.dart:293-307`); desktop returns
+   hardcoded constants — `EdgeInsets.symmetric(vertical: 5.0)` and `lineHeight: 1.4`
+   (`editor_style.dart:243`). Phase 3 is largely "give desktop the read path mobile has,"
+   keyed off the node instead of a page-wide bloc.
+4. **Clear formatting has its primitive already.** `editorState.formatDelta(selection, {key: null})`
+   exists in the fork and the app's own colour buttons already use it.
+
+### Decisions (user, 2026-07-23)
+- **Justify → Phase 4.** Grouped with superscript/subscript/footnote so there is one fork
+  round-trip and one pin re-sync, not two. The Justify button stays visibly disabled until then.
+- **Clear formatting clears INLINE MARKS ONLY** — bold, italic, underline, strikethrough,
+  code, font colour, highlight, font family, links. Block type, alignment and lists survive:
+  a heading stays a heading. Chosen for predictability over Word's more destructive
+  "Clear All Formatting".
+- **Change Case is a dropdown**, not a single Sentence-case button: Word's five —
+  Sentence case, lowercase, UPPERCASE, Capitalize Each Word, tOGGLE cASE. One ribbon slot,
+  five actions, one shared transform. This widens the signed-off scope (which said only
+  "sentence case") at the user's request. **Note it is a no-op on Hebrew, which has no letter
+  case** — so the button must not appear broken when nothing changes.
+- **Spacing and line height are PER PARAGRAPH, not per page** (user: *"per content because it
+  affects each paragraph, not the entire page"*). Deliberately **unlike** per-page direction
+  and per-page theme, which live in `View.extra`: those describe the page, this describes a
+  block. Stored as block attributes on the node, so they travel with the paragraph when it
+  moves and inherit nothing when absent.
+
+### Resolved at sign-off (user, 2026-07-23)
+- **Signed off as scoped**, including pulling line height into Phase 3.
+- **Spacing is a preset dropdown**, not a numeric control — matching the existing align
+  dropdown, nothing to type, no weird intermediate states. A numeric "elevator" control is
+  deferred to the font-size button so both can share one component rather than inventing it
+  twice.
+- **Change Case with a collapsed cursor acts on the whole paragraph**, consistent with the
+  align/list/indent buttons already in the ribbon. It does not require an explicit selection.
 
 ## Open questions
 - Which keyboard shortcut collapses the ribbon (Word uses Ctrl+F1; AppFlowy's rebindable system means this is a default, not a commitment).

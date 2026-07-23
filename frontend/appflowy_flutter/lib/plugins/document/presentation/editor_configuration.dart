@@ -17,6 +17,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 import 'editor_plugins/link_preview/custom_link_preview_block_component.dart';
+// [fork:ribbon] Phase 3 — per-paragraph spacing and line height.
+import 'editor_plugins/ribbon/paragraph_spacing.dart';
 import 'editor_plugins/page_block/custom_page_block_component.dart';
 
 /// A global configuration for the editor.
@@ -127,8 +129,16 @@ BlockComponentConfiguration _buildDefaultConfiguration(
         return padding?.call(node) ?? edgeInsets;
       }
 
-      return const EdgeInsets.symmetric(vertical: 5.0);
+      // [fork:ribbon] Phase 3 — per-paragraph spacing. Was a hardcoded
+      // `EdgeInsets.symmetric(vertical: 5.0)`; that value is preserved as the
+      // default inside desktopBlockPadding, so untouched documents are
+      // unchanged. See ribbon/paragraph_spacing.dart.
+      return desktopBlockPadding(node);
     },
+    // [fork:ribbon] Phase 3 — per-paragraph line height. Only `height` is set
+    // here; the editor combines it over the resolved style, and every other
+    // property survives.
+    textStyle: (node, {TextSpan? textSpan}) => lineHeightTextStyle(node),
     indentPadding: (node, textDirection) {
       double padding = 26.0;
 
