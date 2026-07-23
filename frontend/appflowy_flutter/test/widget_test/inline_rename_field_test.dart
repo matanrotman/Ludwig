@@ -70,4 +70,41 @@ void main() {
     expect(submitted, 'clicked away');
     expect(dismissed, 0);
   });
+
+  // Regression (user feedback 2026-07-23): renames were silently dropped when
+  // the click-away landed on something that takes no focus — which is most of
+  // the sidebar (space header rows are a bare GestureDetector, and empty
+  // sidebar space is inert). Focus never changed, so the focus-loss listener
+  // never fired. Only a click that happened to hit a focusable target saved.
+  testWidgets('clicking a NON-focusable target still commits', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              InlineRenameField(
+                initialName: 'old name',
+                onSubmitted: (v) => submitted = v,
+                onDismissed: () => dismissed++,
+              ),
+              // Stands in for sidebar chrome: handles the tap, takes no focus.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {},
+                child: const SizedBox(height: 100, width: 100),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'saved anyway');
+    await tester.tap(find.byType(SizedBox).last, warnIfMissed: false);
+    await tester.pump();
+
+    expect(submitted, 'saved anyway');
+    expect(dismissed, 0);
+  });
 }

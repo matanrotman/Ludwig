@@ -78,36 +78,59 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = Theme.of(context).colorScheme.primary;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(4),
-      borderSide: BorderSide(color: borderColor),
+      borderSide: BorderSide(color: _frameColor(Theme.of(context))),
     );
-    return Focus(
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape) {
-          _finish(commit: false);
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        autofocus: true,
-        maxLength: 256,
-        style: TextStyle(fontSize: widget.fontSize),
-        decoration: InputDecoration(
-          isDense: true,
-          counterText: '',
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-          enabledBorder: border,
-          focusedBorder: border,
+    return TapRegion(
+      // Focus loss alone does NOT catch every click-away: clicking sidebar
+      // chrome or empty space doesn't move focus, so no focus event fired and
+      // the edit was silently dropped (user feedback 2026-07-23 — "doesn't
+      // save the first one, doesn't save the second one, saves the third
+      // one"; the third click happened to land on something focusable).
+      // TapRegion fires on any pointer-down outside this field regardless of
+      // whether the target takes focus. [_finish]'s `done` guard keeps this
+      // and the focus listener from producing two outcomes.
+      onTapOutside: (_) => _finish(commit: true),
+      child: Focus(
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            _finish(commit: false);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          autofocus: true,
+          maxLength: 256,
+          style: TextStyle(fontSize: widget.fontSize),
+          decoration: InputDecoration(
+            isDense: true,
+            counterText: '',
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            enabledBorder: border,
+            focusedBorder: border,
+          ),
+          onSubmitted: (_) => _finish(commit: true),
         ),
-        onSubmitted: (_) => _finish(commit: true),
       ),
     );
+  }
+
+  /// A quiet outline rather than an accent colour: the frame is one shade
+  /// *away* from the surface it sits on — brighter than the sidebar in dark
+  /// mode, darker in light mode (user feedback 2026-07-23; the previous
+  /// `colorScheme.primary` read as a loud blue). Derived from the theme's own
+  /// surface so it tracks any theme, including a page-level override.
+  Color _frameColor(ThemeData theme) {
+    final hsl = HSLColor.fromColor(theme.colorScheme.surface);
+    final delta = theme.brightness == Brightness.dark ? 0.30 : -0.30;
+    return hsl
+        .withLightness((hsl.lightness + delta).clamp(0.0, 1.0))
+        .toColor();
   }
 }

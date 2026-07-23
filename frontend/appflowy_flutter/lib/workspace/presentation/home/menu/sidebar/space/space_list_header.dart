@@ -158,7 +158,14 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
             message: LocaleKeys.sideBar_addAPage.tr(),
             child: ViewAddButton(
               parentViewId: widget.space.id,
-              onEditing: (_) {},
+              // Must feed the same notifier as SpaceMorePopup below: the
+              // hover icons only exist while `showActions` is true, so an
+              // unreported open popover dies the moment the pointer leaves
+              // the row on its way to the menu — the button is removed from
+              // the tree and takes its own popover with it. (User feedback
+              // 2026-07-23: the "+" menu flashed and vanished; the "…" menu
+              // was fine precisely because it wires this up.)
+              onEditing: (value) => _onEditing.value = value,
               onSelected: (
                 pluginBuilder,
                 name,
