@@ -338,19 +338,16 @@ RibbonAction _blockTypeAction({
 // Phase 3 (2026-07-23): clear formatting, change case, spacing.
 // ---------------------------------------------------------------------------
 
-/// Strips inline marks from the selection, or from the whole paragraph when
-/// there is only a caret.
-///
-/// Inline-only by decision: a heading stays a heading, alignment and lists
-/// survive. See `text_transforms.dart`.
+/// Clears all formatting from the selection, or from the whole paragraph when
+/// there is only a caret: inline marks, block type, alignment and spacing. Only
+/// the text and its reading direction survive. See `text_transforms.dart`.
 RibbonAction _clearFormattingAction() {
   return RibbonAction(
     id: 'clear_formatting',
     label: 'Clear formatting',
     icon: FlowySvgs.eraser_m,
     isEnabled: _hasTarget,
-    onPressed: (_, editorState) =>
-        unawaited(clearInlineFormatting(editorState)),
+    onPressed: (_, editorState) => unawaited(clearFormatting(editorState)),
   );
 }
 

@@ -130,15 +130,15 @@ void main() {
     });
   });
 
-  group('clearInlineFormatting', () {
-    test('strips marks but leaves the text alone', () async {
+  group('clearFormatting', () {
+    test('strips inline marks but leaves the text alone', () async {
       final editorState = _stateWith(
         'hello',
         attributes: {'bold': true, 'italic': true, 'font_color': '0xff00ff00'},
       );
       editorState.selection = Selection.collapsed(Position(path: [0]));
 
-      await clearInlineFormatting(editorState);
+      await clearFormatting(editorState);
 
       final delta = _firstParagraph(editorState).delta!;
       expect(delta.toPlainText(), 'hello');
@@ -153,26 +153,65 @@ void main() {
       }
     });
 
-    // Inline-only was the explicit decision (2026-07-23) over Word's more
-    // destructive "Clear All Formatting".
-    test('leaves the block type and alignment intact', () async {
+    // "Clear everything" (user decision, 2026-07-23): the block returns to a
+    // plain paragraph and its alignment/level/spacing are gone.
+    test('resets a heading to a paragraph and drops block formatting', () async {
       final delta = Delta()..insert('a heading', attributes: {'bold': true});
       final document = Document.blank()
         ..insert([
           0,
         ], [
           headingNode(level: 2, delta: delta)
-            ..updateAttributes({blockComponentAlign: 'center'}),
+            ..updateAttributes({
+              blockComponentAlign: 'center',
+              'appflowy_line_height': 2.0,
+              'appflowy_space_after': 12.0,
+            }),
         ]);
       final editorState = EditorState(document: document);
       editorState.selection = Selection.collapsed(Position(path: [0]));
 
-      await clearInlineFormatting(editorState);
+      await clearFormatting(editorState);
 
-      final node = _firstParagraph(editorState);
-      expect(node.type, HeadingBlockKeys.type);
-      expect(node.attributes[blockComponentAlign], 'center');
+      final node = editorState.document.nodeAtPath([0])!;
+      expect(node.type, ParagraphBlockKeys.type);
+      expect(node.attributes.containsKey(blockComponentAlign), isFalse);
+      expect(node.attributes.containsKey('appflowy_line_height'), isFalse);
+      expect(node.attributes.containsKey('appflowy_space_after'), isFalse);
       expect(node.delta!.toPlainText(), 'a heading');
+      // The bold mark is gone too.
+      expect(
+        node.delta!.whereType<TextInsert>().every(
+              (op) => op.attributes?['bold'] != true,
+            ),
+        isTrue,
+      );
+    });
+
+    // Reading direction is a content property, not stylistic formatting:
+    // clearing it would flip an RTL paragraph to LTR. It must survive.
+    test('preserves the reading direction', () async {
+      final delta = Delta()..insert('שלום');
+      final document = Document.blank()
+        ..insert([
+          0,
+        ], [
+          headingNode(level: 1, delta: delta)
+            ..updateAttributes(
+              {blockComponentTextDirection: blockComponentTextDirectionRTL},
+            ),
+        ]);
+      final editorState = EditorState(document: document);
+      editorState.selection = Selection.collapsed(Position(path: [0]));
+
+      await clearFormatting(editorState);
+
+      final node = editorState.document.nodeAtPath([0])!;
+      expect(node.type, ParagraphBlockKeys.type);
+      expect(
+        node.attributes[blockComponentTextDirection],
+        blockComponentTextDirectionRTL,
+      );
     });
   });
 

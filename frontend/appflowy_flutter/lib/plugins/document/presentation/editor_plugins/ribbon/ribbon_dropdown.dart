@@ -9,6 +9,7 @@
 // both can share one component rather than inventing it twice.
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -128,6 +129,12 @@ class _RibbonDropdownButtonState extends State<RibbonDropdownButton> {
         offset: const Offset(0, 4),
         triggerActions:
             isEnabled ? PopoverTriggerFlags.click : PopoverTriggerFlags.none,
+        // Opening the popover steals focus from the editor, which would null the
+        // selection every entry here needs. Holding the notifier up keeps the
+        // selection alive while the menu is open and returns focus on close —
+        // the same pattern the editor's own colour/highlight popovers use.
+        onOpen: () => keepEditorFocusNotifier.increase(),
+        onClose: () => keepEditorFocusNotifier.decrease(),
         popupBuilder: (_) => _RibbonMenu(
           entries: widget.entriesBuilder(context),
           onDismiss: _controller.close,
@@ -226,9 +233,12 @@ class _RibbonMenuRowState extends State<_RibbonMenuRow> {
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
         child: GestureDetector(
+          // Run the action FIRST, while the popover still holds editor focus
+          // (so the selection is intact), then dismiss — closing lowers the
+          // keep-focus notifier.
           onTap: () {
-            widget.onDismiss();
             entry.onSelected();
+            widget.onDismiss();
           },
           child: row,
         ),

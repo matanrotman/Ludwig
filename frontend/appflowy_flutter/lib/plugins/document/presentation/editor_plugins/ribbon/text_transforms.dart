@@ -10,12 +10,7 @@
 
 import 'package:appflowy_editor/appflowy_editor.dart';
 
-/// The inline marks "Clear formatting" removes.
-///
-/// Deliberately inline-only (user decision, 2026-07-23): block type, alignment
-/// and list membership survive, so a heading stays a heading. This is narrower
-/// than Word's "Clear All Formatting" and was chosen for predictability — the
-/// destructive version is easy to hit by accident and hard to undo mentally.
+/// The inline marks "Clear formatting" removes from the text run.
 ///
 /// `findBackgroundColor` is excluded on purpose: it is the find-and-replace
 /// highlight, owned by the editor's search UI, not user formatting.
@@ -30,6 +25,19 @@ const List<String> clearableInlineAttributes = [
   'href',
   'font_family',
   'font_size',
+];
+
+/// Block attributes that "Clear formatting" preserves rather than wipes.
+///
+/// Only the text itself and the reading direction survive. Direction is a
+/// *reading* property, not stylistic formatting — clearing it would silently
+/// flip an RTL (Hebrew/Arabic) paragraph to LTR, which for this project's
+/// primary user would be worse than the formatting it removed. Everything else
+/// (heading level, list/todo membership, alignment, line height, paragraph
+/// spacing) is dropped by rebuilding the block as a plain paragraph.
+const List<String> _preservedBlockAttributes = [
+  blockComponentDelta,
+  blockComponentTextDirection,
 ];
 
 /// The selection an action should operate on: the user's range if there is one,
@@ -56,15 +64,48 @@ Selection? effectiveSelection(EditorState editorState) {
   );
 }
 
-/// Strips every mark in [clearableInlineAttributes] from the target text.
-Future<void> clearInlineFormatting(EditorState editorState) async {
+/// Word-style "Clear All Formatting" (user decision, 2026-07-23): removes inline
+/// marks, resets each text block to a plain paragraph, and drops block-level
+/// formatting (alignment, line height, paragraph spacing, heading level, list
+/// membership). Only the text and its reading direction survive.
+///
+/// Non-text blocks (images, dividers, tables) are left untouched — converting
+/// them to paragraphs would destroy content, not formatting.
+///
+/// Note this cannot undo a *case* change: uppercasing rewrites the letters, so
+/// the original casing is gone from the text itself, not stored as an attribute.
+/// Only undo (⌘Z) reverses that.
+Future<void> clearFormatting(EditorState editorState) async {
   final selection = effectiveSelection(editorState);
   if (selection == null) {
     return;
   }
+
+  // 1) Inline marks. formatDelta rewrites the delta in place, preserving text.
   await editorState.formatDelta(
     selection,
     {for (final key in clearableInlineAttributes) key: null},
+  );
+
+  // 2) Block type and block-level formatting. formatNode replaces each node
+  //    wholesale (insert-new + delete-old), so returning a paragraph whose
+  //    attributes are only the preserved set clears everything else in one
+  //    step. Children are left to clone (not passed), so nested content is not
+  //    deleted. This mirrors the editor's own block-type toggle.
+  await editorState.formatNode(
+    selection,
+    (node) {
+      if (node.delta == null) {
+        return node; // not a text block — leave it alone
+      }
+      return node.copyWith(
+        type: ParagraphBlockKeys.type,
+        attributes: {
+          for (final key in _preservedBlockAttributes)
+            if (node.attributes.containsKey(key)) key: node.attributes[key],
+        },
+      );
+    },
   );
 }
 

@@ -13,6 +13,7 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flutter/material.dart';
 
+import 'keep_editor_focus.dart';
 import 'ribbon_action.dart';
 import 'ribbon_shortcuts.dart';
 
@@ -92,7 +93,12 @@ class _RibbonButtonState extends State<RibbonButton> {
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
         child: GestureDetector(
-          onTap: () => action.onPressed?.call(context, widget.editorState),
+          // Hold the editor's selection across the tap (and return focus to the
+          // editor afterwards) — otherwise a focus-stealing tap wipes the
+          // selection the action needs. See keep_editor_focus.dart.
+          onTap: () => runKeepingEditorFocus(
+            () => action.onPressed?.call(context, widget.editorState),
+          ),
           child: child,
         ),
       );
