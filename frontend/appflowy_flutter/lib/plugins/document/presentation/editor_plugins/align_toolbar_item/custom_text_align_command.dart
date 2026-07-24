@@ -8,7 +8,20 @@ final List<CommandShortcutEvent> customTextAlignCommands = [
   customTextLeftAlignCommand,
   customTextCenterAlignCommand,
   customTextRightAlignCommand,
+  // [fork:ribbon] specs/ribbon-menu.md (Phase 4)
+  customTextJustifyCommand,
 ];
+
+/// [fork:ribbon] Phase 4 — justify. Stores the `'justify'` align value, which
+/// the editor fork maps to `TextAlign.justify` via `blockTextAlign`
+/// (align_mixin.dart). ctrl+shift+j continues the l/c/r pattern and matches
+/// Word / Google Docs. Direction-agnostic, so it works in LTR and RTL.
+final CommandShortcutEvent customTextJustifyCommand = CommandShortcutEvent(
+  key: 'Justify text',
+  command: 'ctrl+shift+j',
+  getDescription: () => 'Justify text',
+  handler: (editorState) => _textAlignHandler(editorState, 'justify'),
+);
 
 /// Windows / Linux : ctrl + shift + l
 /// macOS           : ctrl + shift + l

@@ -5,6 +5,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 // [fork:ribbon]
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/font_size_commands.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/ribbon_collapse_command.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/text_script_commands.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shortcuts/custom_delete_command.dart';
 // [fork:rtl]
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shortcuts/visual_line_selection_commands.dart';
@@ -55,6 +56,9 @@ List<CommandShortcutEvent> commandShortcutEvents = [
 
   // [fork:ribbon] specs/ribbon-menu.md — Option+Cmd+> / Option+Cmd+< font size
   ...fontSizeCommands,
+
+  // [fork:ribbon] specs/ribbon-menu.md (Phase 4) — Cmd+Shift+= / Cmd+Shift+-
+  ...textScriptCommands,
 
   // remove standard shortcuts for copy, cut, paste, todo
   ...standardCommandShortcutEvents

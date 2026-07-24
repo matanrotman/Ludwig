@@ -314,6 +314,63 @@ already generalises. Nothing here hardcodes anything to this Mac or account.
 Normal = current default** — yes. **Signed off as scoped; build order: font size → page colour
 → margins.**
 
+## Phase 4 scoping (2026-07-24, session 10) — signed off
+Phase 4 is "the fork-crossing gaps." The signed-off scope is **justify + superscript +
+subscript** — one fork commit, one pin re-sync. **Footnote is split out to its own spec** (see
+decisions). As before, the code findings lead.
+
+### Findings (verified in code, 2026-07-24)
+1. **Superscript/subscript do not exist in the fork.** The inline-mark system is a flat list of
+   string keys in `AppFlowyRichTextKeys` (`appflowy_rich_text_keys.dart`) with membership lists
+   (`supportToggled`, `supportSliced`, `partialSliced`). Adding the two marks = two new keys +
+   the right list memberships + a render path — the same *shape* as bold/italic, so the wiring is
+   familiar. **The render path is the catch (finding 2).**
+2. **⚠️ Flutter has no clean superscript/subscript for *editable* rich text — this is Phase 4's
+   one real risk.** `FontFeature.superscripts()/subscripts()` is font-dependent and silently
+   no-ops on many fonts (including, likely, the Hebrew-capable defaults this user runs). The
+   robust route is rendering the run smaller with a raised/lowered baseline, but a per-span
+   vertical shift isn't a `TextStyle` property, and doing it via `WidgetSpan`/transform inside an
+   editable paragraph risks throwing off **caret placement and selection geometry** around those
+   characters — the exact class of bug the RTL caret work has repeatedly shown is invisible to
+   headless tests. **Decision: the build opens with a rendering spike** (prove it renders *and*
+   the caret/selection behave on the real macOS target) before any button/shortcut is wired.
+3. **Footnote does not exist in any form** (no marker system, no note store, no numbering) and is
+   its own small feature — as big as the other three combined. Not an inline mark.
+4. **Justify's blocker is already documented** (Phase 3 scoping, finding 1): alignment resolves
+   `blockComponentAlign` (`left|center|right`) → a Flutter `Alignment` (a *box position*, which
+   has no justify value) → `TextAlign`. Justify means carrying the align string past that
+   conversion to `TextAlign.justify` while the box position defaults, and **six** block components
+   read `alignment` for real positioning — a small restructure, not an added `case`. No render
+   risk (unlike super/subscript); works in RTL for free (`TextAlign.justify` is direction-agnostic).
+
+### Decisions (user, 2026-07-24)
+- **Phase 4 = justify + superscript + subscript.** One fork round-trip + pin re-sync, targeting
+  one session.
+- **Footnote → its own spec.** It's a feature, not a mark. Its ribbon button stays a visible
+  "coming soon" until that spec is scoped and built. (This narrows Phase 4 from the four-item plan
+  recorded at line 101/207.)
+- **Super/subscript = two toggle buttons** in the Content tab's Font group, beside
+  strikethrough/inline-code. Toggle like Bold; **mutually exclusive** (enabling one clears the
+  other); the character **auto-shrinks**.
+- **Shortcuts: ⌘⇧= superscript, ⌘⇧− subscript** — symmetric (`=`/`+` = "up", `−` = "down"),
+  location-matched so they fire under Hebrew too (the `d15e3c3a` engine). **Word's ⌘= for subscript
+  was rejected** because ⌘= collides with zoom in many apps; ⌘⇧= / ⌘⇧− are both free (verified: no
+  app- or fork-side binding on the equal/minus keys). A small `text_script_commands.dart` sidecar,
+  registered in `command_shortcuts.dart`, mirroring `font_size_commands.dart`.
+- **Justify = the 4th option in the existing align dropdown**, applying to the same blocks
+  alignment already covers.
+- **Build order (agreed): super/subscript rendering spike first**, then the buttons + shortcuts,
+  then justify (the low-risk item). Fork commit → push → pin re-sync last.
+
+### Multi-user readiness
+All three are **universal — no personal assumptions.** Justify and super/subscript work for any
+user, any language, LTR or RTL. Nothing hardcodes to this Mac or account. (Super/subscript are rare
+in Hebrew, which has no such convention, but they're harmless there and the shortcuts still fire.)
+
+### Sign-off
+**Signed off 2026-07-24 (session 10)** as scoped above: scope, the ⌘⇧= / ⌘⇧− shortcut pair, and
+opening the build with a super/subscript rendering spike. No code written this session.
+
 ## Open questions
 - Which keyboard shortcut collapses the ribbon (Word uses Ctrl+F1; AppFlowy's rebindable system means this is a default, not a commitment).
 - Whether the Tools tab's Translate/Transcribe/Record buttons should link out to their future specs or simply sit disabled.
@@ -322,6 +379,15 @@ Normal = current default** — yes. **Signed off as scoped; build order: font si
 **Signed off 2026-07-19** (session 2), subject to the three corrections and three decisions recorded above.
 
 ## Session Log
+- **2026-07-25 (session 10) — Phase 4 scoped, signed off, and BUILT: justify + superscript + subscript. Footnote split out to its own future spec. Fork committed + re-pinned. Visual verification deferred to the user (a keyboard tooling wall, below).**
+  - **Scope decision:** Phase 4 = justify + super/subscript only; **footnote deferred to its own spec** (it's a feature — marker system + note store + numbering — not an inline mark; the button stays "coming soon"). See "Phase 4 scoping" above.
+  - **Superscript / subscript** (fork): two new inline-mark keys in `AppFlowyRichTextKeys` (added to `supportSliced` + `supportToggled`), rendered via OpenType **`FontFeature.superscripts()` / `subscripts()`**. This is deliberately the *only* clean approach for editable rich text: it stays pure `TextSpan`s, so caret and selection map **1:1 to characters**. A `WidgetSpan`/`Transform` baseline shift — the obvious alternative — collapses a multi-char run to a single placeholder (`￼`, length 1), which would break every offset in the editor's delta↔render mapping. Trade-off: font-dependent (silently no-ops on fonts lacking the glyphs), but the macOS system font supports it for digits (the mc²/H₂O case).
+  - **Mutual exclusivity** (fork): new `EditorState.toggleExclusiveAttribute(key, opposite)` beside `toggleAttribute` — toggles `key`, and whenever that turns it ON also clears `opposite`, so super/sub can't both apply. Mirrors `toggleAttribute`'s collapsed (pending `toggledStyle`) and expanded (`formatDelta`) handling. The ribbon buttons and the shortcuts share it via app-side `toggleTextScript`.
+  - **Super/sub shortcuts** (app, `text_script_commands.dart`): **⌘⇧=** superscript, **⌘⇧−** subscript. Symmetric (=/+ = "up", − = "down"); Word's ⌘= for subscript rejected (zoom clash). Both `equal`/`minus` are already in the fork's `keyToPhysicalCodeMapping`, so — like font size — they fire under a Hebrew keyboard by physical location. Two ribbon toggle buttons in the Content-tab Font group call the same helper (`_scriptAction`). **Icons are temporary placeholders** (no x²/x₂ glyphs exist yet — the icon-set revamp will supply them).
+  - **Justify** (app + fork): the align string→`Alignment`→`TextAlign` chain couldn't express justify (an `Alignment` is a box position). Fixed with a parallel **`blockTextAlign`** getter on `BlockComponentAlignMixin` that maps the string *directly* to `TextAlign` (incl. `TextAlign.justify`); the **six** alignable components (paragraph, heading, quote, bulleted/numbered/todo) now read it instead of `alignment?.toTextAlign`. For left/center/right it's behaviour-identical (proven by test); for justify the box `alignment` stays null so the block keeps full width and the text stretches. New app command `customTextJustifyCommand` (**⌃⇧J**, matching l/c/r + Word/Docs) writes `'justify'`; the ribbon's "coming soon" placeholder became a real button. Direction-agnostic → works in RTL.
+  - **Tests:** 7 new fork logic tests (`text_script_and_align_test.dart`) — mutual exclusivity, justify mapping, box-alignment-stays-null — all pass. No regressions: 80 app ribbon tests + 13 fork `text_commands` tests green. `flutter analyze` clean both sides.
+  - **⚠️ Fork committed `c48c69f5` (pushed; pin re-synced from `d15e3c3a`).** Dock app rebuilt against the pinned fork and content-verified. **The user must quit+reopen AppFlowy.**
+  - **⚠️ Visual verification NOT done this session — a hard tooling wall, not a code problem.** After a mid-session app relaunch (via `open`/`open_application`), **synthetic keyboard input stopped reaching the Flutter window entirely** — not editor keys, not even the global Cmd+Option+R; only OS-level combos (Cmd+Q, Cmd+Tab) worked. Mouse clicks registered (focus/placeholder responded) but the window never became key for keyboard. Mouse-only fallbacks failed too: no scratch text survived to drive them, and ribbon **Paste** dropped the selection. So *does super/subscript actually render, and does justify visibly stretch* is **delegated to the user's real-hardware check** (the same reliable path that verified the font-size shortcut earlier). The `FontFeature` approach + logic are sound; if a font ever doesn't render the marks, that's an isolated 2-line fork tweak, not a rework. **This is the standing "never trust synthetic input" rule biting again — recorded so next session doesn't re-fight it.**
 - **2026-07-24 (session 9) — Phase 5 built and live-verified over three feedback rounds: font size, page colour, margins. Plus a keyboard-shortcut remap and a fork keybinding-engine change ("bind to location").**
   - **Font size — the "elevator" control** (`font_size.dart`): type-in box flanked by ▼▲ carets, step ±1, range 8–96, applies per-selection or as a pending size on a bare caret; blanks on a mixed selection. No fork change — the fork already *renders* the `font_size` attribute; nothing in the app wrote it. Already covered by "Clear formatting" (`font_size` was in `clearableInlineAttributes`). **Live-round fix:** clicking the box deselected the text (and disabled it) — the keep-focus notifier was raised in the focus listener, one beat *after* the editor had already nulled the selection. Fixed by raising it on **pointer-down** (a `Listener`), before focus moves. This is a sharper case of session 8's load-bearing lesson: a text field needs the hold set up before focus leaves the editor, not on focus-gain.
   - **Page colour** (`page_color.dart`): per-page sheet tint stored in `View.extra` like direction/theme. Theme-aware **tint presets** (reusing `FlowyTint`, so a colour adapts if the page is flipped to dark) + a **Default** clear + a **custom hex**. Resolved *inside* `PageSurface` (which builds under `PageThemeScope`) so tints follow the page theme; the desk auto-derives its recessed shade from whatever the sheet becomes. **Live-round fix:** swatches were a tall vertical list that pushed the custom-colour control off the bottom of the popover → switched to a compact horizontal `Wrap`.

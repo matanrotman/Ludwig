@@ -39,6 +39,7 @@ import 'page_margin.dart';
 import 'paragraph_spacing.dart';
 import 'ribbon_action.dart';
 import 'ribbon_dropdown.dart';
+import 'text_script_commands.dart';
 import 'text_transforms.dart';
 
 /// Alignment values accepted by [blockComponentAlign] (fork:
@@ -46,6 +47,9 @@ import 'text_transforms.dart';
 const String _alignLeft = 'left';
 const String _alignCenter = 'center';
 const String _alignRight = 'right';
+// [fork:ribbon] Phase 4 — justify carries past the fork's Alignment conversion
+// as TextAlign.justify (see align_mixin.dart's `blockTextAlign`).
+const String _alignJustify = 'justify';
 
 /// True only when there is genuinely nowhere to apply an action — i.e. no
 /// cursor in the editor at all. A *collapsed* cursor is fine: inline marks set
@@ -101,6 +105,29 @@ RibbonAction _markAction({
     isEnabled: _hasTarget,
     isHighlighted: (editorState) => _isMarkActive(editorState, attribute),
     onPressed: (_, editorState) => editorState.toggleAttribute(attribute),
+  );
+}
+
+/// [fork:ribbon] Phase 4 — superscript / subscript. Like [_markAction] but uses
+/// the mutually-exclusive toggle (enabling one clears the other) so the button
+/// and the Cmd+Shift+= / Cmd+Shift+- shortcuts share one behaviour.
+RibbonAction _scriptAction({
+  required String id,
+  required String label,
+  required String attribute,
+  required String opposite,
+  required FlowySvgData icon,
+  required String shortcutCommandId,
+}) {
+  return RibbonAction(
+    id: id,
+    label: label,
+    icon: icon,
+    shortcutCommandId: shortcutCommandId,
+    isEnabled: _hasTarget,
+    isHighlighted: (editorState) => _isMarkActive(editorState, attribute),
+    onPressed: (_, editorState) =>
+        unawaited(toggleTextScript(editorState, attribute, opposite)),
   );
 }
 
@@ -605,6 +632,25 @@ RibbonTab _contentTab() {
             icon: FlowySvgs.toolbar_inline_code_m,
             shortcutCommandId: 'toggle code',
           ),
+          // [fork:ribbon] Phase 4 — superscript / subscript (mutually exclusive).
+          // Icons are temporary placeholders; the icon-set revamp (a separate
+          // scoped task) will give these proper x²/x₂ glyphs.
+          _scriptAction(
+            id: 'superscript',
+            label: 'Superscript',
+            attribute: AppFlowyRichTextKeys.superscript,
+            opposite: AppFlowyRichTextKeys.subscript,
+            icon: FlowySvgs.type_text_m,
+            shortcutCommandId: superscriptCommand.key,
+          ),
+          _scriptAction(
+            id: 'subscript',
+            label: 'Subscript',
+            attribute: AppFlowyRichTextKeys.subscript,
+            opposite: AppFlowyRichTextKeys.superscript,
+            icon: FlowySvgs.toolbar_text_format_m,
+            shortcutCommandId: subscriptCommand.key,
+          ),
           // Font family / colour / highlight are popover pickers rather than
           // plain buttons. They exist today in the floating toolbar; rebuilding
           // their popovers against the ribbon button is Phase 5 work, so they
@@ -671,11 +717,17 @@ RibbonTab _contentTab() {
             value: _alignRight,
             icon: FlowySvgs.toolbar_text_align_right_m,
           ),
-          // Justify needs a fork change and is grouped with Phase 4's other
-          // fork-crossing items: alignment resolves through a Flutter
-          // `Alignment`, which has no justify value, so the string cannot
-          // survive the conversion. See specs/ribbon-menu.md → Phase 3 scoping.
-          _comingSoon('justify', 'Justify'),
+          // [fork:ribbon] Phase 4 — justify now works: the fork carries the
+          // 'justify' align value past the Alignment conversion to
+          // TextAlign.justify (align_mixin.dart's `blockTextAlign`).
+          _commandActionWithBlockState(
+            id: 'justify',
+            label: 'Justify',
+            command: customTextJustifyCommand,
+            attributeKey: blockComponentAlign,
+            value: _alignJustify,
+            icon: FlowySvgs.toolbar_text_align_left_m,
+          ),
           _spacingAction(
             id: 'line_spacing',
             label: 'Line spacing',
