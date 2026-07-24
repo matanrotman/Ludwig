@@ -1,10 +1,11 @@
 // [fork:rtl] Sidecar module — see specs/rtl-support.md
 // "select-to-line and select-by-paragraph shortcuts" (decided 2026-07-20).
 //
-// Option+Ctrl+Shift+Left/Right extends the selection to the edge of the
-// current VISUAL line — the soft-wrapped line as rendered, the way Word's
-// Shift+Home/End behaves — and Option+Ctrl+Shift+Up/Down extends it by one
-// whole paragraph per press.
+// Option+Shift+Left/Right extends the selection to the edge of the current
+// VISUAL line — the soft-wrapped line as rendered, the way Word's Shift+Home/End
+// behaves — and Option+Shift+Up/Down extends it by one whole paragraph per press.
+// (Remapped 2026-07-24 r2 from Option+Ctrl+Shift+arrow at the user's request;
+// the editor binds no `alt+shift+arrow` of its own, so there is no conflict.)
 //
 // RTL semantics are VISUAL, not logical: Left always extends toward the
 // left of the screen, which in an RTL block is *forward* in reading order.
@@ -30,7 +31,7 @@ final CommandShortcutEvent selectToVisualLineLeftCommand =
     CommandShortcutEvent(
   key: 'extend the selection to the left edge of the visual line',
   getDescription: () => 'Extend selection to the left edge of the line',
-  command: 'alt+ctrl+shift+arrow left',
+  command: 'alt+shift+arrow left',
   handler: (editorState) =>
       _extendToVisualLineEdge(editorState, towardLeft: true),
 );
@@ -39,7 +40,7 @@ final CommandShortcutEvent selectToVisualLineRightCommand =
     CommandShortcutEvent(
   key: 'extend the selection to the right edge of the visual line',
   getDescription: () => 'Extend selection to the right edge of the line',
-  command: 'alt+ctrl+shift+arrow right',
+  command: 'alt+shift+arrow right',
   handler: (editorState) =>
       _extendToVisualLineEdge(editorState, towardLeft: false),
 );
@@ -47,14 +48,14 @@ final CommandShortcutEvent selectToVisualLineRightCommand =
 final CommandShortcutEvent selectParagraphUpCommand = CommandShortcutEvent(
   key: 'extend the selection up by one paragraph',
   getDescription: () => 'Extend selection up by one paragraph',
-  command: 'alt+ctrl+shift+arrow up',
+  command: 'alt+shift+arrow up',
   handler: (editorState) => _extendByParagraph(editorState, up: true),
 );
 
 final CommandShortcutEvent selectParagraphDownCommand = CommandShortcutEvent(
   key: 'extend the selection down by one paragraph',
   getDescription: () => 'Extend selection down by one paragraph',
-  command: 'alt+ctrl+shift+arrow down',
+  command: 'alt+shift+arrow down',
   handler: (editorState) => _extendByParagraph(editorState, up: false),
 );
 

@@ -13,6 +13,9 @@ import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ai/widgets/ai_writer_scroll_wrapper.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover.dart';
 import 'package:appflowy/plugins/document/application/page_theme_mode.dart';
+// [fork:ribbon] Phase 5 — per-page colour + margin getters on ViewPB.
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/page_color.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/page_margin.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_surface.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_theme_scope.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
@@ -181,7 +184,7 @@ class _DocumentPageState extends State<DocumentPage>
       return const SizedBox.shrink();
     }
 
-    final width = context.read<DocumentAppearanceCubit>().state.width;
+    final globalWidth = context.read<DocumentAppearanceCubit>().state.width;
 
     // [fork:rtl] The page's own reading direction decides which side gets the
     // wider margin, because the block option gutter — the thing the margin has
@@ -194,6 +197,12 @@ class _DocumentPageState extends State<DocumentPage>
     // Read from the ViewBloc rather than `widget.view` so a direction change
     // from the ribbon repaints immediately instead of on next open.
     final view = context.watch<ViewBloc>().state.view;
+    // [fork:ribbon] Phase 5 — per-page margin, Word-style: the PAPER (the sheet)
+    // stays the global width, and only the CONTENT column narrows inside it, so
+    // the extra space reads as a margin within the page rather than shrinking
+    // the page. Absence inherits the global width (no margin). So the editor's
+    // column uses [width] while the sheet keeps [globalWidth] below.
+    final width = view.pageMarginWidth ?? globalWidth;
     final pageDirection = view.pageTextDirection;
     final resolvedDirection = pageDirection.editorValue ??
         context.read<DocumentAppearanceCubit>().state.defaultTextDirection;
@@ -313,8 +322,14 @@ class _DocumentPageState extends State<DocumentPage>
                   ? PageThemeScope(
                       pageThemeMode: view.pageThemeMode,
                       child: PageSurface(
-                        pageWidth:
-                            context.read<DocumentAppearanceCubit>().state.width,
+                        // The sheet is the paper: it stays at the global width
+                        // so a margin change narrows the content within it, not
+                        // the page itself.
+                        pageWidth: globalWidth,
+                        // [fork:ribbon] Phase 5 — per-page background colour.
+                        // Passed as an id (not a resolved colour) so a tint
+                        // adapts to this page's theme inside PageSurface.
+                        sheetColorId: view.pageColorId,
                         // Builder so the editor is built under the page theme.
                         child: Builder(builder: buildEditorContent),
                       ),

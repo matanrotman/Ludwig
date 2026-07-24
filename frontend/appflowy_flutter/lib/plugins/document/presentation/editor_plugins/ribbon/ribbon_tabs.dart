@@ -21,6 +21,7 @@ import 'dart:async';
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 // [fork:rtl] Phase 2 — per-page direction.
+import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/plugins/document/application/page_text_direction.dart';
 import 'package:appflowy/plugins/document/application/page_theme_mode.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
@@ -32,6 +33,9 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'font_size.dart';
+import 'page_color.dart';
+import 'page_margin.dart';
 import 'paragraph_spacing.dart';
 import 'ribbon_action.dart';
 import 'ribbon_dropdown.dart';
@@ -443,6 +447,70 @@ RibbonAction _spacingAction({
   );
 }
 
+/// The Page tab's colour control (Phase 5) — a swatch button opening a picker of
+/// theme-aware tint presets, a Default (clear) option, and a custom colour. A
+/// [builder] action because it owns its own control; page-level, so it reads the
+/// view from [ViewBloc] rather than the editor. See `page_color.dart`.
+RibbonAction _pageColorAction() {
+  return RibbonAction(
+    id: 'page_colour',
+    label: 'Page colour',
+    builder: (_, __) => const PageColorControl(),
+  );
+}
+
+/// The Page tab's margins control (Phase 5) — a preset dropdown setting this
+/// page's text-column width (wider margins = narrower column). Reuses the same
+/// dropdown as line spacing; always enabled, since a page has a width whether or
+/// not the cursor is in it. See `page_margin.dart`.
+RibbonAction _marginAction() {
+  return RibbonAction(
+    id: 'margins',
+    label: 'Margins',
+    icon: FlowySvgs.m_layout_large_s,
+    builder: (context, editorState) => RibbonDropdownButton(
+      id: 'margins',
+      label: 'Margins',
+      icon: FlowySvgs.m_layout_large_s,
+      entriesBuilder: (menuContext) {
+        final view = menuContext.read<ViewBloc>().state.view;
+        final globalWidth =
+            menuContext.read<DocumentAppearanceCubit>().state.width;
+        final effective = view.pageMarginWidth ?? globalWidth;
+        return [
+          for (final preset in MarginWidthPreset.values)
+            RibbonMenuEntry(
+              label: preset.label,
+              isSelected: effective == preset.width,
+              onSelected: () => unawaited(
+                setPageMarginWidth(view, preset.width).then((_) {
+                  if (menuContext.mounted) {
+                    menuContext
+                        .read<ViewBloc>()
+                        .add(const ViewEvent.initial());
+                  }
+                }),
+              ),
+            ),
+        ];
+      },
+    ),
+  );
+}
+
+/// The font-size "elevator" — a type-in box flanked by ▼▲ carets (Phase 5).
+///
+/// A [builder] action rather than a plain button: it owns its own control (a
+/// text field plus two carets) just like the dropdowns do. See `font_size.dart`.
+RibbonAction _fontSizeAction() {
+  return RibbonAction(
+    id: 'font_size',
+    label: 'Font size',
+    builder: (context, editorState) =>
+        RibbonFontSizeControl(editorState: editorState),
+  );
+}
+
 /// A placeholder for a capability AppFlowy does not have yet.
 RibbonAction _comingSoon(String id, String label, [FlowySvgData? icon]) {
   return RibbonAction(
@@ -544,8 +612,9 @@ RibbonTab _contentTab() {
           _comingSoon('font_family', 'Font'),
           _comingSoon('font_color', 'Font colour'),
           _comingSoon('highlight_color', 'Highlight colour'),
-          // Attribute exists in the fork but nothing writes it (audit 2026-07-19).
-          _comingSoon('font_size', 'Font size'),
+          // Font size — an "elevator" type-in box (Phase 5). The fork already
+          // renders the `font_size` attribute; this is the control that writes it.
+          _fontSizeAction(),
         ],
       ),
       RibbonGroup(
@@ -718,8 +787,11 @@ RibbonTab _pageTab() {
         id: 'page_layout',
         caption: 'Layout',
         actions: [
-          _comingSoon('page_colour', 'Page colour'),
-          _comingSoon('margins', 'Margins'),
+          _pageColorAction(),
+          _marginAction(),
+          // A real ruler is interactive (drag margin markers, set tab stops),
+          // and AppFlowy has neither concept — it is its own future feature, not
+          // a partial. Deferred to its own scoping pass (spec, Phase 5).
           _comingSoon('ruler', 'Show ruler'),
         ],
       ),

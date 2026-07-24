@@ -3,6 +3,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/align_tool
 import 'package:appflowy/plugins/document/presentation/editor_plugins/math_equation/math_equation_shortcut.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 // [fork:ribbon]
+import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/font_size_commands.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/ribbon_collapse_command.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shortcuts/custom_delete_command.dart';
 // [fork:rtl]
@@ -51,6 +52,9 @@ List<CommandShortcutEvent> commandShortcutEvents = [
 
   // [fork:rtl] specs/rtl-support.md — visual-line / paragraph selection
   ...visualLineSelectionCommands,
+
+  // [fork:ribbon] specs/ribbon-menu.md — Option+Cmd+> / Option+Cmd+< font size
+  ...fontSizeCommands,
 
   // remove standard shortcuts for copy, cut, paste, todo
   ...standardCommandShortcutEvents

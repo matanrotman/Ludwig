@@ -14,6 +14,8 @@ import 'dart:math' as math;
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
+import 'ribbon/page_color.dart';
+
 /// Desk left above the sheet, so the page has a visible **top edge**.
 ///
 /// The page shows three edges — top, left, right — and runs off the bottom of
@@ -72,10 +74,17 @@ class PageSurface extends StatefulWidget {
     super.key,
     required this.pageWidth,
     required this.child,
+    this.sheetColorId,
   });
 
   final double pageWidth;
   final Widget child;
+
+  /// The page's own background-colour id (page_color.dart), or null to inherit
+  /// the theme's default surface. Resolved here rather than by the caller so a
+  /// theme-aware tint picks up this page's light/dark override — PageSurface
+  /// builds under PageThemeScope, the caller does not.
+  final String? sheetColorId;
 
   @override
   State<PageSurface> createState() => _PageSurfaceState();
@@ -122,7 +131,10 @@ class _PageSurfaceState extends State<PageSurface> {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    final sheetColor = theme.surfaceColorScheme.primary;
+    // A per-page colour overrides the theme surface; the desk still derives from
+    // whatever the sheet ends up being, so the recessed look survives.
+    final sheetColor = resolvePageSheetColor(widget.sheetColorId, context) ??
+        theme.surfaceColorScheme.primary;
 
     return ColoredBox(
       color: _deskColorFor(sheetColor),

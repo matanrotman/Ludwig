@@ -230,6 +230,90 @@ recorded before the decisions they caused.
 - **Change Case with a collapsed cursor acts on the whole paragraph**, consistent with the
   align/list/indent buttons already in the ribbon. It does not require an explicit selection.
 
+## Phase 5 scoping (2026-07-24, session 9) — awaiting sign-off
+Phase 5 is "the partials" (font size, page colour, margins, ruler). This session takes on
+**font size + page colour + margins**; the **ruler is deferred to its own scoping pass** (see
+below). As in Phase 3, the code findings came first and shaped the decisions, so they lead.
+
+### Findings (verified in code, 2026-07-24)
+1. **Font size is app-side only — no fork change.** The fork already *defines and renders* the
+   attribute: `AppFlowyRichTextKeys.fontSize = 'font_size'`
+   (`appflowy_rich_text_keys.dart:12`), read as a double off the span's delta attributes
+   (`appflowy_rich_text.dart:883-885`) and applied as `TextStyle(fontSize:)` (`:748-750`).
+   Nothing in the *app* ever writes it. So font size is "write the attribute the fork already
+   reads on the current selection" — the same shape as the existing colour/mark buttons, not a
+   fork round-trip. This is why it sits in Phase 5 (a partial), not Phase 4 (fork-crossing).
+2. **The per-page storage seam is already built and proven twice.** `page_theme_mode.dart` and
+   `page_text_direction.dart` are the template: a namespaced key inside `View.extra`'s JSON, a
+   `ViewPB` getter extension that falls back (never throws) on a non-document layout or
+   unparseable `extra`, and a read-**latest**-from-backend / modify / write setter that
+   preserves every other key. `inherit` is modelled as the *absence* of the key, so untouched
+   pages behave exactly as before. Page colour and margins each become one helper in this exact
+   mold — no change to upstream's `view_ext.dart`.
+3. **Width already has machinery, just globally.** `DocumentAppearanceCubit` carries a `width`
+   (`document_appearance_cubit.dart:31`), clamped `minDocumentWidth`(480)‥`maxDocumentWidth`
+   (1920) (`editor_style.dart:53-54`), set by the Settings → Workspace slider. Per-page margins
+   = storing a per-page width override in `View.extra` and letting the read path prefer it over
+   the global default. No new width plumbing.
+4. **The sheet is not a fixed paper size.** The page-surface "sheet" (`page_surface.dart`) wraps
+   the text column; its width tracks `width`, not a Letter/A4 page. So Word-style "page minus
+   text area" margins have no page size to subtract from — see the margins decision.
+
+### Decisions (user, 2026-07-24)
+- **Font size — an "elevator" control** (the design captured 2026-07-19): a type-in box flanked
+  by ▲▼ carets. This is the reusable numeric control Phase 3 deliberately deferred here.
+  - **▲▼ step ±1**; the box accepts any typed value. **Range 8‥96** (clamp on both entry and
+    stepping). *(Not Word's uneven preset ladder — the user chose even single steps.)*
+  - **Applies per-selection like Bold**; with a bare cursor it sets a **pending size** so the
+    next typed text uses it (the ribbon's established no-selection behaviour). The box **shows
+    the current selection's size** and goes **blank when the selection mixes sizes** (Word-style).
+  - **Value is a raw number, not "pt."** AppFlowy's `font_size` is logical pixels; labelling it
+    "pt" would be a lie. Shown unitless. The baseline number a fresh paragraph shows is
+    whatever the app's default body size resolves to — to be read from code at build time and
+    noted, not invented.
+  - **Wired into "Clear formatting."** Phase 3's Clear-All-Formatting already strips inline
+    marks incl. font *family*; font *size* joins that list, giving a clean way back to default
+    (plus typing the default number). Confirm at sign-off.
+- **Page colour — per-page background tint**, stored in `View.extra` (mirrors direction/theme).
+  - **Presets + custom.** A row of preset swatches reusing **AppFlowy's existing theme-aware
+    palette** (the font-colour/highlight swatches) for one click, plus the existing custom
+    colour path for an exact colour. Reusing the theme-aware palette means a colour **adapts if
+    that page is also flipped to dark** — sidestepping a page-colour-vs-per-page-theme conflict.
+  - **Tints only the sheet**; the desk behind it **auto-derives a recessed shade** (the HSL
+    darken already in `page_surface.dart`) so the "sheet on a desk" depth survives. `inherit`
+    (absence) = today's theme surface colour, unchanged.
+- **Margins — per-page text-width presets** (not Word-style fixed-page margins; finding 4).
+  "Wider margins" = narrower centred text column, the Notion / Google-Docs page-width model.
+  - **Per-page, inherits the global slider.** A page that sets nothing follows Settings →
+    Workspace exactly as now (absence = inherit); a page that sets a width overrides it. Same
+    `View.extra` seam.
+  - Presets (proposed, confirm at sign-off): **Narrow / Normal / Wide / Full-width**, mapped to
+    concrete widths inside the existing 480‥1920 clamp, with **Normal** = today's default so
+    nothing shifts for untouched pages. A custom numeric width can follow later if wanted.
+- **Ruler — deferred to its own scoping pass.** It is mis-filed as a "partial." A real ruler is
+  *interactive* (drag margin markers, set tab stops), and AppFlowy has **no tab-stop concept and
+  no draggable margin markers** — inventing both puts it in the size class of the text-box /
+  drawing items already carved into their own specs, not a tail-end partial. Its Page-tab button
+  stays visibly disabled until then.
+
+### Cross-cutting: the focus rule applies to all three (load-bearing)
+Every one of these controls can steal editor focus — the font-size **text field** most of all
+(a real input that needs focus to type into), and both the colour and margin **dropdowns**. Per
+the Phase 3 lesson, each **must** hold `keepEditorFocusNotifier` or it nulls the selection before
+the action runs (`keep_editor_focus.dart`). The font-size box is the sharper case: capture the
+selection when the field gains focus, hold the notifier while focused, and apply to the captured
+selection on commit (Enter / blur) — the same shape the editor's own link-edit popover uses.
+
+### Multi-user readiness
+All three are **universal — no personal assumptions.** Font size, page colour and margins work
+for any user, any language, LTR or RTL. Page colour reuses AppFlowy's theme-aware palette, which
+already generalises. Nothing here hardcodes anything to this Mac or account.
+
+### To confirm at sign-off — RESOLVED (user, 2026-07-24)
+1. **Font size joins "Clear formatting"** — yes. 2. **Margin presets Narrow/Normal/Wide/Full,
+Normal = current default** — yes. **Signed off as scoped; build order: font size → page colour
+→ margins.**
+
 ## Open questions
 - Which keyboard shortcut collapses the ribbon (Word uses Ctrl+F1; AppFlowy's rebindable system means this is a default, not a commitment).
 - Whether the Tools tab's Translate/Transcribe/Record buttons should link out to their future specs or simply sit disabled.
@@ -238,6 +322,15 @@ recorded before the decisions they caused.
 **Signed off 2026-07-19** (session 2), subject to the three corrections and three decisions recorded above.
 
 ## Session Log
+- **2026-07-24 (session 9) — Phase 5 built and live-verified over three feedback rounds: font size, page colour, margins. Plus a keyboard-shortcut remap and a fork keybinding-engine change ("bind to location").**
+  - **Font size — the "elevator" control** (`font_size.dart`): type-in box flanked by ▼▲ carets, step ±1, range 8–96, applies per-selection or as a pending size on a bare caret; blanks on a mixed selection. No fork change — the fork already *renders* the `font_size` attribute; nothing in the app wrote it. Already covered by "Clear formatting" (`font_size` was in `clearableInlineAttributes`). **Live-round fix:** clicking the box deselected the text (and disabled it) — the keep-focus notifier was raised in the focus listener, one beat *after* the editor had already nulled the selection. Fixed by raising it on **pointer-down** (a `Listener`), before focus moves. This is a sharper case of session 8's load-bearing lesson: a text field needs the hold set up before focus leaves the editor, not on focus-gain.
+  - **Page colour** (`page_color.dart`): per-page sheet tint stored in `View.extra` like direction/theme. Theme-aware **tint presets** (reusing `FlowyTint`, so a colour adapts if the page is flipped to dark) + a **Default** clear + a **custom hex**. Resolved *inside* `PageSurface` (which builds under `PageThemeScope`) so tints follow the page theme; the desk auto-derives its recessed shade from whatever the sheet becomes. **Live-round fix:** swatches were a tall vertical list that pushed the custom-colour control off the bottom of the popover → switched to a compact horizontal `Wrap`.
+  - **Margins** (`page_margin.dart`): per-page **text-column width** presets (Narrow/Normal/Wide/Full), inheriting the global width when unset. **Live-round fix (design):** first version narrowed the *whole sheet*; the user's model is Word's — the paper stays, the content narrows *inside* it. Decoupled: `PageSurface.pageWidth` uses the global width (the sheet), `EditorStyleCustomizer.width` uses the per-page width (the column). **Preset values retuned** after live feedback (600/960/1400 had Wide==Full on the user's ~1000–1100px sheet, Narrow too tight) → **700 / 850 / 1000 / Full**.
+  - **Ruler stays deferred** — a disabled button; it needs tab-stops + draggable markers AppFlowy lacks (its own future feature, not a partial).
+  - **Selection shortcut remap:** the visual-line / paragraph selection moved from **Option+Ctrl+Shift+arrow** to **Option+Shift+arrow** (all four; `visual_line_selection_commands.dart`). No conflict — the editor binds no `alt+shift+arrow` of its own. Behaviour (incl. the RTL visual-direction logic) unchanged.
+  - **Font-size shortcuts:** **Cmd+Option+.** enlarges, **Cmd+Option+,** shrinks (the unshifted `>`/`<` keys), one step, on the selection or as a pending size (`font_size_commands.dart`, registered in `command_shortcuts.dart`). Direction-agnostic action, so identical on RTL text.
+  - **⚠️ Fork change — physical ("bind to location") keybinding matching (fork `d15e3c3a`, pushed; pin re-synced from `3c2a2fce`).** The user asked that the font-size shortcut work in *all keyboard languages*, and that user-customized rebinds stick regardless of input language. Implemented in the fork's keybinding engine: a parallel `keyToPhysicalCodeMapping` (label → USB HID) and `Keybinding.matchesKeyEvent`, which now matches on the **logical key OR the physical key location**. Additive — logical is tried first, so Latin-layout behaviour is unchanged; keys absent from the physical table fall back to logical-only. This makes **all** shortcuts (built-in and user-rebound) location-robust across layouts, which is the general improvement the user leaned toward. 5 new fork tests (incl. the "logical differs, physical matches" Hebrew case).
+  - **Build/verify:** analyzer clean; **77 ribbon tests + 13 fork keybinding tests pass**. Dock app rebuilt against the pushed fork pin and content-verified (test-binding 0, `runAppFlowy` 31, `keyToPhysicalCodeMapping` 5, `meta+alt+period` 2, `PageColorControl` 6). **The user must quit+reopen AppFlowy** to pick up the fork-pinned build. Font size / page colour / margins all live-verified "working well"; the shortcut + cross-language behaviour await the user's live check next session.
 - **2026-07-24 (session 8) — Phase 3 built, live-verified, and hardened over two feedback rounds. Plus two editor-fork fixes (triple-click timing, unrelated) and, earlier in the session, the sidebar rename polish.**
   - **Phase 3 shipped:** Clear formatting, Change Case (Word's five, as a dropdown), and per-paragraph line height + space-after (preset dropdowns). Justify was found *not* app-doable and moved to Phase 4 (alignment resolves through a Flutter `Alignment`, which has no justify value; six block components read it for box positioning — a restructure, not a case). Line height pulled *into* Phase 3 from Phase 5 because it shares the block-config seam with paragraph spacing. All app-side; commit `2aec4fad8`. New files: `text_transforms.dart`, `paragraph_spacing.dart`, `ribbon_dropdown.dart`.
     - **Spacing is per-*paragraph*, not per-page** (user: "per content because it affects each paragraph") — stored as block attributes, deliberately unlike per-page direction/theme which live in `View.extra`. Needed no fork change: both `BlockComponentConfiguration.padding` and `.textStyle` already take the node; desktop was simply the only platform without a read path (mobile already had one). Defaults pinned to the exact prior hardcoded values (1.4 line height, 5pt padding) so untouched docs are unchanged, and "Single" == 1.4 (AppFlowy's baseline, not a word processor's 1.0), so choosing it is a no-op.
