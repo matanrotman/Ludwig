@@ -49,7 +49,19 @@ This fork is being positioned so it *could* one day be used by other people — 
 
 **Folders — Phase 1 of 4 done (`specs/folder.md`).** Explicit type (`is_folder`), filled rounded-square badge, nests in spaces and folders but **never under an ordinary page** (which is what keeps the Temporary check synchronous). Cheap because folders render through the existing `ViewItem` recursion, which already has collapse/`+`/`…`. **Three follow-ups from live testing, all unbuilt:** (a) deleting a folder silently takes its pages (recoverable — AppFlowy deletes to trash; user wants an ask-first policy offering "Move to"); (b) clicking a folder opens an empty page rather than expanding — left as-is deliberately, it is the Phase 2 target; (c) the space-vs-folder visual experiment (tinted space rows at 0.12 alpha + dividers) awaits the user's verdict.
 
-**Next up: folder Phase 2 — the folder page.** Contents list FIRST (above the writing), visually divided, free editor below. Needs the user's eye on how the division is drawn. Phase 3 (first-line previews) is the risky one: **no snippet mechanism exists anywhere in the codebase** (checked `flowy-search` and the Flutter side), so it means reading N collab documents to draw one page — which is why it is its own phase.
+**Sidebar visual language (settled 2026-07-25, after three live rounds):** spaces **semibold** + a tinted
+row + a 1px hairline between them + no icon badge; folders **medium** + an always-visible caret + a
+monochrome glyph + icon-picker only (no emoji); pages **regular** + emoji. **Glyph colours are contextual
+everywhere** — `onSurface` for folders, `ensureContrast(spaceColour, surface, 3.0)` for spaces. Clicking a
+space icon opens the picker. **Deferred: choosing a UI font covering Hebrew + Latin + Arabic** (CJK/Urdu
+undecided) — settle before more typographic tuning.
+
+**⚠️ STILL UNEXPLAINED — the bug that started the 2026-07-25 incident:** deleting a page that had a child
+removed the child *without it appearing in trash*. The child (`מעבר על דו״ח קלוד…`) was recovered by hand
+from a snapshot. **This is next session's first item.** Deletes are supposed to go to trash and be
+recoverable; this one wasn't.
+
+**Next up after that: folder Phase 2 — the folder page.** Contents list FIRST (above the writing), visually divided, free editor below. Needs the user's eye on how the division is drawn. Phase 3 (first-line previews) is the risky one: **no snippet mechanism exists anywhere in the codebase** (checked `flowy-search` and the Flutter side), so it means reading N collab documents to draw one page — which is why it is its own phase.
 
 *(Historical below — the sidebar and ribbon work.)*
 

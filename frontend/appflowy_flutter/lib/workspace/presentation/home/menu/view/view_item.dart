@@ -567,19 +567,30 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
   }
 
   Widget _buildViewItem(bool onHover, [bool isSelected = false]) {
-    final name = FlowyText.regular(
-      widget.view.nameOrDefault,
-      overflow: TextOverflow.ellipsis,
-      fontSize: 14.0,
-      figmaLineHeight: 18.0,
-    );
+    // [fork:folder] Signal 3 of the folder/page distinction: a folder's name
+    // carries more weight than a page's, reinforcing "this is a heading for
+    // what's below". Spaces are heavier still (semibold), so the sidebar reads
+    // space > folder > page by weight alone.
+    final name = widget.view.isFolder
+        ? FlowyText.medium(
+            widget.view.nameOrDefault,
+            overflow: TextOverflow.ellipsis,
+            fontSize: 14.0,
+            figmaLineHeight: 18.0,
+          )
+        : FlowyText.regular(
+            widget.view.nameOrDefault,
+            overflow: TextOverflow.ellipsis,
+            fontSize: 14.0,
+            figmaLineHeight: 18.0,
+          );
     final children = [
       const HSpace(2),
       // expand icon or placeholder
       widget.leftIconBuilder?.call(context, widget.view) ?? _buildLeftIcon(),
       const HSpace(2),
       // icon
-      _buildViewIconButton(),
+      _buildViewIconButton(context),
       const HSpace(6),
       // title — swapped for an in-place editor while renaming
       Expanded(
@@ -685,7 +696,7 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
     return child;
   }
 
-  Widget _buildViewIconButton() {
+  Widget _buildViewIconButton(BuildContext context) {
     final iconData = widget.view.icon.toEmojiIconData();
     final icon = iconData.isNotEmpty
         ? RawEmojiIconWidget(
@@ -700,7 +711,13 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
         // pages' 0.6 opacity is deliberate: a container should sit slightly
         // forward of its contents. A user-chosen emoji still wins.
         : widget.view.isFolder
-            ? const FlowySvg(FlowySvgs.folder_m, size: Size.square(16))
+            ? FlowySvg(
+                FlowySvgs.folder_m,
+                size: const Size.square(16),
+                // Contextual, not fixed: onSurface is light on a dark theme and
+                // dark on a light one, so the glyph stays legible either way.
+                color: Theme.of(context).colorScheme.onSurface,
+              )
             : Opacity(opacity: 0.6, child: widget.view.defaultIcon());
 
     final Widget child = AppFlowyPopover(
@@ -722,11 +739,17 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
         isIconPickerOpened = true;
         return FlowyIconEmojiPicker(
           initialType: iconData.type.toPickerTabType(),
-          tabs: const [
-            PickerTabType.emoji,
-            PickerTabType.icon,
-            PickerTabType.custom,
-          ],
+          // [fork:folder] Folders get the icon set only (user decision
+          // 2026-07-25), exactly like spaces. Signal 2 of the folder/page
+          // distinction is "monochrome glyph vs colourful emoji" — allowing an
+          // emoji on a folder would defeat it.
+          tabs: widget.view.isFolder
+              ? const [PickerTabType.icon]
+              : const [
+                  PickerTabType.emoji,
+                  PickerTabType.icon,
+                  PickerTabType.custom,
+                ],
           documentId: widget.view.id,
           onSelectedEmoji: (r) {
             ViewBackendService.updateViewIcon(
@@ -1002,7 +1025,13 @@ class ViewItemDefaultLeftIcon extends StatelessWidget {
       return const _DotIconWidget();
     }
 
-    if (context.read<ViewBloc>().state.view.childViews.isEmpty) {
+    // [fork:folder] Signal 1, and the strongest: a folder ALWAYS shows its
+    // disclosure caret, even when empty, because the caret is structural — it
+    // says "things go inside me". Pages show one only when they actually have
+    // children. Same convention as Finder, VS Code and Notion, so it needs no
+    // learning, and it gives an empty folder something to show.
+    if (context.read<ViewBloc>().state.view.childViews.isEmpty &&
+        !view.isFolder) {
       return HSpace(leftPadding);
     }
 

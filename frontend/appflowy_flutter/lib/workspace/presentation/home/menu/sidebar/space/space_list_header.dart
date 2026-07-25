@@ -12,7 +12,7 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/manage_space_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_action_type.dart';
-import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_more_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/temporary_unfiled_count.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
@@ -191,14 +191,26 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
           ),
         ),
         const HSpace(4),
-        SpaceIcon(
-          dimension: 22,
-          space: widget.space,
-          svgSize: 12,
-          cornerRadius: 8.0,
-          // [fork:folder] The row is already tinted with this space's colour;
-          // a vivid badge behind the icon repeated it. See SpaceIcon.
-          showBackground: false,
+        // [fork:folder] Clicking the icon opens the icon + colour picker
+        // directly (user request 2026-07-25) — the same thing the "…" menu's
+        // "Change icon" does, without the menu trip. Wrapped in its own tap
+        // handler so the click doesn't also toggle the space open/closed.
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {},
+          child: SpaceIconPopup(
+            space: widget.space,
+            icon: widget.space.spaceIcon,
+            iconColor: widget.space.spaceIconColor,
+            cornerRadius: 8.0,
+            onIconChanged: (icon, color) => context.read<SpaceBloc>().add(
+                  SpaceEvent.changeIcon(
+                    space: widget.space,
+                    icon: icon,
+                    iconColor: color,
+                  ),
+                ),
+          ),
         ),
         const HSpace(10),
         Expanded(
@@ -219,7 +231,7 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
               : Row(
                   children: [
                     Flexible(
-                      child: FlowyText.medium(
+                      child: FlowyText.semibold(
                         _displayName(context),
                         fontSize: 14.0,
                         figmaLineHeight: 18.0,

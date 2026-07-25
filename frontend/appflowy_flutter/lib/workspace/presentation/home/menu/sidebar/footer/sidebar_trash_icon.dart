@@ -42,8 +42,7 @@ class _TrashSvg extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<TrashBloc, TrashState>(
-      buildWhen: (prev, curr) =>
-          prev.objects.isEmpty != curr.objects.isEmpty,
+      buildWhen: (prev, curr) => prev.objects.isEmpty != curr.objects.isEmpty,
       builder: (context, state) => FlowySvg(
         state.objects.isEmpty ? FlowySvgs.icon_delete_s : fullTrashIcon,
       ),

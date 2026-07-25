@@ -255,7 +255,10 @@ with it silently, and clicking a folder opens a (still empty) page rather than e
    iconless. The default glyph is done; the open part is *which picker*: spaces are restricted to the
    **icon set (no emoji)**, and the user likes that restriction. If folders get the same restriction, it
    also protects the folder/page distinction below — an emoji on a folder would defeat it.
-4. **⚠️ Folder vs. page at the same indent — the real unsolved problem.** Both can carry an icon, so
+4. **✅ RESOLVED + BUILT 2026-07-25 — folder vs. page at the same indent.** The user took all three
+   signals; folders are restricted to the icon set so signal (b) cannot be defeated. Original analysis
+   kept below because the reasoning is what makes the result maintainable.
+   **⚠️ Folder vs. page at the same indent — was the real unsolved problem.** Both can carry an icon, so
    icon-presence alone cannot carry the distinction. Proposal put to the user (three signals, none of
    them colour):
    - **a. An always-visible disclosure caret on folders**, even when empty — pages show one only when
@@ -272,3 +275,30 @@ with it silently, and clicking a folder opens a (still empty) page rather than e
    "nothing" area. **Blocked on the ephemeral pad** (`specs/capture-and-structure.md` → "the ephemeral
    pad"), which does not exist yet — there is currently nothing to return *to*. Worth building the two
    together, since this is the gesture that makes the pad reachable rather than only a launch state.
+
+### Live-design round 3 — 2026-07-25, all three signals built
+
+The user accepted the full proposal, plus a weight ladder and a colour rule:
+
+- **Signal 1 — always-visible caret on folders**, even when empty (`ViewItemDefaultLeftIcon` no longer
+  short-circuits to a spacer for a childless folder). Structural, conventional, and it gives an empty
+  folder something to show.
+- **Signal 2 — monochrome glyph vs colourful emoji**, and **folders are restricted to the icon picker
+  (no emoji tab)** so the signal cannot be defeated by putting an emoji on a folder. Same restriction
+  spaces already have, which the user likes.
+- **Signal 3 — a weight ladder**: spaces **semibold**, folders **medium**, pages **regular**. The
+  sidebar now reads space > folder > page by weight alone, before any icon is parsed.
+
+**Colour rule, applied across the sidebar: glyphs are contextual, never fixed.** Bright on a dark theme,
+dark on a light one. Folder glyphs take `colorScheme.onSurface`. Space glyphs re-tint through
+`ensureContrast(spaceColour, surface, minRatio: 3.0)` — the WCAG helper written in session 4 — which
+preserves hue, so a space still reads as "its" colour while staying legible. **This also fixed a bug the
+badge removal had introduced:** the space glyph was drawn to sit *on* the coloured badge, so without it
+the glyph could have been invisible against a light sheet.
+
+**Also built:** clicking a space's icon now opens the icon + colour picker directly (`SpaceIconPopup`),
+with its own tap handler so the click doesn't also toggle the space.
+
+**Deferred, needs its own discussion (user, 2026-07-25):** *choosing a UI font that properly supports
+Hebrew, Latin and Arabic.* Japanese, Chinese and Urdu explicitly undecided. This is a real cross-cutting
+choice — it affects every weight above — and should be settled before any more typographic tuning.

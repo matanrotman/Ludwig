@@ -1,4 +1,5 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/util/color_contrast.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
 import 'package:appflowy/shared/icon_emoji_picker/icon_picker.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
@@ -36,15 +37,34 @@ class SpaceIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, color) = _buildSpaceIcon(context);
 
+    // [fork:folder] Without the filled badge the glyph would keep the colour it
+    // was drawn for — one designed to sit ON that badge, which can be invisible
+    // against the sheet (white-on-white in light mode). So when the background
+    // is off, re-tint the glyph to the space's own colour, nudged until it has
+    // real contrast against the surface: bright on a dark theme, dark on a
+    // light one. Hue is preserved, so a space still reads as "its" colour.
+    Widget child = Center(child: icon);
+    if (!showBackground && color != null) {
+      child = ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          ensureContrast(
+            color,
+            Theme.of(context).colorScheme.surface,
+            minRatio: 3.0,
+          ),
+          BlendMode.srcIn,
+        ),
+        child: child,
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(cornerRadius),
       child: Container(
         width: dimension,
         height: dimension,
         color: showBackground ? color : null,
-        child: Center(
-          child: icon,
-        ),
+        child: child,
       ),
     );
   }
