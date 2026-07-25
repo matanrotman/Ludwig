@@ -12,6 +12,7 @@ import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/create_space_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_drop_target.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_list_header.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -194,15 +195,20 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
         return Column(
           children: [
             for (final space in state.spaces) ...[
-              SpaceListHeader(
-                key: ValueKey('space_header_${space.id}'),
+              // [fork:sidebar] The header doubles as a drop target so a page
+              // can be dragged onto a space to move it there.
+              SpaceDropTarget(
                 space: space,
-                isExpanded: _isExpanded(space),
-                onToggle: () => _toggle(space),
-                onAddPage: (layout) => unawaited(_createPage(space, layout)),
-                onCreateNewSpace: () => _showCreateSpaceDialog(context),
-                onCollapseAllPages: () =>
-                    _collapseNotifier(space.id).value = true,
+                child: SpaceListHeader(
+                  key: ValueKey('space_header_${space.id}'),
+                  space: space,
+                  isExpanded: _isExpanded(space),
+                  onToggle: () => _toggle(space),
+                  onAddPage: (layout) => unawaited(_createPage(space, layout)),
+                  onCreateNewSpace: () => _showCreateSpaceDialog(context),
+                  onCollapseAllPages: () =>
+                      _collapseNotifier(space.id).value = true,
+                ),
               ),
               if (_isExpanded(space))
                 MouseRegion(

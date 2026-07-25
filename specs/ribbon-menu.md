@@ -378,6 +378,71 @@ opening the build with a super/subscript rendering spike. No code written this s
 ## Sign-off
 **Signed off 2026-07-19** (session 2), subject to the three corrections and three decisions recorded above.
 
+## Phase 4 live-verification results (2026-07-25, session 11 — user tested on real hardware)
+
+**Verdict: the core works, with one design-level limitation and a set of gaps.** Justify and
+super/subscript both do what they were built to do; what failed is mostly *reach* (which characters,
+which block types) plus polish.
+
+### ✅ Passed
+- **Superscript / subscript render correctly on digits** — the `2` in `H2O` and `E=mc2` shrinks and
+  raises/lowers as designed. The `FontFeature` approach is confirmed working end-to-end.
+- **Justify works in English and in Hebrew**, in ordinary paragraphs. The Phase 4 `blockTextAlign`
+  fork change is validated, RTL included.
+- **The shortcuts fire under a Hebrew input source** — location-based binding confirmed working.
+  (See limitation 1 below: they fire, but the *mark* has no visible effect on Hebrew letters.)
+
+### ⚠️ Limitation 1 (design-level, needs a decision): super/subscript only affects DIGITS
+User found it works on the `2` in `H2O` but **not on the `O`**, **not on Hebrew text at all**, and
+**not inside inline code**. All three are one root cause, and it is inherent to the chosen approach.
+
+`FontFeature.superscripts()` / `subscripts()` request the OpenType `sups`/`subs` features
+(`appflowy_rich_text.dart:759,764`). Those features only substitute glyphs the font actually ships
+in raised/lowered form — in practice digits and a handful of Latin letters. **Hebrew has no such
+glyphs in any common font, so nothing can render.** Inline code fails for the same reason plus a
+monospace font that carries even fewer of them. The mark is being applied correctly; the font simply
+has nothing to draw.
+
+**This was a known trade-off, not an oversight.** Phase 4 chose `FontFeature` precisely because it
+keeps the text a pure `TextSpan`, so caret and selection stay 1:1 with characters — the alternative
+(`WidgetSpan`) collapses a run to a single placeholder and breaks editing offsets. Flutter's
+`TextStyle` has **no baseline-shift property**, so "smaller font, raised baseline" — how Word and
+Google Docs do it — is not directly expressible in a `TextSpan`.
+
+**Open decision for the user (do not pick unilaterally):**
+- (a) **Accept and document** — super/subscript is a digits feature (covers `H₂O`, `E=mc²`, footnote
+  markers, chemical/maths notation, which is most real use). Cheapest, zero risk. The buttons should
+  then *say so* rather than silently doing nothing on Hebrew.
+- (b) **Synthetic rendering** — smaller font size plus a real vertical offset, which buys arbitrary
+  characters including Hebrew, at the cost of leaving pure-`TextSpan` territory. **Must be
+  investigated before being offered as a real option**: the caret/offset consequence is exactly what
+  Phase 4 avoided, and it may reintroduce the class of RTL caret bugs this project keeps fighting.
+- (c) **Hybrid** — `FontFeature` where the font supports it, synthetic only as a fallback. Best
+  result, most machinery, two code paths to keep correct.
+
+### ⚠️ Gaps found (all straightforward, none design-level)
+1. **Justify does nothing inside a bulleted paragraph** (numbered untested, presume the same). Note
+   `bulleted_list_block_component.dart` *does* already read `blockTextAlign` — so this is more likely
+   a **layout** issue than a missing wire-up: list text sits in a row beside its bullet and may
+   shrink-wrap, leaving justify nothing to stretch to. Verify before fixing.
+2. **Justify does not toggle off.** Pressing it a second time should return the block to its default
+   alignment (right or left per direction). Today `_textAlignHandler`
+   (`custom_text_align_command.dart`) writes the align attribute unconditionally with no off-state.
+   The user wants toggle-back on *all four* align buttons, not just justify.
+3. **Alignment shortcuts should move to Word's:** ⌘L left, ⌘E centre, ⌘R right, ⌘J justify —
+   replacing today's ⌃⇧L/⌃⇧C/⌃⇧R/⌃⇧J. **Check for collisions first** (⌘R and ⌘L are commonly claimed
+   app-wide), and keep them location-based so they survive a Hebrew layout.
+4. **Duplicate "coming soon" Superscript/Subscript buttons** still sit in the Content tab's *Editing*
+   group (`ribbon_tabs.dart:791-792`), alongside the now-real pair in the *Font* group. Stale
+   leftovers — delete them.
+5. **⌘Z does not undo a page-colour change.** Page colour lives in `View.extra`, outside the editor's
+   own undo stack, so the editor's undo never sees it. Same will be true of any other `View.extra`
+   setting (per-page direction, per-page theme, margins). Needs a deliberate answer, not a patch:
+   either bring these into an app-level undo, or accept and document that page-level settings are not
+   undoable.
+6. **The selection highlight is hard to see in both dark and light mode.** Independent of Phase 4 —
+   found incidentally — but a real readability problem worth its own small fix.
+
 ## Session Log
 - **2026-07-25 (session 10) — Phase 4 scoped, signed off, and BUILT: justify + superscript + subscript. Footnote split out to its own future spec. Fork committed + re-pinned. Visual verification deferred to the user (a keyboard tooling wall, below).**
   - **Scope decision:** Phase 4 = justify + super/subscript only; **footnote deferred to its own spec** (it's a feature — marker system + note store + numbering — not an inline mark; the button stays "coming soon"). See "Phase 4 scoping" above.

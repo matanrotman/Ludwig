@@ -13,7 +13,27 @@ class DefaultAppearanceSettings {
     return Theme.of(context).colorScheme.primary;
   }
 
+  /// [fork:ribbon] Strengthened 2026-07-25 — the user reported the selection
+  /// highlight was "indistinguishable in dark or light mode".
+  ///
+  /// It was the theme accent at a flat 0.2 alpha in both themes. On the default
+  /// theme that accent is `#00BCF0`, the same low-contrast cyan that already
+  /// had to be darkened for link text (see `util/color_contrast.dart`); at 0.2
+  /// over a white sheet it is barely a tint, and over a dark one it is little
+  /// better.
+  ///
+  /// The colour is kept — this stays recognisably AppFlowy, and it follows a
+  /// custom theme's accent as before — but the alpha is now roughly doubled and
+  /// split by brightness. Dark needs more than light: a translucent wash loses
+  /// more contrast against a dark backdrop than a light one, so matching the
+  /// two numbers would leave dark mode looking weaker than light.
+  ///
+  /// Deliberately kept below a solid fill: the highlight paints *behind* the
+  /// text, so pushing it further starts eating the text's own legibility, which
+  /// is the problem this is meant to solve.
   static Color getDefaultSelectionColor(BuildContext context) {
-    return Theme.of(context).colorScheme.primary.withValues(alpha: 0.2);
+    final theme = Theme.of(context);
+    final alpha = theme.brightness == Brightness.dark ? 0.42 : 0.32;
+    return theme.colorScheme.primary.withValues(alpha: alpha);
   }
 }

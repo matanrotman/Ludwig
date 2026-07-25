@@ -787,9 +787,10 @@ RibbonTab _contentTab() {
           // the user's request (2026-07-23) — one slot, five transforms.
           _changeCaseAction(),
           _clearFormattingAction(),
-          // Both need a new delta attribute in the editor fork — Phase 4.
-          _comingSoon('superscript', 'Superscript'),
-          _comingSoon('subscript', 'Subscript'),
+          // Superscript / subscript used to sit here as placeholders. Phase 4
+          // built them for real in the Font group above, but these stale copies
+          // were left behind — two greyed-out buttons with the same labels as
+          // two working ones, on the same tab. Removed 2026-07-25.
           _comingSoon('footnote', 'Footnote'),
           // Needs absolute positioning the flow layout does not support.
           _comingSoon('text_box', 'Text box'),

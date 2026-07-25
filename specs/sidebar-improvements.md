@@ -177,6 +177,21 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
   `shared_widget.dart`'s `CurrentSpace`/`SpacePopup`, `sidebar_space_menu.dart`. Kept
   untouched for upstream-merge friendliness.
 
+## Open findings (2026-07-25, session 11 — user testing)
+
+1. **Dragging a page from one space to another does not move it.** Reported by the user during live
+   use. Untriaged — not yet reproduced or root-caused. Note Phase 4 made every space visible at once,
+   which is what makes cross-space dragging reachable in the first place, so this may be a
+   drop-target gap that simply had no way to surface before. Check whether the drag target list is
+   built per-space or assumes a single active space.
+
+2. **Feature request — keyboard navigation between pages and spaces, from inside a page.** User's
+   words: *"We need to figure out an easy way to navigate between pages and spaces using the keyboard
+   even while on a page (e.g., I want to copy a paragraph from one page to the other, and do it all
+   using just the keyboard easily)."* Not scoped. This is its own feature (likely a quick-switcher /
+   command-palette shape rather than more arrow-key wiring) and should get its own interview and
+   spec, not be bolted onto the sidebar work.
+
 ## Session Log
 
 - **2026-07-23 (session 3 of the feature) — Phase 4 LIVE-VERIFIED by the user; 3 bugs

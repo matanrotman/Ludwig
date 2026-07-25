@@ -161,6 +161,32 @@ nobody has tested. The single pre-bump commit is an offline-collab example app �
 - **Do the selection bug above first.** Both depend on correct soft-wrap line boundaries in RTL; fixing the bug will establish whether line boundaries can be trusted at all before a feature is built on them.
 - Known shortcut-system bugs to expect while testing rebinds (from 2026-07-16): a cleared binding silently returns after restart, and commands with `getDescription: null` render as blank rows.
 
+## Open (found 2026-07-25, session 11): RTL caret lands on the NEXT line when clicking the END of a wrapped line
+
+**User report:** "We had a bug that when placing the pointer on the beginning of the sentence in RTL
+texts, it selected the leftmost point in the sentence. This happens now with the end of sentence — if
+I click on the end of a sentence that isn't the last sentence, it shows the text cursor on the
+beginning of the next line."
+
+**This is the same family as the RESOLVED bug above, on the other side of the seam.** At a soft
+line-wrap the same integer offset means both "end of visual line N" and "start of visual line N+1";
+`Position` carries no `TextAffinity`, so something has to choose. The 2026-07-20 fix (fork
+`e7a3942e`) made the hit-test's affinity ride along as a display-only hint, honored **only when
+upstream/downstream resolve to different lines** — which is exactly this situation. So the likely
+cause is one of:
+1. the affinity hint is not produced at all for a click at the *trailing* edge of an RTL line (the
+   earlier fix was driven by clicks in the leading gutter), or
+2. it is produced but resolves to `downstream`, which for RTL means the next line's start.
+
+**Do not assume — reproduce first.** The resolved bug's entry above is the model: it was reproduced
+live *before* any code was written, which is what made the diagnosis stick. Start there, in a real
+RTL paragraph that wraps, clicking at the end of lines 1..N-1.
+
+**Regression risk to respect:** the existing fix deliberately leaves *bidi run seams* (same line,
+different x) on the validated upstream behavior, so the deferred embedded-date caret question stays
+untouched. Any change here must keep that carve-out intact — the fork's `caret_bidi_test.dart` and
+the gutter-click cases are the guard.
+
 ## Session Log
 - **2026-07-21 (session 5) — PR-status session: Sourcery review on the arrow-up PR addressed and pushed; no app code touched.**
   - **PR #8874 (arrow-up)**: AppFlowy's AI reviewer (Sourcery) reviewed it within a minute of opening — one real suggestion (base the half-line-height threshold on the FIRST line's caret height, not the current caret's, so differing line heights can't misclassify) plus two doc-clarity notes (explain the cutoff; mark `onlyFromFirstVisualLine` as best-effort). All three applied as commit `6476db053` on `fix/arrow-up-to-title-first-visual-line`, `dart format`-clean, pushed with the user's explicit yes; PR shows both commits. Real CI (Flutter/Rust/iOS/commit-lint) is `action_required` — awaiting a maintainer's first-contributor approval; only the i18n lint has run (passed). No human review yet.
