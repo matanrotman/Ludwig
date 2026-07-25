@@ -365,3 +365,19 @@ alongside the fix passes with *and* without it and is labelled in-file as a guar
   - Test coverage: updated both existing LTR pointer-anchor tests' expected offsets (previously assumed 0 horizontal shift; also had to move one test's hover point further from the editor's left edge since the new -140px inward shift pushed the old point below `minLeft`). Added a new RTL pointer-anchor test proving the mirrored 1/3 split explicitly, following the same "own MaterialApp + mocked RTL cubit" pattern as the round-3 far-left-pin test. 11/11 app-side tests pass, `flutter analyze` clean. No fork changes this round — everything is in `_resolveAnchorRect`'s return shape and `calculateSelectionMenuOffset`'s formula, both app-side.
   - Committed and shipped to the dock app via `flutter build macos --debug`, verified by contents. Live user re-check still pending.
 - **2026-07-16 (session close): user confirmed — "Good job! There are some small minor quirks, but all in all, I'm very happy with this."** Round 4's live re-check (deferred at the end of the previous entry) is resolved: approved. The unspecified "small minor quirks" were not detailed by the user and were not chased — per their own closing message, this was a wrap-up instruction, not a request for more toolbar work. **If a future session revisits this, ask what the quirks are before touching the code again; don't guess.** No further toolbar work is scheduled. Session closed per the CLAUDE.md end-of-session protocol: STATUS.md rewritten (not just appended) to consolidate all 4 rounds into one summary and correct stale claims, fork-sync re-checked (clean), all toolbar work already committed and pushed.
+
+- **2026-07-25 (session 11) — a NEW soft-wrap caret bug reported, attempted, PARTIALLY fixed. Still open.**
+  User: clicking at the end of a wrapped RTL line that isn't the last put the caret at the start of
+  the next line — the mirror of the bug fixed on 2026-07-20. Fork `3e716a31` replaced the
+  "honour a downstream affinity hint" rule with "put the caret on the line the pointer was actually
+  on", which is a strictly better oracle and left all 22 existing tests passing.
+  **It only partly worked.** The user's verdict: lines 3+ behave, **lines 1–2 still don't, and on the
+  working lines the caret sits too far from the last character.** Both sub-problems, and the two
+  competing hypotheses for the second (trailing space at the wrap boundary vs. a justify-stretched
+  space), are written up in the "Attempt 1" section above.
+  **Process lesson, the second time this exact wall has been hit:** the bug does not reproduce
+  headlessly — probed explicitly, every trailing-edge click resolves upstream under the Ahem font, so
+  the failing branch never fires. The test shipped alongside the fix passes with *and* without it and
+  is labelled in-file as a guard, not a proof. **The next attempt must start from a live observation,
+  not from code reading.**
+

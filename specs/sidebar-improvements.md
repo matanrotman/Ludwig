@@ -267,3 +267,16 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
   switcher renders one tree; two rename UIs exist; trash button is blind to trash state;
   icon order confirmed "+" outermost; RTL seams inventoried). All interview decisions
   recorded above. Sign-off received same day.
+
+- **2026-07-25 (session 11) — cross-space page drag fixed and user-verified ("works well").**
+  Root cause was simpler than expected: nothing under `sidebar/space/` was a drag target at all, so
+  dropping a page on a space header did literally nothing and gave no cursor feedback. New sidecar
+  `space_drop_target.dart` wraps each space header in a `DragTarget`; it calls
+  `ViewBackendService.moveViewV2` directly rather than dispatching `ViewEvent.move`, because the bloc
+  reachable from a space header's context belongs to the SPACE, not to the dragged page — a trap
+  worth remembering for any future sidebar drop work.
+  **New roadmap item from the same test:** rework the "Move to" dialogue window and behaviour. No
+  detail given yet — ask what's wrong with it before redesigning.
+  Also captured here: the keyboard page/space navigation request now has the user's agreement that it
+  needs its own interview and is quick-switcher shaped, not arrow-key shaped.
+
