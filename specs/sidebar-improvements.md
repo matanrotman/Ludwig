@@ -185,6 +185,18 @@ Change 2 is nearly sidecar (one gesture hook + one new widget). Change 3 is a de
    drop-target gap that simply had no way to surface before. Check whether the drag target list is
    built per-space or assumes a single active space.
 
+   **RESOLVED 2026-07-25** (`space_drop_target.dart`, app commit `172a2196b`) — user-verified
+   "works well". Root cause: nothing under `sidebar/space/` was a drag target at all, so dropping a
+   page on a space header did literally nothing, with no cursor feedback. A new sidecar wraps each
+   space header in a `DragTarget` that moves the dropped page to the top of that space. It calls
+   `ViewBackendService.moveViewV2` directly rather than dispatching `ViewEvent.move`, because the
+   bloc reachable from a space header's context belongs to the SPACE, not to the dragged page.
+
+1b. **Roadmap (user, 2026-07-25): rework the "Move to" dialogue — window and behaviour.** Now that
+   dragging onto a space works, the menu-driven "Move to" flow is the weaker of the two paths. Not
+   scoped; no detail given yet, so **start by asking what specifically is wrong with it** rather
+   than redesigning speculatively.
+
 2. **Feature request — keyboard navigation between pages and spaces, from inside a page.** User's
    words: *"We need to figure out an easy way to navigate between pages and spaces using the keyboard
    even while on a page (e.g., I want to copy a paragraph from one page to the other, and do it all

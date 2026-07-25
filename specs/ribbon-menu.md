@@ -443,6 +443,58 @@ Google Docs do it — is not directly expressible in a `TextSpan`.
 6. **The selection highlight is hard to see in both dark and light mode.** Independent of Phase 4 —
    found incidentally — but a real readability problem worth its own small fix.
 
+## ⚠️ Changing a default keyboard shortcut in code DOES NOT WORK (found 2026-07-25, session 11)
+
+**This is the most reusable finding of the session — read it before editing any `command:` string.**
+
+`SettingsShortcutService.updateCommandShortcuts` runs at startup, walks the saved
+`shortcuts/shortcuts.json` in the app data folder, and for every entry whose `key` matches a
+registered command calls `updateCommand(...)`. **The saved value wins over the code default,
+silently and permanently.** The user's debug-build file holds **86** saved entries.
+
+Consequences, all confirmed against that file:
+- Changing `command:` for an *existing* command is a no-op for anyone who has the file. The
+  2026-07-25 move of align to ⌘L/⌘E/⌘R did nothing for exactly this reason.
+- A *new* command (absent from the file) does pick up its code default — which is why superscript,
+  subscript and the font-size shortcuts all worked first time. **This asymmetry is what makes the
+  trap so easy to miss: some of your shortcut changes work and some don't.**
+- `Justify text` was also absent from the file, so ⌃⇧J was live from the start.
+
+**To actually change a binding:** rebind in Settings → Shortcuts, or use its reset-to-defaults, or
+write a migration over the saved file. Not by editing the default.
+
+## Alignment shortcuts — REVERTED, open for discussion (2026-07-25)
+
+Moved to Word's ⌘L / ⌘E / ⌘R / ⌘J at the user's request, then reverted the same session: **the user
+did not approve the assignment.** Back to ⌃⇧L / ⌃⇧C / ⌃⇧R / ⌃⇧J, and the editor's inline-code
+shortcut is back on ⌘E.
+
+The problem to solve when this is revisited: **⌘E is the natural Word binding for centre, but it is
+already inline code**, and the obvious relief valve ⌘⇧E is already the app's math-equation shortcut.
+Any Word-matching scheme therefore has to displace at least one existing shortcut. Options worth
+putting to the user: take ⌘E and move inline code somewhere free (⌘⇧C was the best candidate —
+free, mnemonic, matches Slack); keep inline code and give centre a non-Word chord; or leave all four
+on the existing ⌃⇧ set. **Whatever is chosen, it must be applied through Settings → Shortcuts or a
+migration, not by editing defaults** (see the section above).
+
+## Selection highlight (2026-07-25)
+
+Was the theme accent at a flat 0.2 alpha in both themes — reported "indistinguishable". Raised in two
+passes after live feedback: 0.32/0.42 was still too faint, so it is now **0.62 light / 0.55 dark**,
+roughly triple the original. Colour deliberately unchanged, so it still follows a custom theme's
+accent. Dark takes slightly less than light because the accent is a bright cyan that moves *toward*
+light text as alpha rises. Capped where body text still clears WCAG AA against the blended result.
+
+## Decision: page-level settings get their own undo (user, 2026-07-25)
+
+⌘Z does not undo a page-colour change, and the same is true of per-page direction, per-page theme
+mode and margins — all live in `View.extra`, outside the editor's undo stack, so the editor's undo
+never sees them. **The user's decision: they get their own undo**, rather than being documented as
+non-undoable. Not yet scoped — needs its own design pass covering: whether one shared undo stack
+spans document edits *and* page settings (so ⌘Z interleaves them in true chronological order) or a
+separate stack, what the scope is (per page? per session?), and how it interacts with the editor's
+existing history. **Do not bolt this onto one setting; it is a cross-cutting feature.**
+
 ## Session Log
 - **2026-07-25 (session 10) — Phase 4 scoped, signed off, and BUILT: justify + superscript + subscript. Footnote split out to its own future spec. Fork committed + re-pinned. Visual verification deferred to the user (a keyboard tooling wall, below).**
   - **Scope decision:** Phase 4 = justify + super/subscript only; **footnote deferred to its own spec** (it's a feature — marker system + note store + numbering — not an inline mark; the button stays "coming soon"). See "Phase 4 scoping" above.

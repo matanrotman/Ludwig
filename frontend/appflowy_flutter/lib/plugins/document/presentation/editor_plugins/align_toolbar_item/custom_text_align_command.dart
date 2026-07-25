@@ -12,31 +12,35 @@ final List<CommandShortcutEvent> customTextAlignCommands = [
   customTextJustifyCommand,
 ];
 
-/// [fork:ribbon] specs/ribbon-menu.md — the four alignment shortcuts moved to
-/// Word's bindings on 2026-07-25 (user's request): ⌘L / ⌘E / ⌘R / ⌘J on macOS,
-/// Ctrl+… elsewhere, replacing the old Ctrl+Shift+L/C/R/J.
+/// ⚠️ ALIGNMENT SHORTCUTS: reverted to the original Ctrl+Shift+… bindings on
+/// 2026-07-25 (same session they were changed) — the user did not approve the
+/// move to Word's ⌘L/⌘E/⌘R/⌘J, and the change could not take effect anyway.
 ///
-/// Collision check done before the move: ⌘L, ⌘R and ⌘J are unclaimed both
-/// app-side (`hotkeys.dart` — note ⌘⇧L, *with* shift, is toggle-theme and is a
-/// different chord) and in the editor fork's command set.
+/// READ THIS BEFORE CHANGING ANY `command:` STRING IN THIS CODEBASE:
+/// editing a default here does NOT change the binding for anyone who already
+/// has a `shortcuts.json`. On startup `SettingsShortcutService
+/// .updateCommandShortcuts` walks the saved file and calls `updateCommand` for
+/// every entry whose `key` matches, so the SAVED value wins over the code
+/// default, permanently and silently. Only commands absent from that file
+/// (i.e. ones introduced after it was last written) actually pick up a code
+/// default. That is why the ⌘L/⌘E/⌘R changes did nothing while brand-new
+/// commands like superscript worked first time.
 ///
-/// Like the other shortcuts in this fork these resolve by physical key
-/// LOCATION as well as logical key, so they fire from the same keys under a
-/// Hebrew layout — see the fork's keybinding change (`d15e3c3a`).
+/// To genuinely change an existing binding: rebind it in Settings → Shortcuts,
+/// or reset shortcuts to defaults there, or migrate the saved file.
 ///
 /// Phase 4 — justify stores the `'justify'` align value, which the editor fork
 /// maps to `TextAlign.justify` via `blockTextAlign` (align_mixin.dart).
 /// Direction-agnostic, so it works in LTR and RTL.
 final CommandShortcutEvent customTextJustifyCommand = CommandShortcutEvent(
   key: 'Justify text',
-  command: 'ctrl+j',
-  macOSCommand: 'cmd+j',
+  command: 'ctrl+shift+j',
   getDescription: () => 'Justify text',
   handler: (editorState) => _textAlignHandler(editorState, 'justify'),
 );
 
-/// Windows / Linux : ctrl + l
-/// macOS           : cmd + l
+/// Windows / Linux : ctrl + shift + l
+/// macOS           : ctrl + shift + l
 /// Allows the user to align text to the left
 ///
 /// - support
@@ -45,19 +49,14 @@ final CommandShortcutEvent customTextJustifyCommand = CommandShortcutEvent(
 ///
 final CommandShortcutEvent customTextLeftAlignCommand = CommandShortcutEvent(
   key: 'Align text to the left',
-  command: 'ctrl+l',
-  macOSCommand: 'cmd+l',
+  command: 'ctrl+shift+l',
   getDescription: LocaleKeys.settings_shortcutsPage_commands_textAlignLeft.tr,
   handler: (editorState) => _textAlignHandler(editorState, leftAlignmentKey),
 );
 
-/// Windows / Linux : ctrl + e
-/// macOS           : cmd + e
+/// Windows / Linux : ctrl + shift + c
+/// macOS           : ctrl + shift + c
 /// Allows the user to align text to the center
-///
-/// ⌘E used to be the editor's "toggle inline code"; that moved to ⌘⇧C so the
-/// four alignment shortcuts could match Word (see the note above and the fork's
-/// `markdown_commands.dart`).
 ///
 /// - support
 ///   - desktop
@@ -65,14 +64,13 @@ final CommandShortcutEvent customTextLeftAlignCommand = CommandShortcutEvent(
 ///
 final CommandShortcutEvent customTextCenterAlignCommand = CommandShortcutEvent(
   key: 'Align text to the center',
-  command: 'ctrl+e',
-  macOSCommand: 'cmd+e',
+  command: 'ctrl+shift+c',
   getDescription: LocaleKeys.settings_shortcutsPage_commands_textAlignCenter.tr,
   handler: (editorState) => _textAlignHandler(editorState, centerAlignmentKey),
 );
 
-/// Windows / Linux : ctrl + r
-/// macOS           : cmd + r
+/// Windows / Linux : ctrl + shift + r
+/// macOS           : ctrl + shift + r
 /// Allows the user to align text to the right
 ///
 /// - support
@@ -81,8 +79,7 @@ final CommandShortcutEvent customTextCenterAlignCommand = CommandShortcutEvent(
 ///
 final CommandShortcutEvent customTextRightAlignCommand = CommandShortcutEvent(
   key: 'Align text to the right',
-  command: 'ctrl+r',
-  macOSCommand: 'cmd+r',
+  command: 'ctrl+shift+r',
   getDescription: LocaleKeys.settings_shortcutsPage_commands_textAlignRight.tr,
   handler: (editorState) => _textAlignHandler(editorState, rightAlignmentKey),
 );

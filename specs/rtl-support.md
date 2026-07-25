@@ -187,6 +187,37 @@ different x) on the validated upstream behavior, so the deferred embedded-date c
 untouched. Any change here must keep that carve-out intact — the fork's `caret_bidi_test.dart` and
 the gutter-click cases are the guard.
 
+### Attempt 1 (fork `3e716a31`, 2026-07-25) — PARTIAL. Do not treat as done.
+
+**What changed:** the wrap-boundary rule stopped trusting Flutter's `TextAffinity` and started
+trusting the pointer. `_AffinityHintPosition` now also carries the hit-test's local offset, and when
+the upstream and downstream candidates land on different lines the caret goes to whichever line's
+vertical band the pointer was actually inside (`_verticalDistanceToLine`). Affinity remains the
+fallback when no pointer position was recorded.
+
+**User's verdict on the real app:** *"Doesn't work for 1st and 2nd lines of a paragraph. Works for
+other lines, but too far from last character of sentence."*
+
+So there are now **two open sub-problems**:
+
+1. **Lines 1 and 2 are still wrong.** No hypothesis survives scrutiny yet — by the pointer-band rule
+   they should behave exactly like lines 3+. Something about the first two lines differs, and
+   guessing at it is what produced this partial fix in the first place. **Diagnose live before
+   touching the code again.**
+2. **On the lines that DO work, the caret sits too far from the last character.** Leading hypothesis:
+   the wrap-boundary offset falls *after* the trailing space that ended the line, so the caret is
+   drawn a space-width past the last visible glyph (further left, in RTL). A second candidate, if the
+   paragraph under test was justified: justify stretches inter-word spaces, so that trailing space can
+   be very wide — which would make the gap vary line to line. **Worth asking the user whether the
+   paragraph was justified when they saw it**, since the two causes need different fixes and the
+   second one would only appear post-Phase-4.
+
+**Method note — this is the second time headless testing has been useless here.** The bug does not
+reproduce under the Ahem font: probed explicitly at multiple x positions along a line's trailing
+edge, every click resolved upstream, so the failing branch never fired. The regression test added
+alongside the fix passes with *and* without it and is labelled in-file as a guard, not a proof.
+**Next attempt must start from a live observation, not from code reading.**
+
 ## Session Log
 - **2026-07-21 (session 5) — PR-status session: Sourcery review on the arrow-up PR addressed and pushed; no app code touched.**
   - **PR #8874 (arrow-up)**: AppFlowy's AI reviewer (Sourcery) reviewed it within a minute of opening — one real suggestion (base the half-line-height threshold on the FIRST line's caret height, not the current caret's, so differing line heights can't misclassify) plus two doc-clarity notes (explain the cutoff; mark `onlyFromFirstVisualLine` as best-effort). All three applied as commit `6476db053` on `fix/arrow-up-to-title-first-visual-line`, `dart format`-clean, pushed with the user's explicit yes; PR shows both commits. Real CI (Flutter/Rust/iOS/commit-lint) is `action_required` — awaiting a maintainer's first-contributor approval; only the i18n lint has run (passed). No human review yet.

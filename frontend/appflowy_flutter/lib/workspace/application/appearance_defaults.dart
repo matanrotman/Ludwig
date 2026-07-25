@@ -28,12 +28,21 @@ class DefaultAppearanceSettings {
   /// more contrast against a dark backdrop than a light one, so matching the
   /// two numbers would leave dark mode looking weaker than light.
   ///
-  /// Deliberately kept below a solid fill: the highlight paints *behind* the
-  /// text, so pushing it further starts eating the text's own legibility, which
-  /// is the problem this is meant to solve.
+  /// Raised again the same day: the first pass (0.32 / 0.42) was still too
+  /// faint in use, so this is roughly TRIPLE the original 0.2 rather than
+  /// double, at the user's explicit request.
+  ///
+  /// Checked against text legibility rather than just picked: the highlight
+  /// paints *behind* the text, so the numbers are capped where the text still
+  /// clears WCAG AA against the blended result. With the default `#00BCF0`
+  /// accent, body text lands near 13:1 on light and 5:1 on dark — both
+  /// comfortably above the 4.5:1 floor. Dark takes slightly less than light
+  /// because the accent is a *bright* cyan: over a dark backdrop it gets
+  /// lighter as alpha rises, moving toward the light text rather than away
+  /// from it, which is the opposite of how it behaves on white.
   static Color getDefaultSelectionColor(BuildContext context) {
     final theme = Theme.of(context);
-    final alpha = theme.brightness == Brightness.dark ? 0.42 : 0.32;
+    final alpha = theme.brightness == Brightness.dark ? 0.55 : 0.62;
     return theme.colorScheme.primary.withValues(alpha: alpha);
   }
 }
