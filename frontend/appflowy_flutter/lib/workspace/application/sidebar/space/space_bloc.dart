@@ -3,10 +3,13 @@ import 'dart:convert';
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
+import 'package:appflowy/shared/backup/backup_service.dart';
+import 'package:appflowy/shared/backup/snapshot_manifest.dart';
 import 'package:appflowy/shared/list_extension.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy/util/string_extension.dart';
+import 'package:appflowy/workspace/application/sidebar/space/temporary_space_migration.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
@@ -77,11 +80,20 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
 
             final (spaces, publicViews, privateViews) = await _getSpaces();
 
-            final currentSpace = await _getLastOpenedSpace(spaces);
+            // [fork:temp-space] Phase 3 (specs/temp-space.md): adopt the
+            // default space as Temporary, exactly once. Idempotent (the flag
+            // in View.extra is the marker) and fail-soft — if this does
+            // nothing, the sidebar still treats the first space as Temporary.
+            // Re-read afterwards so the emitted state carries the new name.
+            final resolvedSpaces = await _adoptTemporarySpace(spaces)
+                ? (await _getSpaces()).$1
+                : spaces;
+
+            final currentSpace = await _getLastOpenedSpace(resolvedSpaces);
             final isExpanded = await _getSpaceExpandStatus(currentSpace);
             emit(
               state.copyWith(
-                spaces: spaces,
+                spaces: resolvedSpaces,
                 currentSpace: currentSpace,
                 isExpanded: isExpanded,
                 shouldShowUpgradeDialog: false,
@@ -411,6 +423,51 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
     final privateSpaces = privateViews.where((e) => e.isSpace);
 
     return ([...publicSpaces, ...privateSpaces], publicViews, privateViews);
+  }
+
+  /// [fork:temp-space] Phase 3 — run the one-time Temporary adoption.
+  ///
+  /// Returns true only when something was actually written, so the caller
+  /// knows to re-read the spaces. All the rules (idempotency, target choice,
+  /// extra merging, fail-soft) live in [TemporarySpaceMigration] where they
+  /// are unit-tested; this method is only the wiring to the backend and the
+  /// backup service.
+  Future<bool> _adoptTemporarySpace(List<ViewPB> spaces) async {
+    try {
+      final outcome = await TemporarySpaceMigration.run(
+        spaces: spaces,
+        takeSnapshot: () async {
+          await getIt<BackupService>()
+              .backupNow(trigger: BackupTrigger.preMigration);
+        },
+        writeView: ({
+          required String viewId,
+          required String name,
+          required String extra,
+        }) async {
+          final result = await ViewBackendService.updateView(
+            viewId: viewId,
+            name: name,
+            extra: extra,
+          );
+          return result.fold(
+            (_) => true,
+            (error) {
+              Log.error('temp-space: adopting Temporary failed: $error');
+              return false;
+            },
+          );
+        },
+      );
+      if (outcome != TemporaryMigrationOutcome.alreadyDone) {
+        Log.info('temp-space: migration outcome = ${outcome.name}');
+      }
+      return outcome == TemporaryMigrationOutcome.adopted;
+    } catch (error) {
+      // Fail-soft by design: never let this block the sidebar from loading.
+      Log.error('temp-space: migration threw, skipping: $error');
+      return false;
+    }
   }
 
   Future<ViewPB?> _createSpace({

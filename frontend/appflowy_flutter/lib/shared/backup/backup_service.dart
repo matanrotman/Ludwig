@@ -155,8 +155,9 @@ class BackupService {
       final settings = await _store.loadSettings();
       // Manual and pre-restore runs proceed even when automatic backup is
       // off — the user asked for this one explicitly.
-      final isForced =
-          trigger == BackupTrigger.manual || trigger == BackupTrigger.preRestore;
+      final isForced = trigger == BackupTrigger.manual ||
+          trigger == BackupTrigger.preRestore ||
+          trigger == BackupTrigger.preMigration;
       if (!settings.enabled && !isForced) {
         return const BackupResult(BackupOutcome.disabled);
       }

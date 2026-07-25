@@ -15,12 +15,14 @@ import 'package:appflowy/workspace/application/sidebar/folder/folder_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/rename_view/rename_view_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
+import 'package:appflowy/workspace/application/view/page_folder.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/folder_icon_badge.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/inline_rename_field.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
@@ -692,7 +694,13 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
             emojiSize: 16.0,
             lineHeight: 18.0 / 16.0,
           )
-        : Opacity(opacity: 0.6, child: widget.view.defaultIcon());
+        // [fork:folder] A folder gets a filled rounded-square badge like a
+        // space's icon (user request 2026-07-25), NOT the dimmed page glyph —
+        // and notably not wrapped in the 0.6 opacity, which would wash the
+        // fill out. A user-chosen emoji still wins, as for any page.
+        : widget.view.isFolder
+            ? const FolderIconBadge()
+            : Opacity(opacity: 0.6, child: widget.view.defaultIcon());
 
     final Widget child = AppFlowyPopover(
       offset: const Offset(20, 0),
@@ -761,8 +769,30 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
         onEditing: (value) =>
             context.read<ViewBloc>().add(ViewEvent.setIsEditing(value)),
         onSelected: _onSelected,
+        // [fork:folder] Only a folder row offers "New folder" — folders nest in
+        // spaces and in other folders, never under an ordinary page
+        // (specs/folder.md). A folder can't exist inside Temporary, so any
+        // folder row is already outside it and needs no further check.
+        onCreateFolder: widget.view.isFolder ? _onCreateFolder : null,
       ),
     );
+  }
+
+  /// [fork:folder] Create a nested folder inside this folder.
+  ///
+  /// Goes straight through [PageFolder.create] rather than
+  /// `ViewEvent.createView`, because the folder flag has to be written by a
+  /// follow-up `updateView` — `createView` cannot set `View.extra`.
+  Future<void> _onCreateFolder() async {
+    final folder = await PageFolder.create(
+      parentViewId: widget.view.id,
+      name: LocaleKeys.sideBar_untitledFolder.tr(),
+    );
+    if (!mounted || folder == null) {
+      return;
+    }
+    // Expand this folder so the new row is visible.
+    context.read<ViewBloc>().add(const ViewEvent.setIsExpanded(true));
   }
 
   void _onSelected(

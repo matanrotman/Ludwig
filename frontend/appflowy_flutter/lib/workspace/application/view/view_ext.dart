@@ -45,6 +45,15 @@ class ViewExtKeys {
 
   // space
   static String isSpaceKey = 'is_space';
+
+  // [fork:temp-space] marks the one permanent staging space every unallocated
+  // page lands in — see specs/temp-space.md. Identity is this flag, never the
+  // space's display name (which differs per install and per language).
+  static String isTemporaryKey = 'is_temporary';
+
+  // [fork:folder] marks a view that was deliberately created as a container —
+  // see specs/folder.md. Explicit, never inferred from "has children".
+  static String isFolderKey = 'is_folder';
   static String spaceCreatorKey = 'space_creator';
   static String spaceCreatedAtKey = 'space_created_at';
   static String spaceIconKey = 'space_icon';
@@ -77,17 +86,65 @@ extension ViewExtension on ViewPB {
         PluginType.calendar,
       ].contains(pluginType);
 
-  Widget defaultIcon({Size? size}) => FlowySvg(
-        switch (layout) {
-          ViewLayoutPB.Board => FlowySvgs.icon_board_s,
-          ViewLayoutPB.Calendar => FlowySvgs.icon_calendar_s,
-          ViewLayoutPB.Grid => FlowySvgs.icon_grid_s,
-          ViewLayoutPB.Document => FlowySvgs.icon_document_s,
-          ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
-          _ => FlowySvgs.icon_document_s,
-        },
-        size: size,
+  /// [fork:folder] A folder is deliberately created as a `Document` view, so
+  /// without this it would draw the document glyph and be indistinguishable
+  /// from an ordinary page at the same indentation. Substituting *here* rather
+  /// than in `view_item.dart` means the sidebar needs no change at all, and a
+  /// folder reads as a folder everywhere a default icon is drawn.
+  ///
+  /// A user-chosen emoji still wins — `_buildViewIconButton` only falls through
+  /// to this when the view has no icon of its own.
+  ///
+  /// The explicit 16pt fallback exists because the only folder asset shipped is
+  /// 24x while every page glyph below is 16x; without it a folder row's icon
+  /// would render visibly larger than its neighbours.
+  Widget defaultIcon({Size? size}) {
+    if (isFolder) {
+      return FlowySvg(
+        FlowySvgs.folder_m,
+        size: size ?? const Size.square(16),
       );
+    }
+    return FlowySvg(
+      switch (layout) {
+        ViewLayoutPB.Board => FlowySvgs.icon_board_s,
+        ViewLayoutPB.Calendar => FlowySvgs.icon_calendar_s,
+        ViewLayoutPB.Grid => FlowySvgs.icon_grid_s,
+        ViewLayoutPB.Document => FlowySvgs.icon_document_s,
+        ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
+        _ => FlowySvgs.icon_document_s,
+      },
+      size: size,
+    );
+  }
+
+  /// [fork:folder] Whether this view was deliberately created as a container —
+  /// see `PageFolder` and `specs/folder.md`.
+  ///
+  /// Reads the flag the same defensive way [isSpace] does: `extra` is free-form
+  /// JSON written by several independent features, so anything unreadable must
+  /// mean "no" rather than throw. Lives here rather than in `PageFolder` to
+  /// keep the flag reads together — and to avoid an import cycle, since
+  /// `PageFolder` needs this file for [ViewExtKeys].
+  ///
+  /// Deliberately NOT inferred from `childViews.isNotEmpty`: decision 2 of
+  /// `specs/capture-and-structure.md` — containers are explicit, never
+  /// emergent, so a page must never restructure itself just because something
+  /// got nested under it.
+  bool get isFolder {
+    try {
+      if (extra.isEmpty) {
+        return false;
+      }
+      final ext = jsonDecode(extra);
+      if (ext is! Map) {
+        return false;
+      }
+      return ext[ViewExtKeys.isFolderKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   PluginType get pluginType => switch (layout) {
         ViewLayoutPB.Board => PluginType.board,

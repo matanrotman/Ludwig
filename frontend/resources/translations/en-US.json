@@ -444,7 +444,9 @@
     "purchaseAIResponse": "Purchase ",
     "askOwnerToUpgradeToLocalAI": "Ask workspace owner to enable AI On-device",
     "upgradeToAILocal": "Run local models on your device for ultimate privacy",
-    "upgradeToAILocalDesc": "Chat with PDFs, improve your writing, and auto-fill tables using local AI"
+    "upgradeToAILocalDesc": "Chat with PDFs, improve your writing, and auto-fill tables using local AI",
+    "newFolder": "New folder",
+    "untitledFolder": "New folder"
   },
   "notifications": {
     "export": {
@@ -2948,7 +2950,14 @@
     "manageSpace": "Manage space",
     "renameSpace": "Rename space",
     "mSpaceIconColor": "Space icon color",
-    "mSpaceIcon": "Space icon"
+    "mSpaceIcon": "Space icon",
+    "temporaryName": "Temporary",
+    "unableToRenameTemporarySpace": "The Temporary space can't be renamed — it's where unfiled pages always land",
+    "unableToDeleteTemporarySpace": "The Temporary space can't be deleted — it's where unfiled pages always land",
+    "unfiledCount": {
+      "one": "{count} page waiting to be filed",
+      "other": "{count} pages waiting to be filed"
+    }
   },
   "publish": {
     "hasNotBeenPublished": "This page hasn't been published yet",

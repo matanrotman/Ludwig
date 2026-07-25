@@ -19,6 +19,7 @@ class ViewAddButton extends StatelessWidget {
     required this.onEditing,
     required this.onSelected,
     this.isHovered = false,
+    this.onCreateFolder,
   });
 
   final String parentViewId;
@@ -32,8 +33,20 @@ class ViewAddButton extends StatelessWidget {
   ) onSelected;
   final bool isHovered;
 
+  /// [fork:folder] When supplied, the menu offers "New folder" (specs/folder.md).
+  ///
+  /// Absence is the gate, deliberately: only callers that can legitimately hold
+  /// a folder pass this — space headers (except Temporary) and folder rows.
+  /// Ordinary page rows leave it null, so folders can't be nested under a page,
+  /// and nothing inside Temporary offers it at all. That keeps the rule in one
+  /// place (`PageFolder.canCreateFolderIn`) instead of duplicating it here.
+  final VoidCallback? onCreateFolder;
+
   List<PopoverAction> get _actions {
     return [
+      // [fork:folder] first: you are choosing a container or a kind of page,
+      // and the container is the broader choice.
+      if (onCreateFolder != null) ViewAddFolderActionWrapper(),
       // document, grid, kanban, calendar
       ...pluginBuilders().map(
         (pluginBuilder) => ViewAddButtonActionWrapper(
@@ -76,7 +89,9 @@ class ViewAddButton extends StatelessWidget {
       },
       onSelected: (action, popover) {
         onEditing(false);
-        if (action is ViewAddButtonActionWrapper) {
+        if (action is ViewAddFolderActionWrapper) {
+          onCreateFolder?.call();
+        } else if (action is ViewAddButtonActionWrapper) {
           _showViewAddButtonActions(context, action);
         } else if (action is ViewImportActionWrapper) {
           _showViewImportAction(context, action);
@@ -108,6 +123,20 @@ class ViewAddButton extends StatelessWidget {
       },
     );
   }
+}
+
+/// [fork:folder] The "New folder" entry — a non-plugin action, which is why it
+/// is its own cell type rather than a [ViewAddButtonActionWrapper]: a folder is
+/// not a plugin and has no [PluginBuilder].
+class ViewAddFolderActionWrapper extends ActionCell {
+  @override
+  Widget? leftIcon(Color iconColor) => const FlowySvg(
+        FlowySvgs.folder_m,
+        size: Size.square(16),
+      );
+
+  @override
+  String get name => LocaleKeys.sideBar_newFolder.tr();
 }
 
 class ViewAddButtonActionWrapper extends ActionCell {

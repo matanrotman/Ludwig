@@ -4,15 +4,14 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
+import 'package:appflowy/workspace/application/sidebar/space/temporary_space.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
-import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
-import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -69,12 +68,10 @@ class _SidebarNewPageButtonState extends State<SidebarNewPageButton> {
         : ViewSectionPB.Public;
     final spaceState = context.read<SpaceBloc>().state;
     if (spaceState.spaces.isNotEmpty) {
-      // [fork:sidebar-improvements] Phase 4: with every space visible in the
-      // sidebar, the new page goes to the space of the page currently open
-      // (falling back to the bloc's current space, then the first space) —
+      // [fork:temp-space] Phase 2: the new page goes to Temporary, always —
       // created directly rather than via SpaceEvent.createPage, which can
       // only target the bloc's currentSpace.
-      final target = await _resolveTargetSpace(spaceState);
+      final target = _resolveTargetSpace(spaceState);
       if (!mounted || target == null) {
         return;
       }
@@ -106,25 +103,18 @@ class _SidebarNewPageButtonState extends State<SidebarNewPageButton> {
     }
   }
 
-  Future<ViewPB?> _resolveTargetSpace(SpaceState spaceState) async {
-    final latestView = getIt<MenuSharedState>().latestOpenView;
-    if (latestView != null) {
-      final ancestors =
-          await ViewBackendService.getViewAncestors(latestView.id);
-      final space = ancestors.fold(
-        (ancestors) =>
-            ancestors.items.firstWhereOrNull((ancestor) => ancestor.isSpace),
-        (_) => null,
-      );
-      if (space != null) {
-        final match =
-            spaceState.spaces.firstWhereOrNull((s) => s.id == space.id);
-        if (match != null) {
-          return match;
-        }
-      }
-    }
-    return spaceState.currentSpace ??
-        (spaceState.spaces.isEmpty ? null : spaceState.spaces.first);
-  }
+  /// [fork:temp-space] Phase 2 (specs/temp-space.md): the top-level New Page
+  /// button **always** lands in Temporary, whatever is open.
+  ///
+  /// ⚠️ This deliberately reverses the session-6 behaviour, which targeted the
+  /// space of the currently-open page (falling back to the bloc's currentSpace,
+  /// then the first space). That was correct under the old model and is wrong
+  /// under this one: capture must not require a filing decision. The reasoning
+  /// is recorded as decision 3 of `specs/capture-and-structure.md` — read it
+  /// before "restoring" the old behaviour from the session-6 notes.
+  ///
+  /// Choosing a destination up front is still fully supported: that is exactly
+  /// what the "+" on a specific space is for.
+  ViewPB? _resolveTargetSpace(SpaceState spaceState) =>
+      TemporarySpace.resolve(spaceState.spaces);
 }

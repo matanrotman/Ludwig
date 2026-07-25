@@ -6,11 +6,15 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/icon_picker.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
+import 'package:appflowy/workspace/application/sidebar/space/temporary_space.dart';
+import 'package:appflowy/workspace/application/view/page_folder.dart';
+import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/manage_space_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_action_type.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_more_popup.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/temporary_unfiled_count.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/inline_rename_field.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
@@ -39,6 +43,7 @@ class SpaceListHeader extends StatefulWidget {
     required this.onAddPage,
     required this.onCreateNewSpace,
     required this.onCollapseAllPages,
+    required this.onCreateFolder,
   });
 
   final ViewPB space;
@@ -47,6 +52,9 @@ class SpaceListHeader extends StatefulWidget {
   final void Function(ViewLayoutPB layout) onAddPage;
   final VoidCallback onCreateNewSpace;
   final VoidCallback onCollapseAllPages;
+
+  /// [fork:folder] Create a folder directly in this space.
+  final VoidCallback onCreateFolder;
 
   @override
   State<SpaceListHeader> createState() => _SpaceListHeaderState();
@@ -63,6 +71,28 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
     super.dispose();
   }
 
+  /// [fork:temp-space] Is this row the workspace's Temporary space?
+  ///
+  /// Resolved against the whole space list, not the view alone, because
+  /// identity is a property of the workspace — see [TemporarySpace]. Safe to
+  /// `read` in build: this widget always sits inside the space list's
+  /// `BlocBuilder<SpaceBloc>`, which rebuilds it when the spaces change.
+  bool _isTemporary(BuildContext context) => TemporarySpace.isTemporary(
+        widget.space,
+        context.read<SpaceBloc>().state.spaces,
+      );
+
+  /// [fork:temp-space] Temporary's name is a product constant, not user data
+  /// (it cannot be renamed), so it is *rendered* rather than read from the
+  /// view. This is what lets Phase 1 write nothing at all to the user's data.
+  ///
+  /// Known and accepted Phase-1 gap: surfaces this doesn't cover — search
+  /// results and the "Move to" picker — still show the stored name. Phase 3's
+  /// migration aligns the stored name and closes it.
+  String _displayName(BuildContext context) => _isTemporary(context)
+      ? LocaleKeys.space_temporaryName.tr()
+      : widget.space.name;
+
   void _handleTap() {
     if (_isRenaming) {
       return;
@@ -71,6 +101,11 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
       // The first click of this double-click already toggled the space —
       // toggle back so renaming leaves the expansion as it was.
       widget.onToggle();
+      // [fork:temp-space] Temporary can't be renamed, so a double-click is
+      // just two toggles (net: nothing) instead of opening the rename field.
+      if (_isTemporary(context)) {
+        return;
+      }
       setState(() => _isRenaming = true);
     } else {
       widget.onToggle();
@@ -93,10 +128,35 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
     }
   }
 
+  /// [fork:folder] The space's own icon colour, faded, used to tint the whole
+  /// header row (user request 2026-07-25: "let's try colouring the whole line of
+  /// the space with the background colour and see how that works").
+  ///
+  /// This is the experiment that distinguishes a SPACE from a FOLDER now that
+  /// folders also carry a filled rounded-square icon: the space gets a tinted
+  /// band, the folder just gets the badge. Deliberately very low alpha — the row
+  /// still has to read as a header, and the hover highlight has to remain
+  /// visible on top of it.
+  ///
+  /// Returns null when the space has no colour, so untinted stays untinted.
+  Color? _rowTint(BuildContext context) {
+    final raw = widget.space.spaceIconColor;
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    try {
+      return Color(int.parse(raw)).withValues(alpha: 0.12);
+    } catch (error) {
+      Log.warn('SpaceListHeader: unparseable space icon colour "$raw": $error');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       height: HomeSizes.workspaceSectionHeight,
+      color: _rowTint(context),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _handleTap,
@@ -145,11 +205,27 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
                   onSubmitted: _commitRename,
                   onDismissed: _stopRenaming,
                 )
-              : FlowyText.medium(
-                  widget.space.name,
-                  fontSize: 14.0,
-                  figmaLineHeight: 18.0,
-                  overflow: TextOverflow.ellipsis,
+              // [fork:temp-space] Phase 4: the count sits INSIDE the expanded
+              // slot, immediately after the name — "Temporary (3)", mirroring
+              // to "(3) Temporary" in RTL off the ambient Directionality.
+              //
+              // It was previously a sibling of this Expanded, which pushed it to
+              // the far edge of the row, visibly detached from the name (user
+              // feedback 2026-07-25). `Flexible` on the text keeps a long space
+              // name ellipsizing rather than squeezing the count out.
+              : Row(
+                  children: [
+                    Flexible(
+                      child: FlowyText.medium(
+                        _displayName(context),
+                        fontSize: 14.0,
+                        figmaLineHeight: 18.0,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_isTemporary(context))
+                      TemporaryUnfiledCount(space: widget.space),
+                  ],
                 ),
         ),
         if (showActions) ...[
@@ -158,6 +234,14 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
             message: LocaleKeys.sideBar_addAPage.tr(),
             child: ViewAddButton(
               parentViewId: widget.space.id,
+              // [fork:folder] null on Temporary — decision 4, the staging area
+              // stays flat. Passing null is what hides the entry entirely.
+              onCreateFolder: PageFolder.canCreateFolderIn(
+                parent: widget.space,
+                spaces: context.read<SpaceBloc>().state.spaces,
+              )
+                  ? widget.onCreateFolder
+                  : null,
               // Must feed the same notifier as SpaceMorePopup below: the
               // hover icons only exist while `showActions` is true, so an
               // unreported open popover dies the moment the pointer leaves
@@ -195,6 +279,11 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
   Future<void> _onAction(SpaceMoreActionType type, dynamic data) async {
     switch (type) {
       case SpaceMoreActionType.rename:
+        // [fork:temp-space] belt-and-braces: the menu entry is already
+        // disabled for Temporary, so this should be unreachable.
+        if (_isTemporary(context)) {
+          break;
+        }
         // Same in-place rename as double-click — the dialog is retired.
         setState(() => _isRenaming = true);
         break;

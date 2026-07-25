@@ -7,7 +7,15 @@ enum BackupTrigger {
   quit,
   manual,
   catchUp,
-  preRestore;
+  preRestore,
+
+  /// [fork:temp-space] Taken immediately before the one-time adoption of the
+  /// default space as Temporary (specs/temp-space.md Phase 3). Forced, like
+  /// [manual] and [preRestore], so it happens even with automatic backup off —
+  /// but it keeps ordinary [SnapshotKind.backup] retention, because unlike a
+  /// pre-restore snapshot it guards a two-field metadata write, not a
+  /// wholesale folder replacement.
+  preMigration;
 
   static BackupTrigger fromName(String? name) =>
       BackupTrigger.values.asNameMap()[name] ?? BackupTrigger.manual;

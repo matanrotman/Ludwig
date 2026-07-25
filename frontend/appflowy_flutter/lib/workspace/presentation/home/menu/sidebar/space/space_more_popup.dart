@@ -7,6 +7,7 @@ import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/appearance/sidebar_dock_side.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
+import 'package:appflowy/workspace/application/sidebar/space/temporary_space.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_action_type.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -66,10 +67,19 @@ class SpaceMorePopup extends StatelessWidget {
     final actionTypes = _buildActionTypes();
     return actionTypes
         .map(
-          (e) => SpaceMoreActionTypeWrapper(e, (controller, data) {
-            onAction(e, data);
-            controller.close();
-          }),
+          (e) => SpaceMoreActionTypeWrapper(
+            e,
+            (controller, data) {
+              onAction(e, data);
+              controller.close();
+            },
+            // [fork:temp-space] the wrapper needs to know WHICH space it is
+            // acting on to refuse Rename/Delete on Temporary. Without this it
+            // could only see the bloc's currentSpace, which is not necessarily
+            // this row (the same trap that broke the per-space "…" menu in
+            // session 6 — see specs/sidebar-improvements.md).
+            space: space,
+          ),
         )
         .toList();
   }
@@ -90,10 +100,14 @@ class SpaceMorePopup extends StatelessWidget {
 }
 
 class SpaceMoreActionTypeWrapper extends CustomActionCell {
-  SpaceMoreActionTypeWrapper(this.inner, this.onTap);
+  SpaceMoreActionTypeWrapper(this.inner, this.onTap, {this.space});
 
   final SpaceMoreActionType inner;
   final void Function(PopoverController controller, dynamic data) onTap;
+
+  /// [fork:temp-space] the space this menu row acts on. Optional so existing
+  /// callers keep compiling; when absent the Temporary rules simply don't apply.
+  final ViewPB? space;
 
   @override
   Widget buildWithContext(
@@ -165,8 +179,21 @@ class SpaceMoreActionTypeWrapper extends CustomActionCell {
 
     bool disable = false;
     var message = '';
-    if (inner == SpaceMoreActionType.delete) {
-      if (spaces.length <= 1) {
+    // [fork:temp-space] Temporary is permanent furniture: neither renamable nor
+    // deletable (specs/temp-space.md). Disabled-with-a-reason rather than
+    // hidden, so the row explains itself instead of looking broken — the same
+    // convention as "unable to delete the last space" just below.
+    final target = space;
+    final isTemporary =
+        target != null && TemporarySpace.isTemporary(target, spaces);
+    if (inner == SpaceMoreActionType.rename && isTemporary) {
+      disable = true;
+      message = LocaleKeys.space_unableToRenameTemporarySpace.tr();
+    } else if (inner == SpaceMoreActionType.delete) {
+      if (isTemporary) {
+        disable = true;
+        message = LocaleKeys.space_unableToDeleteTemporarySpace.tr();
+      } else if (spaces.length <= 1) {
         disable = true;
         message = LocaleKeys.space_unableToDeleteLastSpace.tr();
       } else if (!allowToDelete) {
@@ -204,7 +231,9 @@ class SpaceMoreActionTypeWrapper extends CustomActionCell {
       ),
     );
 
-    if (inner == SpaceMoreActionType.delete) {
+    // Show the reason wherever there is one — delete has always had this, and
+    // Temporary adds a disabled Rename that must explain itself too.
+    if (message.isNotEmpty) {
       return FlowyTooltip(
         message: message,
         child: child,

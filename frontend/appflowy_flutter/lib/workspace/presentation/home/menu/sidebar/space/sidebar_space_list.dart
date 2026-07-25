@@ -4,9 +4,12 @@ import 'dart:convert';
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
+import 'package:appflowy/workspace/application/sidebar/space/temporary_space.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
+import 'package:appflowy/workspace/application/view/page_folder.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
@@ -18,6 +21,7 @@ import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart'
     show PropertyValueNotifier;
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -167,6 +171,22 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
     );
   }
 
+  /// [fork:folder] Create a folder inside [parent] — see specs/folder.md.
+  ///
+  /// Unlike [_createPage] this does NOT open the new folder: in Phase 1 a
+  /// folder has no page of its own yet (clicking it just expands, exactly as a
+  /// space does). It reveals the parent so the new row is visible instead.
+  Future<void> _createFolder(ViewPB parent) async {
+    final folder = await PageFolder.create(
+      parentViewId: parent.id,
+      name: LocaleKeys.sideBar_untitledFolder.tr(),
+    );
+    if (!mounted || folder == null) {
+      return;
+    }
+    _reveal(parent);
+  }
+
   void _showCreateSpaceDialog(BuildContext context) {
     final spaceBloc = context.read<SpaceBloc>();
     showDialog(
@@ -192,9 +212,12 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
         if (state.spaces.isEmpty) {
           return const SizedBox.shrink();
         }
+        // [fork:temp-space] Temporary always sorts first (specs/temp-space.md);
+        // every other space keeps the user's own order.
+        final spaces = TemporarySpace.sortedTemporaryFirst(state.spaces);
         return Column(
           children: [
-            for (final space in state.spaces) ...[
+            for (final space in spaces) ...[
               // [fork:sidebar] The header doubles as a drop target so a page
               // can be dragged onto a space to move it there.
               SpaceDropTarget(
@@ -205,6 +228,7 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
                   isExpanded: _isExpanded(space),
                   onToggle: () => _toggle(space),
                   onAddPage: (layout) => unawaited(_createPage(space, layout)),
+                  onCreateFolder: () => unawaited(_createFolder(space)),
                   onCreateNewSpace: () => _showCreateSpaceDialog(context),
                   onCollapseAllPages: () =>
                       _collapseNotifier(space.id).value = true,
@@ -234,7 +258,18 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
                         context.read<TabsBloc>().openTab(view),
                   ),
                 ),
+              // [fork:folder] A separator between spaces (user request
+              // 2026-07-25) — with the header row now tinted, adjacent spaces
+              // would otherwise run into one another. Omitted after the last
+              // space so the list doesn't end on a rule.
               const VSpace(4.0),
+              if (space.id != spaces.last.id) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: FlowyDivider(),
+                ),
+                const VSpace(4.0),
+              ],
             ],
           ],
         );
