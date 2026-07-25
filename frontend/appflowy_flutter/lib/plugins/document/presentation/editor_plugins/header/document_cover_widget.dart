@@ -174,16 +174,27 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
                 children: [
                   SizedBox(
                     height: _calculateOverallHeight(),
-                    child: DocumentHeaderToolbar(
-                      onIconOrCoverChanged: _saveIconOrCover,
-                      node: widget.node,
-                      editorState: widget.editorState,
-                      hasCover: hasCover,
-                      hasIcon: hasIcon,
-                      offset: offset,
-                      isCoverTitleHovered: isCoverTitleHovered,
-                      documentId: view.id,
-                      tabs: widget.tabs,
+                    // [fork:rtl] The "Add icon"/"Add cover" toolbar must follow
+                    // the PAGE's direction like the title, icon and the cover's
+                    // own buttons do — otherwise on an RTL page it stays pinned
+                    // to the left and reads as sitting under the icon rather
+                    // than across from it (user report 2026-07-25). One wrapper
+                    // flips both the button order and, via
+                    // AlignmentDirectional.bottomStart inside, which edge the
+                    // row hugs.
+                    child: Directionality(
+                      textDirection: _headerDirection(context),
+                      child: DocumentHeaderToolbar(
+                        onIconOrCoverChanged: _saveIconOrCover,
+                        node: widget.node,
+                        editorState: widget.editorState,
+                        hasCover: hasCover,
+                        hasIcon: hasIcon,
+                        offset: offset,
+                        isCoverTitleHovered: isCoverTitleHovered,
+                        documentId: view.id,
+                        tabs: widget.tabs,
+                      ),
                     ),
                   ),
                   if (hasCover)
@@ -381,8 +392,21 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
     await widget.editorState.apply(transaction);
 
     // compatible with version > 0.5.5.
+    //
+    // [fork:rtl] ⚠️ `view`, NOT `widget.view`. This is the bug that made
+    // deleting a cover revert an RTL page to LTR (user report 2026-07-25).
+    // `migrateCoverIfNeeded` merges the new cover into `view.extra` and writes
+    // the result back — so it must merge into the CURRENT extra. `widget.view`
+    // is the snapshot captured when the page was opened, so any per-page
+    // setting written since (direction, theme, colour, margins — all of which
+    // live in `extra`) was absent from it and got erased on the write.
+    //
+    // The state field `view` is kept fresh by the ViewListener in initState
+    // for exactly this reason. Same root cause as the 2026-07-19 title bug:
+    // a stale ViewPB captured at open time. Anything in this file that writes
+    // `extra` must use `view`.
     EditorMigration.migrateCoverIfNeeded(
-      widget.view,
+      view,
       attributes,
       overwrite: true,
     );
@@ -446,7 +470,9 @@ class _DocumentHeaderToolbarState extends State<DocumentHeaderToolbar> {
   @override
   Widget build(BuildContext context) {
     Widget child = Container(
-      alignment: Alignment.bottomLeft,
+      // [fork:rtl] Directional so the row hugs the reading direction's starting
+      // edge. Identical to the old `Alignment.bottomLeft` on an LTR page.
+      alignment: AlignmentDirectional.bottomStart,
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: widget.offset),
       child: SizedBox(
@@ -773,77 +799,105 @@ class DocumentCoverState extends State<DocumentCover> {
     }
   }
 
+  /// [fork:rtl] The direction the cover's overlay buttons should follow — the
+  /// **page's**, not the app layout's. Same resolution the title and icon use
+  /// (`_DocumentCoverWidgetState._headerDirection`), so all three agree.
+  ///
+  /// ⚠️ Why the ambient `Directionality` is not enough on its own: this user
+  /// runs an LTR *interface* with RTL *pages*, so `Directionality.of(context)`
+  /// here is LTR and both the `Row` order and the `Positioned` edge would stay
+  /// pinned as if the page were LTR. It is passed in as `layoutDirection`
+  /// because that is the correct fallback when a page has no direction of its
+  /// own and its title gives no hint.
+  ui.TextDirection _coverButtonsDirection(BuildContext context) =>
+      EditorStyleCustomizer.headerTextDirection(
+        defaultTextDirection:
+            widget.editorState.editorStyle.defaultTextDirection,
+        text: widget.view.name,
+        layoutDirection: Directionality.of(context),
+      );
+
   Widget _buildCoverOverlayButtons(BuildContext context) {
-    return Positioned(
+    final direction = _coverButtonsDirection(context);
+    return Positioned.directional(
+      // `end` rather than a hardcoded `right`: identical to before on an LTR
+      // page (end == right), and moves the pair to the left edge on an RTL one.
+      textDirection: direction,
       bottom: 20,
-      right: 50,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppFlowyPopover(
-            controller: popoverController,
-            triggerActions: PopoverTriggerFlags.none,
-            offset: const Offset(0, 8),
-            direction: PopoverDirection.bottomWithCenterAligned,
-            constraints: const BoxConstraints(
-              maxWidth: 540,
-              maxHeight: 360,
-              minHeight: 80,
-            ),
-            margin: EdgeInsets.zero,
-            onClose: () => isPopoverOpen = false,
-            child: IntrinsicWidth(
-              child: RoundedTextButton(
-                height: 28.0,
-                onPressed: () => popoverController.show(),
-                hoverColor: Theme.of(context).colorScheme.surface,
-                textColor: Theme.of(context).colorScheme.tertiary,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surface
-                    .withValues(alpha: 0.5),
-                title: LocaleKeys.document_plugins_cover_changeCover.tr(),
+      end: 50,
+      child: Directionality(
+        // Flips the button ORDER — a Row lays its children out along the
+        // ambient direction, so this one wrapper handles order while
+        // `Positioned.directional` above handles placement.
+        textDirection: direction,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppFlowyPopover(
+              controller: popoverController,
+              triggerActions: PopoverTriggerFlags.none,
+              offset: const Offset(0, 8),
+              direction: PopoverDirection.bottomWithCenterAligned,
+              constraints: const BoxConstraints(
+                maxWidth: 540,
+                maxHeight: 360,
+                minHeight: 80,
               ),
+              margin: EdgeInsets.zero,
+              onClose: () => isPopoverOpen = false,
+              child: IntrinsicWidth(
+                child: RoundedTextButton(
+                  height: 28.0,
+                  onPressed: () => popoverController.show(),
+                  hoverColor: Theme.of(context).colorScheme.surface,
+                  textColor: Theme.of(context).colorScheme.tertiary,
+                  fillColor: Theme.of(context)
+                      .colorScheme
+                      .surface
+                      .withValues(alpha: 0.5),
+                  title: LocaleKeys.document_plugins_cover_changeCover.tr(),
+                ),
+              ),
+              popupBuilder: (BuildContext popoverContext) {
+                isPopoverOpen = true;
+
+                return UploadImageMenu(
+                  limitMaximumImageSize: !_isLocalMode(),
+                  supportTypes: const [
+                    UploadImageType.color,
+                    UploadImageType.local,
+                    UploadImageType.url,
+                    UploadImageType.unsplash,
+                  ],
+                  onSelectedLocalImages: (files) {
+                    popoverController.close();
+                    if (files.isEmpty) {
+                      return;
+                    }
+
+                    final item = files.map((file) => file.path).first;
+                    onCoverChanged(CoverType.file, item);
+                  },
+                  onSelectedAIImage: (_) {
+                    throw UnimplementedError();
+                  },
+                  onSelectedNetworkImage: (url) {
+                    popoverController.close();
+                    onCoverChanged(CoverType.file, url);
+                  },
+                  onSelectedColor: (color) {
+                    popoverController.close();
+                    onCoverChanged(CoverType.color, color);
+                  },
+                );
+              },
             ),
-            popupBuilder: (BuildContext popoverContext) {
-              isPopoverOpen = true;
-
-              return UploadImageMenu(
-                limitMaximumImageSize: !_isLocalMode(),
-                supportTypes: const [
-                  UploadImageType.color,
-                  UploadImageType.local,
-                  UploadImageType.url,
-                  UploadImageType.unsplash,
-                ],
-                onSelectedLocalImages: (files) {
-                  popoverController.close();
-                  if (files.isEmpty) {
-                    return;
-                  }
-
-                  final item = files.map((file) => file.path).first;
-                  onCoverChanged(CoverType.file, item);
-                },
-                onSelectedAIImage: (_) {
-                  throw UnimplementedError();
-                },
-                onSelectedNetworkImage: (url) {
-                  popoverController.close();
-                  onCoverChanged(CoverType.file, url);
-                },
-                onSelectedColor: (color) {
-                  popoverController.close();
-                  onCoverChanged(CoverType.color, color);
-                },
-              );
-            },
-          ),
-          const HSpace(10),
-          DeleteCoverButton(
-            onTap: () => onCoverChanged(CoverType.none, null),
-          ),
-        ],
+            const HSpace(10),
+            DeleteCoverButton(
+              onTap: () => onCoverChanged(CoverType.none, null),
+            ),
+          ],
+        ),
       ),
     );
   }
