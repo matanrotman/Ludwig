@@ -198,7 +198,7 @@ dependency_overrides:
       # means the app keeps building the OLD editor code, which has burned us
       # before (comments described fixes that weren't actually running).
       url: https://github.com/matanrotman/appflowy-editor.git
-      ref: "c48c69f5913e5a493a2c464b0019408761b816bc"
+      ref: "3e716a317eae3022bc2947dcf968345df81a0d94"
 
   appflowy_editor_plugins:
     git:
