@@ -22,7 +22,6 @@ import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
-import 'package:appflowy/workspace/presentation/home/menu/view/folder_icon_badge.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/inline_rename_field.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
@@ -694,12 +693,14 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
             emojiSize: 16.0,
             lineHeight: 18.0 / 16.0,
           )
-        // [fork:folder] A folder gets a filled rounded-square badge like a
-        // space's icon (user request 2026-07-25), NOT the dimmed page glyph —
-        // and notably not wrapped in the 0.6 opacity, which would wash the
-        // fill out. A user-chosen emoji still wins, as for any page.
+        // [fork:folder] A folder's default icon is a plain monochrome folder
+        // glyph at full strength — NOT the filled rounded-square badge tried
+        // first, which read as "a coloured rectangle" next to emoji-bearing
+        // pages (user feedback 2026-07-25). Full strength rather than the
+        // pages' 0.6 opacity is deliberate: a container should sit slightly
+        // forward of its contents. A user-chosen emoji still wins.
         : widget.view.isFolder
-            ? const FolderIconBadge()
+            ? const FlowySvg(FlowySvgs.folder_m, size: Size.square(16))
             : Opacity(opacity: 0.6, child: widget.view.defaultIcon());
 
     final Widget child = AppFlowyPopover(

@@ -232,3 +232,43 @@ with it silently, and clicking a folder opens a (still empty) page rather than e
 3. **The space/folder visual experiment needs the user's verdict** — tinted space rows at 0.12 alpha of
    the space's own icon colour, plus dividers between spaces. Explicitly exploratory ("let's try ... and
    see how that works"). The alpha and the divider are each one constant.
+
+### Live-design round 2 — 2026-07-25 (user feedback on the first visual pass)
+
+**Applied this session:**
+- **Space icon: no filled badge.** The row already carries the space's colour as a tint; repeating it
+  behind the icon said the same thing twice. `SpaceIcon` gained `showBackground` (default true, so every
+  other caller is unchanged); the sidebar header passes false.
+- **Dividers: a real 1px hairline** at 50% of the theme divider colour, `height: 1`, indented 8pt, with
+  no padding stack around it. The first version (a `FlowyDivider` between two `VSpace(4)`) "sat too high"
+  and ate vertical space.
+- **Folders: the filled rounded-square badge is REVERTED and deleted.** It read as "a coloured rectangle"
+  beside emoji-bearing pages. A folder now draws a plain monochrome folder glyph at full strength —
+  deliberately not the 0.6 opacity pages use, so a container sits slightly forward of its contents.
+
+**Still open — decisions needed before more folder UI is built:**
+
+1. **Page ↔ folder conversion: UNDECIDED.** The user is explicitly on the fence. Do not build either way.
+2. **Clicking a space's icon should open the icon + colour picker**, exactly as the `…` menu's "Change
+   icon" does — a direct affordance rather than a menu trip. Not built.
+3. **Folders must start with an icon and be able to change it**, the way spaces do — a container is never
+   iconless. The default glyph is done; the open part is *which picker*: spaces are restricted to the
+   **icon set (no emoji)**, and the user likes that restriction. If folders get the same restriction, it
+   also protects the folder/page distinction below — an emoji on a folder would defeat it.
+4. **⚠️ Folder vs. page at the same indent — the real unsolved problem.** Both can carry an icon, so
+   icon-presence alone cannot carry the distinction. Proposal put to the user (three signals, none of
+   them colour):
+   - **a. An always-visible disclosure caret on folders**, even when empty — pages show one only when
+     they have children. The strongest signal because it is *structural* ("things go inside me"), it is
+     the Finder / VS Code / Notion convention, and it gives an empty folder something to show.
+   - **b. Monochrome glyph vs. colourful emoji.** Pages lean on emoji; folders stay flat and
+     monochrome, so the eye sorts them without reading. Only holds if folders are restricted to the icon
+     set (see 3).
+   - **c. Folder names in medium weight** (the weight space headers use), pages regular.
+   - **d. (optional) Folders sort above pages** inside a container. Strongest grouping there is, but it
+     conflicts with manual drag ordering — offered as a choice, not recommended by default.
+   Recommendation: **a + b + c**, with folders restricted to icons so (b) cannot be defeated.
+5. **Clicking empty sidebar space should deselect the open page**, returning to the ephemeral
+   "nothing" area. **Blocked on the ephemeral pad** (`specs/capture-and-structure.md` → "the ephemeral
+   pad"), which does not exist yet — there is currently nothing to return *to*. Worth building the two
+   together, since this is the gesture that makes the pad reachable rather than only a launch state.

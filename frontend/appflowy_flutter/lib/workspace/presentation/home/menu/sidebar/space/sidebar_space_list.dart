@@ -258,18 +258,20 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
                         context.read<TabsBloc>().openTab(view),
                   ),
                 ),
-              // [fork:folder] A separator between spaces (user request
-              // 2026-07-25) — with the header row now tinted, adjacent spaces
-              // would otherwise run into one another. Omitted after the last
-              // space so the list doesn't end on a rule.
+              // [fork:folder] A hairline between spaces. Deliberately a real
+              // 1px rule with almost no padding around it (user feedback
+              // 2026-07-25: the first version, a FlowyDivider sandwiched
+              // between two VSpace(4), "sat too high" and ate vertical space).
+              // Omitted after the last space so the list doesn't end on a rule.
               const VSpace(4.0),
-              if (space.id != spaces.last.id) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                  child: FlowyDivider(),
+              if (space.id != spaces.last.id)
+                Divider(
+                  height: 1.0,
+                  thickness: 1.0,
+                  indent: 8.0,
+                  endIndent: 8.0,
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
                 ),
-                const VSpace(4.0),
-              ],
             ],
           ],
         );

@@ -16,6 +16,7 @@ class SpaceIcon extends StatelessWidget {
     this.cornerRadius = 0,
     required this.space,
     this.svgSize,
+    this.showBackground = true,
   });
 
   final double dimension;
@@ -23,6 +24,13 @@ class SpaceIcon extends StatelessWidget {
   final double cornerRadius;
   final ViewPB space;
   final double? svgSize;
+
+  /// [fork:folder] When false, the icon is drawn without its filled rounded
+  /// square (user request 2026-07-25). The sidebar's space header now carries
+  /// the space's colour as a tint across the WHOLE row, so repeating it as a
+  /// vivid badge behind the icon was saying the same thing twice, loudly.
+  /// Everywhere else still gets the badge.
+  final bool showBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +41,7 @@ class SpaceIcon extends StatelessWidget {
       child: Container(
         width: dimension,
         height: dimension,
-        color: color,
+        color: showBackground ? color : null,
         child: Center(
           child: icon,
         ),

@@ -196,6 +196,9 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
           space: widget.space,
           svgSize: 12,
           cornerRadius: 8.0,
+          // [fork:folder] The row is already tinted with this space's colour;
+          // a vivid badge behind the icon repeated it. See SpaceIcon.
+          showBackground: false,
         ),
         const HSpace(10),
         Expanded(
