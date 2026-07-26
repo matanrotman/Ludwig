@@ -1,6 +1,6 @@
 # The ephemeral pad — the app opens on nothing
 
-*Status: scoped 2026-07-26 (session 13), awaiting sign-off. Promised by
+*Status: scoped 2026-07-26 (session 13), signed off 2026-07-26. Promised by
 `specs/capture-and-structure.md` → "Deferred, but part of the model: the ephemeral pad", which
 this replaces as the authoritative document.*
 
