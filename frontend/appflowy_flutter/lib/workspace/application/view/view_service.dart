@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_page_bloc.dart';
 import 'package:appflowy/plugins/trash/application/trash_service.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
+import 'package:appflowy/workspace/application/naming/first_line_naming.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-document/entities.pb.dart';
@@ -44,6 +45,10 @@ class ViewBackendService {
     int? index,
     ViewSectionPB? section,
     final String? viewId,
+
+    /// [fork:no-titles] `View.extra` for the new view. When omitted, a Document
+    /// gets [FirstLineNaming.initialExtra] — see below.
+    String? extra,
   }) {
     final payload = CreateViewPayloadPB.create()
       ..parentViewId = parentViewId
@@ -51,6 +56,27 @@ class ViewBackendService {
       ..layout = layoutType
       ..setAsCurrent = openAfterCreate
       ..initialData = initialDataBytes ?? [];
+
+    // [fork:no-titles] Every new document starts with no deliberate name, so
+    // its first line names it (specs/no-titles.md).
+    //
+    // Done HERE, at the single choke point every creation path already goes
+    // through, rather than at each call site — the sidebar, the space `+`, the
+    // slash menu and the pad would otherwise each need the same line, and the
+    // one that got missed would produce a page that silently never names itself.
+    // Same reasoning as `specs/ephemeral-pad.md` D12: prefer one place over a
+    // sweep that can rot.
+    //
+    // Carried on the CREATE payload rather than written by a follow-up update:
+    // there is then no window in which the page exists un-flagged, and no second
+    // call that can fail and strand one.
+    final resolvedExtra = extra ??
+        (layoutType == ViewLayoutPB.Document
+            ? FirstLineNaming.initialExtra
+            : null);
+    if (resolvedExtra != null) {
+      payload.extra = resolvedExtra;
+    }
 
     if (ext.isNotEmpty) {
       payload.meta.addAll(ext);

@@ -15,6 +15,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
+/// The page title's font size.
+///
+/// [fork:no-titles] Named rather than inline because a titleless page has to
+/// reserve the space this title would have taken — see
+/// `document_cover_widget.dart`'s `kTitlelessHeaderGap`. Two numbers that must
+/// move together are worth having one source.
+const double kCoverTitleFontSize = 40.0;
+
 class CoverTitle extends StatelessWidget {
   const CoverTitle({
     super.key,
@@ -130,7 +138,7 @@ class _InnerCoverTitleState extends State<_InnerCoverTitle> {
     final fontStyle = Theme.of(context)
         .textTheme
         .bodyMedium!
-        .copyWith(fontSize: 40.0, fontWeight: FontWeight.w700);
+        .copyWith(fontSize: kCoverTitleFontSize, fontWeight: FontWeight.w700);
     final width = context.read<DocumentAppearanceCubit>().state.width;
     return BlocConsumer<ViewBloc, ViewState>(
       listenWhen: (previous, current) =>

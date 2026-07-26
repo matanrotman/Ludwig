@@ -40,6 +40,24 @@ const double kCoverHeight = 280.0;
 const double kIconHeight = 60.0;
 const double kToolbarHeight = 40.0; // with padding to the top
 
+/// [fork:no-titles] The vertical space a titleless page reserves where its title
+/// would have been — see `specs/no-titles.md`.
+///
+/// Derived from [kCoverTitleFontSize] rather than picked, so it follows if the
+/// title's size ever changes. The 1.4 is the title field's own line box: a 40pt
+/// font in a borderless `TextField`, which is what used to sit here.
+///
+/// **This is the one number to change if the top of a titleless page reads too
+/// tight or too airy.**
+const double kTitlelessHeaderGap = kCoverTitleFontSize * 1.4;
+
+/// [fork:no-titles] Space above the "Add Cover / Add icon" row on a titleless
+/// page with no cover, so it is not pinned to the top edge of the sheet.
+///
+/// Its companion: [kTitlelessHeaderGap] holds the header off the *text*, this
+/// holds it off the *top*. Both exist because the title used to do the job.
+const double kTitlelessHeaderTopGap = 24.0;
+
 // Remove this widget if the desktop support immersive cover.
 class DocumentHeaderBlockKeys {
   const DocumentHeaderBlockKeys._();
@@ -78,6 +96,7 @@ class DocumentCoverWidget extends StatefulWidget {
     required this.onIconChanged,
     required this.view,
     required this.tabs,
+    this.showTitle = true,
   });
 
   final Node node;
@@ -85,6 +104,17 @@ class DocumentCoverWidget extends StatefulWidget {
   final ValueChanged<EmojiIconData> onIconChanged;
   final ViewPB view;
   final List<PickerTabType> tabs;
+
+  /// [fork:no-titles] Whether to draw the title field — see specs/no-titles.md.
+  ///
+  /// False for a page whose name comes from its first line: there is nowhere to
+  /// type a title, because the title is the first line of the document.
+  ///
+  /// **The cover and the icon deliberately stay.** They belong to the page, not
+  /// to its name, and losing them was never part of removing titles — this is
+  /// where it differs from the pad, which hides the whole header because a pad
+  /// is meant to be bare (`specs/ephemeral-pad.md` D7).
+  final bool showTitle;
 
   @override
   State<DocumentCoverWidget> createState() => _DocumentCoverWidgetState();
@@ -166,52 +196,80 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final offset = _calculateIconLeft(context, constraints);
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  SizedBox(
-                    height: _calculateOverallHeight(),
-                    // [fork:rtl] The "Add icon"/"Add cover" toolbar must follow
-                    // the PAGE's direction like the title, icon and the cover's
-                    // own buttons do — otherwise on an RTL page it stays pinned
-                    // to the left and reads as sitting under the icon rather
-                    // than across from it (user report 2026-07-25). One wrapper
-                    // flips both the button order and, via
-                    // AlignmentDirectional.bottomStart inside, which edge the
-                    // row hugs.
-                    child: Directionality(
-                      textDirection: _headerDirection(context),
-                      child: DocumentHeaderToolbar(
-                        onIconOrCoverChanged: _saveIconOrCover,
-                        node: widget.node,
-                        editorState: widget.editorState,
-                        hasCover: hasCover,
-                        hasIcon: hasIcon,
-                        offset: offset,
-                        isCoverTitleHovered: isCoverTitleHovered,
-                        documentId: view.id,
-                        tabs: widget.tabs,
+          return Padding(
+            // [fork:no-titles] A titleless page needs air ABOVE the header too,
+            // not only below it. On an ordinary page the title's own line box
+            // gives the "Add Cover / Add icon" row somewhere to sit; strip the
+            // title and the row ends up pinned to the top of the sheet (user,
+            // session 15: "Add cover and icon now don't have breathing space").
+            //
+            // Only when there is no cover: a cover already fills the top of the
+            // page, and padding above it would leave a strip of desk showing
+            // through where the image should run to the edge.
+            padding: EdgeInsets.only(
+              top: widget.showTitle || hasCover ? 0 : kTitlelessHeaderTopGap,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    SizedBox(
+                      height: _calculateOverallHeight(),
+                      // [fork:rtl] The "Add icon"/"Add cover" toolbar must follow
+                      // the PAGE's direction like the title, icon and the cover's
+                      // own buttons do — otherwise on an RTL page it stays pinned
+                      // to the left and reads as sitting under the icon rather
+                      // than across from it (user report 2026-07-25). One wrapper
+                      // flips both the button order and, via
+                      // AlignmentDirectional.bottomStart inside, which edge the
+                      // row hugs.
+                      child: Directionality(
+                        textDirection: _headerDirection(context),
+                        child: DocumentHeaderToolbar(
+                          onIconOrCoverChanged: _saveIconOrCover,
+                          node: widget.node,
+                          editorState: widget.editorState,
+                          hasCover: hasCover,
+                          hasIcon: hasIcon,
+                          offset: offset,
+                          isCoverTitleHovered: isCoverTitleHovered,
+                          documentId: view.id,
+                          tabs: widget.tabs,
+                        ),
                       ),
                     ),
-                  ),
-                  if (hasCover)
-                    DocumentCover(
-                      view: view,
-                      editorState: widget.editorState,
-                      node: widget.node,
-                      coverType: coverType,
-                      coverDetails: coverDetails,
-                      onChangeCover: (type, details) =>
-                          _saveIconOrCover(cover: (type, details)),
-                    ),
-                  _buildAlignedCoverIcon(context),
-                ],
-              ),
-              _buildAlignedTitle(context),
-            ],
+                    if (hasCover)
+                      DocumentCover(
+                        view: view,
+                        editorState: widget.editorState,
+                        node: widget.node,
+                        coverType: coverType,
+                        coverDetails: coverDetails,
+                        onChangeCover: (type, details) =>
+                            _saveIconOrCover(cover: (type, details)),
+                      ),
+                    _buildAlignedCoverIcon(context),
+                  ],
+                ),
+                // [fork:no-titles] Omitted entirely rather than sized to zero: an
+                // invisible `CoverTitle` still holds a focus node and still seeds
+                // itself from the view's name, and this header is rebuilt whenever
+                // a paste grows the document (it is item 0 of a virtualized list).
+                // That combination is precisely what produced session 11's title
+                // bug, and there is no reason to keep a dormant copy of it around.
+                //
+                // The space it occupied IS kept, though. Without it the "Add
+                // Cover / Add icon" row sits directly on the first line of text
+                // (user, session 15: "too close to first line of text") — on an
+                // ordinary page it is the title that holds those apart.
+                if (widget.showTitle)
+                  _buildAlignedTitle(context)
+                else
+                  const SizedBox(height: kTitlelessHeaderGap),
+              ],
+            ),
           );
         },
       ),

@@ -60,6 +60,20 @@ class ViewExtKeys {
   // flag, never an in-memory buffer, so nothing remounts the editor when it is
   // promoted. Filtered out of the sidebar and out of Temporary's count.
   static String isPadKey = 'is_pad';
+
+  // [fork:no-titles] marks a page whose name comes from its first line — see
+  // specs/no-titles.md.
+  //
+  // ⚠️ The POLARITY is load-bearing and the obvious one is destructive. This
+  // flag means "this page has no deliberate name yet", so its ABSENCE means
+  // "leave this page's name alone". Every page that predates the feature lacks
+  // it and is therefore left alone — which is correct, because the title box is
+  // where their names came from, i.e. they have all already been named.
+  //
+  // A flag meaning "has been named" would have the opposite default and would
+  // rename the user's entire workspace to whatever each page happens to open
+  // with, on the first launch after shipping. Do not invert this.
+  static String tracksFirstLineKey = 'tracks_first_line';
   static String spaceCreatorKey = 'space_creator';
   static String spaceCreatedAtKey = 'space_created_at';
   static String spaceIconKey = 'space_icon';

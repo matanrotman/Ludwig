@@ -62,6 +62,22 @@ class _SidebarNewPageButtonState extends State<SidebarNewPageButton> {
   }
 
   Future<void> _createNewPage() async {
+    // ⚠️ [fork:ephemeral-pad] D8 was BUILT and then REVERSED on 2026-07-26
+    // (session 15), by the user, after living with it. For part of one session
+    // this button opened the pad instead of creating a page.
+    //
+    // **Do not "restore" the pad behaviour from the D8 notes.** It reads as
+    // broken: a control labelled "New page" that creates no page is surprising
+    // even when the pad is where you wanted to end up, and pressing it while
+    // already on a blank pad did nothing visible at all. The pad is no less
+    // reachable for this — it is still what the app opens on, and clicking empty
+    // sidebar space still returns to it (D4/D5).
+    //
+    // The page is created with an EMPTY name, which the sidebar already renders
+    // as "Untitled" — so it reads the way the user asked for without storing
+    // that word anywhere, and `specs/no-titles.md`'s namer replaces it cleanly
+    // on the first thing typed.
+    //
     // if the workspace is collaborative, create the view in the private section by default.
     final section = context.read<UserWorkspaceBloc>().state.isCollabWorkspaceOn
         ? ViewSectionPB.Private

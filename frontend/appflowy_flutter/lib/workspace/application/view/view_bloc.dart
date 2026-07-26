@@ -8,6 +8,7 @@ import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/expand_views.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_listener.dart';
+import 'package:appflowy/workspace/application/naming/first_line_naming.dart';
 import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/view/view_listener.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
@@ -135,17 +136,40 @@ class ViewBloc extends Bloc<ViewEvent, ViewState> {
             );
           },
           rename: (e) async {
-            final result = await ViewBackendService.updateView(
+            // [fork:no-titles] Renaming is how a page gets a DELIBERATE name,
+            // which permanently detaches it from its first line (Q1, one-way by
+            // design). See `specs/no-titles.md`.
+            //
+            // Done here because this is the one event every rename goes through
+            // — the sidebar's double-click, the "…" menu and the page top bar
+            // all dispatch it — so there is no sweep to keep in step. It is safe
+            // on spaces, folders and databases: with no flag to clear it writes
+            // only the name, exactly as before.
+            final ok = await FirstLineNaming.setDeliberateName(
               viewId: view.id,
               name: e.newName,
             );
+            final result = ok
+                ? FlowyResult<void, FlowyError>.success(null)
+                : FlowyResult<void, FlowyError>.failure(
+                    FlowyError(msg: 'rename failed'),
+                  );
             emit(
               result.fold(
                 (l) {
                   final view = state.view;
                   view.freeze();
                   final newView = view.rebuild(
-                    (b) => b.name = e.newName,
+                    (b) {
+                      b.name = e.newName;
+                      // [fork:no-titles] The backend flag is already cleared by
+                      // `setDeliberateName`; this mirrors it into the bloc's own
+                      // copy. Without it, everything watching this bloc keeps
+                      // reading "still tracking" until some later listener
+                      // happens to refresh — and the page renames itself back
+                      // from its first line on the next keystroke.
+                      b.extra = FirstLineNaming.extraWithoutFlag(view);
+                    },
                   );
                   Log.info('rename view: ${newView.id} to ${newView.name}');
                   return state.copyWith(

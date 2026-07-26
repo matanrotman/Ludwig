@@ -35,7 +35,9 @@ import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/flowy_error_page.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/naming/first_line_naming.dart';
 import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
+import 'package:appflowy/workspace/presentation/home/naming/first_line_namer.dart';
 import 'package:appflowy/workspace/presentation/home/pad/ephemeral_pad_promoter.dart';
 import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
@@ -255,7 +257,23 @@ class _DocumentPageState extends State<DocumentPage>
     // `DocumentCoverWidget._calculateOverallHeight` reserves above the title
     // for a page with no cover and no icon — which is every new page. If that
     // changes, this follows it.
-    final padHeader = isPad ? const SizedBox(height: document_header.kToolbarHeight) : null;
+    final padHeader =
+        isPad ? const SizedBox(height: document_header.kToolbarHeight) : null;
+
+    // [fork:no-titles] This page's name comes from its first line, so there is
+    // no title field to draw and one to keep in step with — see
+    // `specs/no-titles.md`.
+    //
+    // Read from the view the page OPENED with, for the same reason `isPad` is
+    // (above): `widget.view` is watched, and the namer below writes to it on
+    // every debounce. A live read would rebuild this header on each keystroke
+    // while the user is typing into the document beneath it.
+    //
+    // The pad wins when both are true. The pad's own promoter names it, and it
+    // can rename a page BACK when emptied (D10) — two namers on one page would
+    // fight, with this one immediately undoing the demotion.
+    final tracksFirstLine =
+        !isPad && FirstLineNaming.tracksFirstLine(widget.view);
 
     // [fork:page-surface] Built as a closure of `ctx`, not eagerly, so that on
     // desktop it is built INSIDE PageThemeScope — the EditorStyleCustomizer and
@@ -295,29 +313,66 @@ class _DocumentPageState extends State<DocumentPage>
             )
           : child;
 
-      return withPromotion(
-        EditorDropHandler(
-          viewId: widget.view.id,
-          editorState: editorState,
-          isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
-          child: AppFlowyEditorPage(
-            editorState: editorState,
-            // if the view's name is empty, focus on the title
-            autoFocus: widget.view.name.isEmpty ? false : null,
-            styleCustomizer: EditorStyleCustomizer(
-              context: ctx,
-              width: width,
-              padding: documentPadding,
+      // [fork:no-titles] Phase 1 — a page with no deliberate name follows its
+      // first line. Mutually exclusive with the pad's promoter by construction:
+      // `tracksFirstLine` is already false whenever `isPad` is true.
+      // Mounted on the FROZEN flag so the tree shape cannot change mid-visit,
+      // but handed the LIVE `view` so it stops the instant a rename clears the
+      // flag. Those two have to differ: mounting on the live value would rip the
+      // widget out from under a typing user, and reading the live value only in
+      // `_sync` is what makes that unnecessary.
+      Widget withNaming(Widget child) => tracksFirstLine
+          ? FirstLineNamer(
+              view: view,
               editorState: editorState,
-              pageTextDirection: pageDirection.editorValue,
+              child: child,
+            )
+          : child;
+
+      return withNaming(
+        withPromotion(
+          EditorDropHandler(
+            viewId: widget.view.id,
+            editorState: editorState,
+            isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
+            child: AppFlowyEditorPage(
+              editorState: editorState,
+              // [fork:no-titles] A titleless page has no title to focus, so the
+              // cursor belongs in the document — which is also the only place
+              // its name can come from.
+              autoFocus: tracksFirstLine
+                  ? true
+                  : (widget.view.name.isEmpty ? false : null),
+              styleCustomizer: EditorStyleCustomizer(
+                context: ctx,
+                width: width,
+                padding: documentPadding,
+                editorState: editorState,
+                pageTextDirection: pageDirection.editorValue,
+              ),
+              header: padHeader ??
+                  buildCoverAndIcon(ctx, state, showTitle: !tracksFirstLine),
+              initialSelection: initialSelection,
+              placeholderText: (node) {
+                if (isPad ||
+                    node.type != ParagraphBlockKeys.type ||
+                    node.isInTable) {
+                  return '';
+                }
+                // [fork:no-titles] The first line of a titleless page IS the
+                // page's name, and it now sits exactly where a title used to.
+                // Body-text guidance in that spot reads as a label for the
+                // title, so the line is left blank — the same bare treatment
+                // the pad gets. The hint still appears on every line after it,
+                // so nothing is lost but the wrong placement.
+                final isFirstLine =
+                    node.path.length == 1 && node.path.first == 0;
+                if (tracksFirstLine && isFirstLine) {
+                  return '';
+                }
+                return LocaleKeys.editor_slashPlaceHolder.tr();
+              },
             ),
-            header: padHeader ?? buildCoverAndIcon(ctx, state),
-            initialSelection: initialSelection,
-            placeholderText: (node) => !isPad &&
-                    node.type == ParagraphBlockKeys.type &&
-                    !node.isInTable
-                ? LocaleKeys.editor_slashPlaceHolder.tr()
-                : '',
           ),
         ),
       );
@@ -409,7 +464,11 @@ class _DocumentPageState extends State<DocumentPage>
     }
   }
 
-  Widget buildCoverAndIcon(BuildContext context, DocumentState state) {
+  Widget buildCoverAndIcon(
+    BuildContext context,
+    DocumentState state, {
+    bool showTitle = true,
+  }) {
     final editorState = state.editorState;
     final userProfilePB = state.userProfilePB;
     if (editorState == null || userProfilePB == null) {
@@ -431,6 +490,7 @@ class _DocumentPageState extends State<DocumentPage>
       tabs: widget.tabs,
       editorState: editorState,
       view: widget.view,
+      showTitle: showTitle,
       onIconChanged: (icon) async => ViewBackendService.updateViewIcon(
         view: widget.view,
         viewIcon: icon,
