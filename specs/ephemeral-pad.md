@@ -232,3 +232,64 @@ The user answered all four the same day, adding D9–D12 and amending D11:
 **No open questions remain.** Two watch items carried into the build: RTL first-line naming, and the
 fact that D12's filtering points are spread across several call sites and need a deliberate sweep
 rather than being fixed as they are noticed.
+
+### 2026-07-26 (session 14) — Phases 1, 2 and 3 BUILT and live-verified
+
+Built in one session and driven in the real app at every step. Phase 3 was pulled forward because
+the user hit its absence immediately ("can't click away on sidebar to come back to the pad").
+
+**Phase 1 — the pad exists.** New sidecar `lib/workspace/application/pad/ephemeral_pad.dart`
+(flag, resolve, create, `withoutPad`), the `is_pad` key in `ViewExtKeys`, sidebar filtering via the
+`shouldIgnoreView` hook `SpacePages` already had, exclusion from Temporary's `(n)` count, and
+`EphemeralPadLauncher` opening the pad on launch (D5). D7's bare look is `header: null` plus an
+empty `placeholderText`.
+
+**Phase 3 — the gesture (D4).** `SidebarPadTapArea`. **The obvious implementation does not work and
+the wrong version looks more correct**: a full-size tap target *behind* the list in a `Stack` never
+fires, because `Scrollable` hit-tests its entire viewport — blank region included — absorbs the hit,
+and nothing below is reached. Wrapping the scroll view is what makes it work: the hit test descends
+*through* the detector, so its tap recognizer is in the path for every point of the viewport, while
+a row's own recognizer, being deeper, still wins for taps on rows. Verified all three ways: empty
+area → pad, row → that page, chevron → collapse with no hijack.
+
+**Phase 2 — promotion.** `PadContent` (pure rules: D2 real-content detection, D6 first-line naming)
+plus `EphemeralPadPromoter` (debounced 400ms, one write in flight at a time). Promotion clears the
+flag and sets the name; demotion puts both back. Live: typing promoted (count 11→12, named row
+appeared), select-all-delete demoted (12→11, row gone, **no empty page left behind**), and the
+user's own Hebrew pad promoted as `זהו עמוד ניסיוני` — **watch item 1 (RTL first-line naming) is
+resolved, it renders correctly**.
+
+**Two things fell out of the design rather than needing code**, as the technical-risk section
+predicted: no fresh pad is created on promotion (`ensure` makes one on the next request, which is
+also why an undone promotion leaves no stray page), and a promoted page keeps the look you gave the
+pad because it is the same view (D11).
+
+**⚠️ The design decision that mattered most — the pad's appearance is frozen for the visit.**
+`document_page.dart` reads its view from `context.watch`, so clearing the flag on the first
+character would have swapped the title field in and the placeholder back **mid-keystroke** — the
+widget-tree change this whole feature exists to avoid (session 4's "keyboard disabled", session 11's
+title bug). `isPad` is now read from the view the page OPENED with. This is not a new decision:
+D10 already says "while you are still on it, it is still the pad", and this is that sentence applied
+to appearance. Net effect: **the page promotes immediately, its appearance changes on the next
+visit.**
+
+**A bug found by testing, not by reading:** promotion was purely transaction-driven, so a pad that
+already held content at launch never promoted — it just sat there invisible. Also covers quitting
+inside the debounce window. Now reconciled once on mount.
+
+**One bug this work introduced and fixed:** opening the pad makes it the workspace's latest view, so
+every launch revealed *and permanently persisted* Temporary as expanded. `_switchToSpace` now skips
+the pad. Proven by collapsing Temporary, quitting and relaunching.
+
+**Still open.**
+- **D12 is HALF done.** The pad is filtered out of recent views (added to the existing
+  space/orphan filter in `cached_recent_service.dart`). **Search still has no pad filter.** The
+  spec's watch item 2 stands: do the remaining surfaces as one deliberate sweep.
+- **Phase 4** (the New Page button → the pad, D8) not started.
+- **The breadcrumb reads "Pad ‹ Temporary"** — the internal stored name and the pad's storage
+  location are both visible. D7 specified the page body and said nothing about the top bar. Needs
+  the user's call; may be moot if `specs/no-titles.md` lands.
+- The D10 sidebar-flicker watch item was **not** judged: the user typed and deleted without
+  reporting it, so leave the mitigations unbuilt until it is actually annoying.
+
+25 new unit tests. Analyzer clean. Dock app rebuilt and content-verified.

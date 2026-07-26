@@ -236,10 +236,16 @@ readiness"). Two things to watch:
    list is long and uneven — dense for recent days, sparse for old months. Needs a design pass.
 3. **What does "missing" mean for a page that was moved rather than deleted?** It exists live, at a
    different path. Probably "present", not "missing" — but the tree should likely say where it went.
-4. **Preview fidelity.** Does the preview reuse the real editor read-only, or a lighter renderer?
-   The real editor is truer and heavier; decide during Phase 2.
-5. **Does the pre-migration snapshot bug** (`STATUS.md`, still open) **touch this?** Both are
-   "a safeguard that silently doesn't fire". Worth fixing before this ships, not necessarily here.
+4. ~~**Preview fidelity.**~~ **ANSWERED (user, session 14): the real editor, read-only.** The
+   preview shows the page pixel-for-pixel as it looks live — colours, RTL, tables, callouts — at
+   the cost of mounting a second editor instance inside the dialog. Phase 2 starts here rather
+   than re-opening the question. Non-negotiable consequence: read-only must be enforced so nothing
+   can be typed into a backup.
+5. ~~**Does the pre-migration snapshot bug touch this?**~~ **PARTLY ADDRESSED (session 14).** The
+   root cause is still unknown, but the reason it was *invisible* is fixed: the migration's
+   `takeSnapshot` discarded `backupNow`'s result, and `backupNow` reports refusals by returning
+   them rather than throwing — so "snapshot taken" and "snapshot silently skipped" were
+   indistinguishable. It now logs the outcome. The next workspace that migrates says why.
 
 ## Session Log
 
@@ -314,3 +320,41 @@ snapshot (97 views, 8 spaces, 10 folders).
 
 **Still to verify with the user:** the browser has not been opened in the real app yet — that is
 the first item next session.
+
+### 2026-07-26 (session 14) — the browser was opened for the first time; six defects fixed
+
+**It rendered, and the core flow was sound.** Days group as Today/Yesterday/weekday with counts, the
+two most recent expand by default, picking a time loads that snapshot's tree, missing pages are
+badged, databases read "not yet restorable", and the filter keeps ancestors for context. The tree
+genuinely reloads per snapshot — verified by finding a page created overnight present in the 03:08
+backup and absent from the previous evening's 22:18.
+
+**Six defects, all fixed and re-verified live:**
+
+1. **Hover painted a solid accent-blue block** over day headers and time rows, swallowing their own
+   text. **The reusable finding: AppFlowy's `ThemeData.hoverColor` is `hoverBG2`, which in the dark
+   theme is `darkMain1` — the full-strength accent.** Nothing else in the app shows this because the
+   app's own rows hover through `FlowyHover` with explicit colours; **any new UI built from stock
+   Material widgets inherits it**. Fixed with a scoped `Theme` override at the browser's root
+   (`_flatHoverTheme`), documented there as the trap it is.
+2. **Selection read quieter than hover** — the open backup had blue text, the hovered row a blue
+   fill. Reversed: selection carries `themeSelect`, hover stays quiet.
+3. **A raw Material `Switch`** instead of the app's own `Toggle`, so it read grey while the
+   identical control three rows above it was blue.
+4. **No way out but clicking outside.** Added a close ×.
+5. **The tree pane never said which backup it was showing** — collapse its day group and the answer
+   was off-screen. Now headed "Backup from Today at 03:08".
+6. **No scroll affordance** on either list — 58 backups, and the bottom edge read as "that's all".
+
+**Two honesty notes.**
+- **Escape closes no dialog anywhere in this app** — not Settings either, verified separately. So it
+  is pre-existing, not something the browser introduced. A `HardwareKeyboard` hook was added for the
+  browser (a focus-based `CallbackShortcuts` demonstrably does not fire here), but it is
+  **UNVERIFIED**: synthetic keystrokes stopped reaching the window mid-session, the documented
+  session-10 tooling wall. **Needs the user's physical keyboard.**
+- Of the two new widget tests, **only the close-button one is a proof**. The escape test passes with
+  the fix reverted, because the bare test wrapper has none of the global shortcut layer that eats the
+  key. It is labelled a guard in the file.
+
+**Open question 4 (preview fidelity) ANSWERED by the user: the real editor, read-only.** Phase 2
+starts there. Open question 5 partly addressed — see the pre-migration note in that section.
