@@ -66,6 +66,26 @@ someone reading the session-6 notes.
 Deciding a destination up front is still fully supported — that is what the `+` on a specific space or
 folder is for, and creating a page inside a container remains the fast path when you already know.
 
+**⚠️ Tried and reverted, same day (2026-07-26, session 15). This decision stands exactly as written
+above.** For part of one session the button opened the ephemeral pad instead of creating a page
+(`specs/ephemeral-pad.md` D8). The user used it and rejected it within the hour:
+
+> *"Clicking on create new page in the sidebar only takes you to the pad. I think it should act
+> differently and create a page in temp named untitled. It's different than the pad, but it's
+> expected."*
+
+**The lesson is worth more than the change was.** A control labelled "New page" that creates no page
+is surprising even when the pad is exactly where you wanted to end up — and pressing it while already
+on a blank pad did nothing visible at all, which reads as a broken button. Destination-free capture
+was never the problem this decision had to solve; it already solved it. Removing the *creation* as
+well went one step past what anyone asked for.
+
+The page is created with an **empty name**, which the sidebar already renders as "Untitled", so
+`specs/no-titles.md`'s first-line namer replaces it cleanly on the first thing typed.
+
+The pad lost nothing: it is still what the app opens on, and clicking empty sidebar space still
+returns to it (D4/D5).
+
 ### 4. The staging area is deliberately flat.
 
 Temporary holds loose pages only. No folders inside it, at any depth.

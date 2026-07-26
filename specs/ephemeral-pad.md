@@ -48,7 +48,7 @@ that gesture and blocked it precisely because there was nothing to return *to*.
 | D5 | On launch | **Always the pad.** The app opens on nothing. This deliberately drops "reopen the page I last had open"; that page is one click away. |
 | D6 | Name of the promoted page | **Its first line, Apple Notes style**, tracking edits to that line until a real title is set. |
 | D7 | The empty pad's appearance | **Bare** — a blank sheet and a cursor. No title field, no placeholder, no buttons. |
-| D8 | The top New Page button | **Opens the pad** instead of creating a page. One capture route, not two. |
+| D8 | The top New Page button | ~~Opens the pad~~ **REVERSED 2026-07-26 (session 15): it creates a page in Temporary, as it did before.** Built, used, and rejected — see the session log. Do not re-implement from this row. |
 | D9 | The pad and tabs | **The pad can never be open in two tabs at once.** Asking for it while it is already open focuses the tab that has it. |
 | D10 | Emptying a promoted pad | **While you are still on it, it is still the pad.** Type (it promotes), delete it all again, and it demotes — the sidebar row goes away. Promotion only becomes final when you navigate away. |
 | D11 | The pad's own look | **The pad gets its own page colour, theme and margins**, like any page. Each **new pad starts from the defaults** — the look does not carry forward. |
@@ -293,3 +293,99 @@ the pad. Proven by collapsing Temporary, quitting and relaunching.
   reporting it, so leave the mitigations unbuilt until it is actually annoying.
 
 25 new unit tests. Analyzer clean. Dock app rebuilt and content-verified.
+
+### 2026-07-26 (session 15) — D12 swept, Phase 4 built
+
+**D12 is finished, as one deliberate pass rather than fixed-as-noticed.** Watch item 2 called for
+exactly that, and the sweep found **seven** unfiltered surfaces, not one. The full list — filtered
+and deliberately-exempt, with a reason each — now lives beside `withoutPad` in
+`ephemeral_pad.dart`, so the next person adding a page picker has somewhere to look:
+
+| Newly filtered | What it is |
+|---|---|
+| `command_palette_bloc.dart` | **the search box** — the gap this session was called to close |
+| `space_search_bloc.dart` | the sidebar search field *and* the move-to picker's search |
+| `move_page_menu.dart` | the move-to tree (its own `shouldIgnoreView`, not the sidebar's) |
+| `inline_page_reference.dart` | the editor's `@` page mention |
+| `link_search_text_field.dart` | the toolbar's "link to page" |
+| `chat_input_control_cubit.dart` | the AI chat's `@` mention |
+| `mobile_page_selector_sheet.dart`, `mention_page_bottom_sheet.dart` | the two mobile pickers |
+
+**Deliberately NOT filtered, argued rather than missed:** the restore browser
+(`snapshot_browse_service.dart`) — a recovery tool that hides content is worse than useless, and a
+pad captured mid-sentence is exactly what someone would be hunting for; the settings data-repair
+tool; and `reminder_bloc.dart`, which resolves one known id rather than offering a list.
+
+**The load-bearing decision: filter on the READ side, never at the index.** Stopping the indexer
+from seeing the pad is the tempting fix and it is wrong. The local Tantivy index stores document
+**content**, written when the document changes — and promotion changes only the view's *name and
+`extra`*. A pad excluded at index time would therefore promote into a page whose contents are
+**permanently unsearchable** until the user happened to edit it again. Read-side filtering keeps one
+rule with no reindex and no Rust change: the flag is absent, so it is a page, so it is findable.
+
+**Worth knowing for later: local search really does index content**, so this was not merely about a
+row named "Pad". (`tantivy_state.rs` queries `field_content` and `field_name`.)
+
+**The palette needed a different mechanism and got the safer one.** Search results carry only an id,
+so the flag is read off the palette's `cachedViews`, which refreshes every time the palette opens.
+**A view the cache has never heard of is SHOWN, not hidden** — the two mistakes are not symmetric:
+a stray "Pad" row is untidy, whereas hiding on a guess means the user's own writing is missing from
+search with nothing to explain why. No second source of truth was introduced; every surface uses the
+same `isPad(ViewPB)` predicate.
+
+**Phase 4 — the New Page button opens the pad (D8).** `capture-and-structure.md` decision 3 was
+**updated in place**, not contradicted: its substance ("capture must not ask where it belongs")
+survives untouched, because the pad lives in Temporary. What changed is that pressing the button by
+reflex no longer costs an empty page. `openEphemeralPad` was already the one shared entry point
+(launch + the D4 gesture), so this was a call to it plus a fallback.
+
+**Two consequences, stated so they are not read as bugs.** Pressing New Page while already on a
+blank pad does nothing visible — there is nothing to make, and that is also what keeps "exactly one
+pad exists" true. And **D9 came free**: `TabsState.openPlugin` already selects an existing tab when
+the plugin id matches, so the pad cannot open twice.
+
+**Tests.** A new `pad_discovery_surfaces_test.dart` guards the sweep rather than restating it: it
+scans `lib/` for everything calling `getAllViews()` and fails if any of them is neither filtered nor
+explicitly exempt — so a *future* page picker cannot appear unnoticed. **Proven failing-then-passing**
+(removing one entry from its list fails it by name). Its own doc comment says what it does not
+prove: that the existing filters are correct.
+
+**Not verified live yet** — searching for text in an un-promoted pad, and the New Page button, both
+need the user's own app.
+
+**✅ D10's appearance rule verified live (user, session 15).** Type into the pad → leave → return to
+the promoted page: it has a title box and reads as an ordinary page. This closes session 14's
+load-bearing call — `isPad` read from the view the page OPENED with, so the page promotes immediately
+while its appearance changes on the next visit. The alternative would have swapped the title field in
+mid-keystroke, which is the exact remount this whole feature exists to avoid. **The design is
+confirmed on the real thing, not just reasoned about.**
+
+**✅ D12 AND PHASE 4 VERIFIED LIVE (user, session 15).** Text sitting in a half-written pad finds
+nothing in search, and a promoted page still turns up normally — which is the pair that matters,
+because a filter that hides the pad by also hiding what it becomes would be worse than no filter.
+The New Page button hands over the pad. **The feature is complete: all four phases plus D12, every
+decision D1–D12 built and confirmed on the real thing.**
+
+### 2026-07-26 (session 15, round 2) — D8 REVERSED
+
+**The New Page button creates a page again.** D8 was built earlier this session and rejected by the
+user the same day, after using it:
+
+> *"Clicking on create new page in the sidebar only takes you to the pad. I think it should act
+> differently and create a page in temp named untitled. It's different than the pad, but it's
+> expected."*
+
+**Do not re-implement D8 from the decision table.** The row is struck through, and
+`sidebar_new_page_button.dart` carries the reasoning at the call site. In short: a control labelled
+"New page" that creates no page is surprising even when the pad is where you wanted to end up, and
+pressing it while already on a blank pad did nothing visible at all — which reads as a broken button.
+`specs/capture-and-structure.md` decision 3 stands unchanged as originally written.
+
+**The pad lost nothing.** It is still what the app opens on (D5) and clicking empty sidebar space
+still returns to it (D4). Only the button changed.
+
+**One related change, from `specs/no-titles.md`:** `EphemeralPad.promote` no longer sets that
+feature's first-line-tracking flag. The user's "window in time" rule closes the naming window when you
+navigate away — which for the pad is the same moment **D10** already makes promotion permanent. The
+two features now share one sentence instead of each having their own, which is the tidiest outcome
+this pairing could have had.

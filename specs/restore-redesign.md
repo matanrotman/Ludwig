@@ -157,7 +157,9 @@ would still be a guard against a state that cannot legitimately occur.
 **Phase 1 — browse, read-only. ✅ DONE 2026-07-26.** Day/time picker (D3), the tree (D4), missing-page
 marking and filter (D6). No merging, nothing writable. See the session log.
 
-**Phase 2 — preview (D5).** Render a selected page's snapshot content read-only beside the tree.
+**Phase 2 — preview (D5). ✅ BUILT 2026-07-26 (session 15), not yet looked at in the app.** A
+selected page's snapshot content renders read-only beside the tree, in the real editor. See the
+session log for the media-block finding.
 
 **Phase 3 — the merge.** Ticking, the destination resolver (D2), dated-copy naming (D10), the
 write-plan-and-relaunch flow (D8). The only phase that writes.
@@ -358,3 +360,90 @@ backup and absent from the previous evening's 22:18.
 
 **Open question 4 (preview fidelity) ANSWERED by the user: the real editor, read-only.** Phase 2
 starts there. Open question 5 partly addressed — see the pre-migration note in that section.
+
+### 2026-07-26 (session 15) — Phase 2 BUILT: the read-only preview
+
+Click a page in the tree and that backup's version of it opens beside the tree, rendered by the
+**real editor**, read-only. Built, analyzer-clean, not yet looked at in the app.
+
+**The Rust side: one new event, `ReadSnapshotDocument`.** It returns `flowy_document`'s own
+`DocumentDataPB` — the *same payload a live document open returns* — rather than raw encoded collab.
+That is what makes "the real editor" cheap: the preview is handed exactly what the live editor is
+built from, so there is no second document model to drift. Cross-crate PB reuse has precedent
+(`flowy-search`'s `result.rs` uses `flowy_folder`'s `ViewIconPB`). `read_tree` and the new
+`read_document` now share one `open_snapshot` door, so "never touches the live workspace" is stated
+once instead of per caller.
+
+**Read-only is enforced three ways, and the third is the one that matters.** `editable: false` on
+the editor and the block builders; **no** character or command shortcut events at all, so no
+keystroke can mutate the document independently of that flag; and — the real property — **nothing is
+wired to write.** There is no `DocumentBloc`, no document service, no save path, and no write
+counterpart to the event anywhere in the plugin. A preview cannot be saved because there is nothing
+to save it with.
+
+**⚠️ The finding worth keeping: media blocks cannot be previewed, and that is CORRECTNESS, not a
+shortcut.** Image, multi-image, file, sub-page and AI-writer components read
+`DocumentBloc.state.userProfilePB` or the live document id **at build time**, so a preview containing
+an image would simply crash — and providing a `DocumentBloc` would mean opening the live page, which
+is the one thing this screen must never do. **But even if they built, they would lie:** a local image
+is stored as a path into the *live* data folder, so rendering it would show you **today's picture
+inside yesterday's backup** — the most misleading thing this screen could do. They are replaced with
+a named placeholder ("An image was here.") that reports the block's presence rather than hiding it,
+because a block missing from a preview reads as "this backup doesn't have it".
+
+Also needed: the preview provides its own `SharedEditorContext` (sub-page blocks ask it whether they
+are in a database row); the live page creates one per document and the preview must not reach for
+the open page's.
+
+**Known edge, deliberately left:** tapping an inline **page mention** inside a preview reads
+`DocumentBloc` in its tap handler. It renders fine and the read is on tap, not build, so the failure
+is an unhandled async error logged to the console — nothing visible, nothing lost. Worth fixing
+alongside Phase 3, where mentions matter for the merge.
+
+**Other decisions taken while building:**
+- Per-page **direction travels with the folder entry, not the document**, so the preview parses the
+  snapshot row's raw `extra` for `page_text_direction`. Without it every Hebrew page in a backup
+  would preview LTR and look corrupted.
+- The preview clears when you **switch backups**. Leaving yesterday's page beside today's tree is
+  the single confusion this screen exists to prevent.
+- A **late result is dropped** if you clicked another page meanwhile — otherwise the slow page's
+  content paints under the fast page's name. **Proven failing-then-passing.**
+- A page that can't be read fails the **preview only**, never the tree: the rest of the backup is
+  still browsable.
+- The dialog grew from a fixed 900×620 to `min(1120, 92% of the window) × min(700, 88%)`, because a
+  third pane left prose about 360pt wide. The tree keeps the full pane until a preview opens.
+- Hover was checked against the standing trap: the new rows use `InkWell` under the browser's
+  existing `_flatHoverTheme`, and the close button is `FlowyIconButton` with an explicit hover
+  colour — no stock Material widget is left to inherit the full accent.
+
+**Tests: 6 new, in `snapshot_preview_test.dart`,** covering the ways a preview can lie about what
+you are looking at. **A render smoke test was attempted and deliberately abandoned** — mounting the
+preview headlessly drags in the whole app startup (`AFThemeExtension` → appearance cubits → a
+GetIt-registered `KeyValueStorage`), each fix revealing the next. That is the same judgment session 7
+recorded about `ViewAddButton`: the test would have proved the fake, not the app. **Do not retry it;
+the rendering is a live check**, which is also what CLAUDE.md requires for anything visual.
+
+**Phase 2 is unverified in the app.** What to look at first: an ordinary page, then a Hebrew one
+(direction), then one with an image (the placeholder), then click between two pages quickly.
+
+**✅ ESCAPE IS VERIFIED (user, session 15, physical keyboard).** Escape closes the browser. This was
+session 14's one unverified item — synthetic keystrokes had stopped reaching the window, so it could
+only ever be settled on real hardware. The `HardwareKeyboard` hook in `snapshot_browser_view.dart` is
+therefore **proven**, and the honesty note above stands unchanged: its widget test remains a *guard*,
+not a proof, because the bare test wrapper has none of the global shortcut layer that eats the key.
+
+Worth carrying forward: **Escape still closes no other dialog in this app** (Settings included). The
+browser is the exception, and it is one only because it installs its own hook.
+
+**⏸ PHASE 2 IS BUILT BUT STILL UNSEEN — the user deferred looking at it to the next session.**
+Nothing about it has been judged by eye. Two things to drive, in this order:
+
+1. **The preview itself.** An ordinary page first, then a **Hebrew** one (direction is parsed from
+   the snapshot row's `extra`, and getting it wrong makes every Hebrew page in a backup look
+   corrupted), then one **containing an image** (must read "An image was here.", never a picture —
+   a rendered local path would be showing *today's* image inside an old backup), then **click
+   quickly between two pages** (the late-result guard).
+2. **Hover states**, since the tree rows became clickable this session. The standing trap:
+   `ThemeData.hoverColor` is the full accent in dark mode. The rows sit under the browser's
+   `_flatHoverTheme` and the close button carries an explicit hover colour, so this is a
+   confirmation, not a suspicion — but it has bitten this exact dialog before.
