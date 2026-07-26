@@ -107,8 +107,13 @@ say no to "…but you could also drag to reorder right there."
 
 ## Deferred, but part of the model: the ephemeral pad
 
-**Requested 2026-07-25, deliberately not built. Needs its own scoping interview and spec
-(`specs/ephemeral-pad.md`) before any code.**
+**Scoped 2026-07-26 — see `specs/ephemeral-pad.md`, which is now the authoritative document for
+this. The section below is kept as the original framing and the reasoning for why it belongs to
+this model; the open questions it lists were answered in that spec's interview.**
+
+**⚠️ Note for decision 3 above:** the ephemeral pad's D8 changes the top New Page button from
+"creates a page in Temporary" to "opens the pad". That is a refinement of decision 3, not a
+reversal — it removes the act of creation, which is the direction decision 3 was already going.
 
 The app should always open on an **open, ephemeral writing pad that is "nothing"** — not a page, not a
 row in the sidebar, not a file. Only when something is typed or pasted into it does it *become* a page,
