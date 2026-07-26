@@ -2002,8 +2002,6 @@ dependencies = [
  "collab-document",
  "collab-entity",
  "collab-folder",
- "collab-integrate",
- "collab-plugins",
  "flowy-ai",
  "flowy-ai-pub",
  "flowy-core",
@@ -2016,7 +2014,7 @@ dependencies = [
  "flowy-search",
  "flowy-server",
  "flowy-server-pub",
- "flowy-sqlite",
+ "flowy-snapshot",
  "flowy-storage",
  "flowy-storage-pub",
  "flowy-user",
@@ -2334,6 +2332,7 @@ dependencies = [
  "flowy-search-pub",
  "flowy-server",
  "flowy-server-pub",
+ "flowy-snapshot",
  "flowy-sqlite",
  "flowy-sqlite-vec",
  "flowy-storage",
@@ -2707,6 +2706,28 @@ dependencies = [
  "flowy-error",
  "serde",
  "serde_repr",
+]
+
+[[package]]
+name = "flowy-snapshot"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "collab",
+ "collab-folder",
+ "collab-integrate",
+ "collab-plugins",
+ "flowy-codegen",
+ "flowy-derive",
+ "flowy-error",
+ "flowy-sqlite",
+ "flowy-user-pub",
+ "lib-dispatch",
+ "protobuf",
+ "serde_json",
+ "strum_macros 0.21.1",
+ "tracing",
+ "zip 2.2.0",
 ]
 
 [[package]]

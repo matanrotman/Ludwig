@@ -1,0 +1,35 @@
+[package]
+name = "flowy-snapshot"
+version = "0.1.0"
+edition = "2021"
+
+# Reads backup snapshots read-only, for the selective restore browser.
+# See specs/restore-redesign.md. Deliberately a separate crate: it keeps the whole
+# feature out of upstream's files, so merges stay low-conflict (CLAUDE.md, "Fork
+# maintenance"). The only shared-core touch is one line in flowy-core/src/module.rs.
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+lib-dispatch = { workspace = true }
+flowy-error = { workspace = true }
+flowy-derive.workspace = true
+flowy-sqlite = { workspace = true }
+flowy-user-pub = { workspace = true }
+collab = { workspace = true }
+collab-folder = { workspace = true }
+collab-integrate = { workspace = true }
+collab-plugins = { workspace = true }
+protobuf.workspace = true
+bytes.workspace = true
+serde_json.workspace = true
+strum_macros = "0.21"
+tracing.workspace = true
+zip = "2.2.0"
+
+[build-dependencies]
+flowy-codegen.workspace = true
+
+[features]
+dart = ["flowy-codegen/dart"]

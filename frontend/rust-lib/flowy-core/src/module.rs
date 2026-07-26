@@ -23,6 +23,9 @@ pub fn make_plugins(
   let database_plugin = flowy_database2::event_map::init(database_manager);
   let document_plugin2 = flowy_document::event_map::init(document_manager2);
   let date_plugin = flowy_date::event_map::init();
+  // [fork:restore] Stateless: every call carries the snapshot path it reads, so
+  // there is no manager to pass. See specs/restore-redesign.md.
+  let snapshot_plugin = flowy_snapshot::event_map::init();
   let search_plugin = flowy_search::event_map::init(search_manager);
   let ai_plugin = flowy_ai::event_map::init(ai_manager);
   let file_storage_plugin = flowy_storage::event_map::init(file_storage_manager);
@@ -32,6 +35,7 @@ pub fn make_plugins(
     database_plugin,
     document_plugin2,
     date_plugin,
+    snapshot_plugin,
     search_plugin,
     ai_plugin,
     file_storage_plugin,

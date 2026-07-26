@@ -4,6 +4,7 @@ import 'package:appflowy/shared/backup/backup_service.dart';
 import 'package:appflowy/shared/backup/backup_settings.dart';
 import 'package:appflowy/shared/backup/snapshot_repository.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/backup/restore_flow.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/backup/snapshot_browser_view.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/af_dropdown_menu_entry.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/setting_list_tile.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
@@ -82,6 +83,25 @@ class _SettingsBackupBody extends StatelessWidget {
                   onPressed: state.status.running
                       ? null
                       : () => context.read<BackupBloc>().backupNow(),
+                ),
+              ],
+            ),
+            // [fork:restore] Browsing a backup is the everyday route (D11) and
+            // comes FIRST; the whole-workspace swap below it is the disaster
+            // case. See specs/restore-redesign.md.
+            SettingsCategory(
+              title: 'Find something you lost',
+              children: [
+                SettingListTile(
+                  label: 'Browse backups',
+                  hint: 'Look inside a backup to see what was there, '
+                      'without changing anything',
+                  trailing: [
+                    AFOutlinedTextButton.normal(
+                      text: 'Browse…',
+                      onTap: () => _openSnapshotBrowser(context, state),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -296,4 +316,29 @@ class _SnapshotRow extends StatelessWidget {
       await bloc.refreshSnapshots();
     }
   }
+}
+
+/// Opens the read-only backup browser (`specs/restore-redesign.md` Phase 1).
+///
+/// A dialog rather than a route: Settings is already a dialog, and the browser
+/// is a place you visit and leave, not a destination you navigate into.
+Future<void> _openSnapshotBrowser(BuildContext context, BackupState state) async {
+  final destination = state.status.destination;
+  if (destination == null) {
+    return;
+  }
+  await showDialog<void>(
+    context: context,
+    builder: (_) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: SizedBox(
+        width: 900,
+        height: 620,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: SnapshotBrowser(destinationPath: destination),
+        ),
+      ),
+    ),
+  );
 }

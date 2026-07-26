@@ -21,6 +21,8 @@ flowy-error = { workspace = true }
 flowy-server = { workspace = true }
 flowy-server-pub = { workspace = true }
 flowy-date = { workspace = true }
+# [fork:restore] read-only snapshot browsing (specs/restore-redesign.md)
+flowy-snapshot = { workspace = true }
 collab-integrate = { workspace = true }
 flowy-search = { workspace = true }
 flowy-search-pub = { workspace = true }
@@ -73,6 +75,7 @@ native_sync = []
 dart = [
   "flowy-user/dart",
   "flowy-date/dart",
+  "flowy-snapshot/dart",
   "flowy-search/dart",
   "flowy-folder/dart",
   "flowy-database2/dart",

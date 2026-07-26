@@ -26,6 +26,8 @@ import 'package:protobuf/protobuf.dart';
 
 import '../protobuf/flowy-date/entities.pb.dart';
 import '../protobuf/flowy-date/event_map.pb.dart';
+import '../protobuf/flowy-snapshot/entities.pb.dart';
+import '../protobuf/flowy-snapshot/event_map.pb.dart';
 
 import 'error.dart';
 
@@ -34,6 +36,8 @@ part 'dart_event/flowy-user/dart_event.dart';
 part 'dart_event/flowy-database2/dart_event.dart';
 part 'dart_event/flowy-document/dart_event.dart';
 part 'dart_event/flowy-date/dart_event.dart';
+// [fork:restore] read-only snapshot browsing (specs/restore-redesign.md)
+part 'dart_event/flowy-snapshot/dart_event.dart';
 part 'dart_event/flowy-search/dart_event.dart';
 part 'dart_event/flowy-ai/dart_event.dart';
 part 'dart_event/flowy-storage/dart_event.dart';

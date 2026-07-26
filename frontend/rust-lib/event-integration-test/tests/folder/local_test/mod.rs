@@ -1,8 +1,8 @@
 mod delete_branch_test;
-mod zz_phase0_snapshot_reader;
 mod folder_test;
 mod import_test;
 mod script;
+mod snapshot_browse_test;
 mod subscription_test;
 mod test;
 

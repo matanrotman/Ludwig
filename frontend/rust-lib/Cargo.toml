@@ -21,6 +21,7 @@ members = [
   "flowy-storage",
   "collab-integrate",
   "flowy-date",
+  "flowy-snapshot",
   "flowy-search",
   "lib-infra",
   "build-tool/flowy-ast",
@@ -63,6 +64,7 @@ flowy-search = { path = "flowy-search" }
 flowy-search-pub = { path = "flowy-search-pub" }
 collab-integrate = { path = "collab-integrate" }
 flowy-date = { path = "flowy-date" }
+flowy-snapshot = { path = "flowy-snapshot" }
 flowy-ai = { path = "flowy-ai" }
 flowy-ai-pub = { path = "flowy-ai-pub" }
 anyhow = "1.0"
