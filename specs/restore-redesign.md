@@ -154,9 +154,8 @@ would still be a guard against a state that cannot legitimately occur.
 
 **Phase 0 — prove the primitive. ✅ DONE 2026-07-26, and it holds.** See "Phase 0 result" below.
 
-**Phase 1 — browse, read-only.** Day/time picker (D3), the tree (D4, D7 rendering), missing-page
-marking and filter (D6). No merging, nothing writable. Useful on its own: it answers "is it even
-in there?", which today requires unzipping by hand.
+**Phase 1 — browse, read-only. ✅ DONE 2026-07-26.** Day/time picker (D3), the tree (D4), missing-page
+marking and filter (D6). No merging, nothing writable. See the session log.
 
 **Phase 2 — preview (D5).** Render a selected page's snapshot content read-only beside the tree.
 
@@ -276,3 +275,42 @@ worth keeping:
 The probe is scratch and should be deleted or promoted before this feature ships; its
 `collab-integrate` / `collab-plugins` / `flowy-sqlite` dev-dependencies on `event-integration-test`
 go with it if deleted.
+
+### 2026-07-26 (session 13) — Phase 1 built
+
+**Rust: a new `flowy-snapshot` crate.** Its own crate rather than code inside `flowy-folder`, so
+the feature stays out of upstream's files (CLAUDE.md, "Fork maintenance"). The only shared-core
+touch is one line in `flowy-core/src/module.rs`, plus the dependency and the `dart` feature entry.
+Modelled on `flowy-date`: a **stateless** plugin, because every call carries the snapshot path it
+should read, so there is no manager to own and nothing to keep in sync with the live workspace.
+
+One event, `ReadSnapshotTree`: extract → open `collab_db` read-only → return the view tree.
+Extraction is cached per snapshot (expanding a day must not re-unzip) and **skips
+`collab_db_history`**, which is the majority of a snapshot's bytes and useless for browsing. Zip
+entries go through `enclosed_name`, so a crafted archive cannot write outside the scratch dir.
+
+**Dart.** `snapshot_browse_model.dart` holds the real logic and is deliberately Flutter-free:
+grouping by day, building the tree, marking what the live workspace no longer has, and the
+missing-only filter — which keeps containers on the path, so a recovered page still appears inside
+the space and folder it belongs to instead of floating at the root. The browser puts days on the
+left (the two most recent expanded by default, since same-day mistakes are the common case) and
+the tree on the right. Settings → Backup gains **"Find something you lost"** *above* the existing
+snapshot list: browsing is the everyday route, the whole-workspace swap is the disaster case.
+
+**Two honesty notes, both in the code:**
+- `GetAllViews` **excludes trashed views**, so a page sitting in the trash currently reads as
+  "missing". It over-reports rather than under-reports, but the shorter route for such a page is
+  the trash. Revisit with the trash redesign.
+- If the live workspace can't be read, the browser **says so and marks nothing missing**. An empty
+  live set would flag the entire snapshot as lost — a far more alarming lie than admitting the
+  comparison failed.
+
+**Tests.** 13 Dart model tests (day grouping, tree building, cycle safety, missing detection, the
+filter keeping containers, what is tickable). 3 Rust event tests, of which the two always-on ones
+assert that a missing path and a non-snapshot file are **clean errors rather than an empty tree** —
+an empty tree would read as "your backup contains nothing", the worst lie this feature could tell.
+The Phase 0 scratch probe is deleted, replaced by an `#[ignore]`d end-to-end test against a real
+snapshot (97 views, 8 spaces, 10 folders).
+
+**Still to verify with the user:** the browser has not been opened in the real app yet — that is
+the first item next session.
