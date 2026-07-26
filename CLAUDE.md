@@ -37,8 +37,22 @@ When I say "wrap up," "end session," or similar, run this entire closure sequenc
 4. **Update `STATUS.md`** — rewrite the relevant sections, don't just append. If a feature went through multiple rounds of back-and-forth this session, consolidate them into one current-state summary rather than leaving each round as its own ever-growing bullet; STATUS.md should read as "here's where things stand right now," not a transcript.
 5. **Add a dated entry to the "Session Log"** at the bottom of whichever `specs/<feature-name>.md` we worked on — unlike STATUS.md, this one is append-only history and should stay that way.
 6. **Re-run the fork-sync check** from "Fork maintenance" below one more time — a fix made mid-session can move a fork's HEAD past what's currently pinned.
-7. **Write a ready-to-paste prompt for the next session** — what's done, what's next, and any open question that needs my input before work can resume — and include it directly in your closing message (not buried in a file).
-8. **Report back**: what got committed (and what was deliberately left out, and why), what STATUS.md/spec changes were made, the fork-sync numbers, and the next-session prompt from step 7. This whole sequence should be visible to me, not something that happened silently.
+7. **Report back**: what got committed (and what was deliberately left out, and why), what STATUS.md/spec changes were made, and the fork-sync numbers. This sequence should be visible to me, not something that happened silently.
+8. **End with a ready-to-paste prompt for the next session** — what's done, what's next, and anything that needs my input before work can resume. Put it directly in the closing message, not buried in a file.
+
+### ⚠️ The prompt is the LAST thing in a wrap-up. Nothing follows it.
+Not a question. Not a caveat. Not a "one thing I'd flag." Not a recommendation, a summary, a
+closing thought, or an offer to keep going. The message **ends** at the end of the prompt block.
+
+If something feels important enough to say after the prompt, that is proof it belongs **inside**
+the prompt — write it there, as an instruction to the next session, and then stop. A warning I
+would want next-session-me to act on ("the browser has never been opened, look at it first") is
+exactly the kind of thing that must be line 1 of the prompt rather than a postscript I read and
+lose. Anything that can't be phrased as an instruction to the next session was not worth appending.
+
+This is not a style preference. A wrap-up that trails off into questions and flags means the
+session hasn't actually ended, and the one artifact designed to survive into next session —
+the prompt — gets buried under text that doesn't.
 
 ## Fork maintenance (applies across every feature)
 - Isolate new functionality into new files/modules where possible instead of editing core files, to keep future merges with upstream low-conflict. Where you must touch shared/core files, say so and explain why.
