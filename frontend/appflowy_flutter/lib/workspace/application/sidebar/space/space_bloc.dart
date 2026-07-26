@@ -437,8 +437,27 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
       final outcome = await TemporarySpaceMigration.run(
         spaces: spaces,
         takeSnapshot: () async {
-          await getIt<BackupService>()
+          // ⚠️ The result is not decoration. `backupNow` reports refusals by
+          // RETURNING them (no destination, workspace not yet resolvable at
+          // this point in startup, …) — it only throws on a crash. Discarding
+          // it, as this did until 2026-07-26, made "snapshot taken" and
+          // "snapshot silently skipped" look identical, which is how the
+          // pre-migration snapshot went 47 snapshots without ever appearing.
+          // A guard that can't be seen failing is not a guard.
+          final result = await getIt<BackupService>()
               .backupNow(trigger: BackupTrigger.preMigration);
+          if (result.outcome != BackupOutcome.snapshotCreated) {
+            // Still not a hard stop — see the fail-soft note in
+            // TemporarySpaceMigration.run — but now it is on the record.
+            Log.warn(
+              'temp-space: pre-migration snapshot did NOT run '
+              '(${result.outcome.name}${result.error == null ? '' : ': ${result.error}'})',
+            );
+            return;
+          }
+          Log.info(
+            'temp-space: pre-migration snapshot ${result.snapshotName}',
+          );
         },
         writeView: ({
           required String viewId,

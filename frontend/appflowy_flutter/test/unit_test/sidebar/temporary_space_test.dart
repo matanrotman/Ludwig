@@ -75,11 +75,14 @@ void main() {
       );
     });
 
-    test('falls back to the first space when none is flagged', () {
-      // The Phase-1 bridge: nothing has written the flag yet, because writing
-      // it is Phase 3's job (the only step allowed to touch real data).
+    test('returns null when no space carries the flag', () {
+      // Phases 1–2 fell back to the first space here, so they could ship
+      // without writing anything. Phase 3's migration has since written the
+      // flag, and the fallback is gone: an unflagged workspace now says so
+      // rather than promoting an arbitrary space, and the idempotent
+      // migration re-runs on the next launch to fix it.
       final spaces = [_space('first'), _space('second')];
-      expect(TemporarySpace.resolve(spaces)?.id, 'first');
+      expect(TemporarySpace.resolve(spaces), isNull);
     });
 
     test('identity is by flag, never by the display name', () {
@@ -145,12 +148,15 @@ void main() {
       expect(TemporarySpace.canContainFolders(other, spaces), isTrue);
     });
 
-    test('with a single unflagged space, that space IS Temporary', () {
-      // The bridge again: a workspace that has never been migrated still has
-      // exactly one landing place, so the rules must hold there too.
+    test('an unmigrated workspace has no Temporary, so nothing is protected',
+        () {
+      // Without the flag there is no Temporary to protect. The rules must not
+      // invent one: guessing would strip Rename/Delete from whichever space
+      // happened to be first, which is a real edit driven by a guess.
       final only = _space('only');
-      expect(TemporarySpace.isTemporary(only, [only]), isTrue);
-      expect(TemporarySpace.canDelete(only, [only]), isFalse);
+      expect(TemporarySpace.isTemporary(only, [only]), isFalse);
+      expect(TemporarySpace.canDelete(only, [only]), isTrue);
+      expect(TemporarySpace.canRename(only, [only]), isTrue);
     });
   });
 }

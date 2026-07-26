@@ -78,15 +78,16 @@ void main() {
       );
     });
 
-    test('NO in the fallback Temporary either (first space, unflagged)', () {
-      // Before the Phase-3 migration writes the flag, the first space IS
-      // Temporary — the rule has to hold there too or a folder could be
-      // created in the staging area on an unmigrated workspace.
+    test('YES in every space when none is flagged Temporary', () {
+      // Phases 1–2 treated the first space as Temporary, so this rule bit it
+      // too. That fallback is gone: with no flag there is no staging area to
+      // keep flat, and blocking folders in a space chosen by position would be
+      // a restriction resting on a guess.
       final first = _space('first');
       final second = _space('second');
       expect(
         PageFolder.canCreateFolderIn(parent: first, spaces: [first, second]),
-        isFalse,
+        isTrue,
       );
       expect(
         PageFolder.canCreateFolderIn(parent: second, spaces: [first, second]),

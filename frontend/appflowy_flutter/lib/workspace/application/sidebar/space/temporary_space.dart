@@ -17,25 +17,21 @@ import 'package:collection/collection.dart';
 /// writes, no bloc, no localization — so the rules are unit-testable and so
 /// Phase 1 cannot touch the user's data.
 ///
-/// ## ⚠️ The Phase-1 bridge, and why it exists
+/// ## Identified by the flag, and only by the flag
 ///
 /// Temporary is identified by the [ViewExtKeys.isTemporaryKey] flag in
 /// `View.extra` — never by its display name. A fresh AppFlowy install names
-/// its first space `Shared` (`space_bloc.dart`), and this user's is called
+/// its first space `Shared` (`space_bloc.dart`), and this user's was called
 /// `General`; matching either string would be a hardcoded personal value that
 /// silently does nothing for everybody else.
 ///
-/// Nothing has written that flag yet: writing it is Phase 3's job, because
-/// Phase 3 is the only step allowed to touch real data (and must take a
-/// backup snapshot first). Until then [resolve] falls back to **the first
-/// space in the workspace's own order**, read-only.
-///
-/// Consequence to be aware of while the bridge is in place: whichever space
-/// happens to be first is treated as Temporary — it loses Rename/Delete and
-/// receives new pages. That is reversible in one line and writes nothing, but
-/// it does mean the fallback is a *bridge*, not the design. When Phase 3 lands
-/// and the flag is written, delete the fallback branch and let [resolve]
-/// return null when no space is flagged.
+/// Phases 1–2 carried a bridge here: with nothing yet writing the flag,
+/// [resolve] fell back to the workspace's first space so those phases could
+/// ship without touching real data. **Phase 3's migration has since run and
+/// written the flag, so the fallback is gone** (removed 2026-07-26, after
+/// confirming `is_temporary":true` in the live folder). A workspace with no
+/// flagged space now resolves to null, which is the honest answer — the
+/// migration is idempotent and re-runs on the next launch to fix it.
 class TemporarySpace {
   const TemporarySpace._();
 
@@ -59,21 +55,14 @@ class TemporarySpace {
     }
   }
 
-  /// The workspace's Temporary space, or null if there are no spaces at all.
-  ///
-  /// Prefers the flagged space; falls back to the first space (see the
-  /// Phase-1 bridge note on the class).
-  static ViewPB? resolve(List<ViewPB> spaces) {
-    if (spaces.isEmpty) {
-      return null;
-    }
-    return spaces.firstWhereOrNull(isFlagged) ?? spaces.first;
-  }
+  /// The workspace's Temporary space, or null if no space carries the flag.
+  static ViewPB? resolve(List<ViewPB> spaces) =>
+      spaces.firstWhereOrNull(isFlagged);
 
   /// Whether [space] is *the* Temporary space of this workspace.
   ///
-  /// Takes the whole list rather than just the space because identity is
-  /// resolved against the workspace (the flag may not be written yet).
+  /// Takes the whole list rather than just the space so that "which one is
+  /// Temporary" stays a single question answered in one place.
   static bool isTemporary(ViewPB space, List<ViewPB> spaces) =>
       resolve(spaces)?.id == space.id;
 
