@@ -49,6 +49,9 @@ that gesture and blocked it precisely because there was nothing to return *to*.
 | D6 | Name of the promoted page | **Its first line, Apple Notes style**, tracking edits to that line until a real title is set. |
 | D7 | The empty pad's appearance | **Bare** — a blank sheet and a cursor. No title field, no placeholder, no buttons. |
 | D8 | The top New Page button | **Opens the pad** instead of creating a page. One capture route, not two. |
+| D9 | The pad and tabs | **The pad can never be open in two tabs at once.** Asking for it while it is already open focuses the tab that has it. |
+| D10 | Emptying a promoted pad | **While you are still on it, it is still the pad.** Type (it promotes), delete it all again, and it demotes — the sidebar row goes away. Promotion only becomes final when you navigate away. |
+| D11 | The pad's own look | **The pad gets its own page colour, theme and margins**, like any page. Those settings **carry forward to the next pad** when one promotes (see below). |
 
 ## ⚠️ The main technical risk, and the design that avoids it
 
@@ -99,6 +102,7 @@ purity at the price of the two most expensive bug classes this fork has hit.
 - **New Page button** (D8): its current always-Temporary behaviour is `capture-and-structure.md`
   decision 3; this refines it, and the spec text there should be updated rather than contradicted.
 - **Temporary's `(n)` count**: must not count the pad. Likely the first thing to break.
+- **Tabs** (D9): `TabsBloc` — opening the pad must focus an existing pad tab rather than add one.
 
 ## Phased plan
 
@@ -107,14 +111,16 @@ No promotion yet: the pad is a scratch page that never leaves. Already useful, a
 filtering and launch behaviour in isolation.
 
 **Phase 2 — promotion.** First-real-content detection (D2), flag clearing, fresh pad creation
-(D3), first-line naming (D6).
+(D3), first-line naming (D6), demote-on-empty while still on the pad (D10), and carrying the pad's
+look forward (D11).
 
 **Phase 3 — the gesture.** Click empty sidebar space → pad (D4). Unblocks `folder.md` follow-up 5.
 
 **Phase 4 — the New Page button** (D8), plus updating `capture-and-structure.md` decision 3.
 
 **Phase 5 — live verification**, including the two failure modes above: type continuously across
-the promotion moment and confirm **no keystroke is lost and focus never moves**.
+the promotion moment and confirm **no keystroke is lost and focus never moves**. Also judge the
+D10 sidebar flicker on the real thing.
 
 ## How we'll know it's done
 
@@ -127,6 +133,10 @@ the promotion moment and confirm **no keystroke is lost and focus never moves**.
 - Clicking empty sidebar space from any page returns to the pad; the page left behind is unchanged.
 - Temporary's `(n)` never counts the pad.
 - Exactly one pad view exists — verifiable in the folder data, not just on screen.
+- The pad is never open in two tabs (D9).
+- Typing then deleting everything, without navigating away, leaves **nothing** in Temporary (D10).
+- Navigating away after typing makes the page permanent, even if it is later emptied.
+- A page colour set on the pad is still there on the next pad (D11).
 
 ## Multi-user readiness
 
@@ -134,18 +144,45 @@ General; no personal, machine- or account-specific assumptions. Desktop-only for
 launch behaviour (D5) is a product decision others might not want — worth keeping the "what opens
 on launch" resolution in one place so it could become a setting without restructuring.
 
+## Promotion is reversible until you leave (D10) — and what that costs
+
+D10 makes promotion **provisional**: the pad promotes on the first real character, demotes if you
+empty it again, and only becomes permanent when you navigate away. This is better than the version
+first scoped — it means an emptied pad never leaves an empty page behind in Temporary, without
+anything being silently deleted (the thing `specs/delete-and-trash.md` just spent a session
+removing). Nothing is destroyed on demotion because the view is the same view throughout; only the
+flag moves.
+
+**⚠️ The cost to watch in live testing: sidebar flicker.** A row appears in Temporary on the first
+character and disappears when you delete back to empty. Type-and-delete while thinking, and the
+sidebar twitches. Two mitigations if it proves annoying, neither committed to yet:
+
+- **Debounce the sidebar row** — promote the *data* immediately (so nothing is at risk) but delay
+  the row's appearance a beat, so a quick correction never shows one.
+- **Promote on first character, but only demote on a deliberate empty** — e.g. select-all-delete
+  rather than backspacing to nothing. More rules to hold in your head; likely worse.
+
+Decide from the real thing, not from here.
+
+## Where the pad's look lives (D11)
+
+The pad carries per-page settings in `View.extra` like any page, alongside the pad flag. But a look
+you set on the pad would be pointless if every new pad reverted to defaults — so **on promotion,
+the newly created pad inherits the promoted one's page colour, theme and margins.** The settings
+stay entirely in `View.extra`; no new preference store, no second place for this to live.
+
+**Flagged because it is a judgment call, not something the interview settled:** this means changing
+the pad's look changes it for all future pads, and the page you just promoted keeps that look too
+(it is the same view). If you would rather the look reset each time, say so — it is a one-line
+difference at promotion.
+
 ## Open questions
 
-1. **Tabs.** The app has a tab system. Is the pad a tab, and can it be open in two tabs at once?
-   Not answered in the interview; needs deciding before Phase 1.
-2. **What happens to an abandoned pad with content** — you type, it promotes, you delete the text
-   again. It stays in Temporary as an empty page. Acceptable, or should an emptied page vanish?
-   (Leaning acceptable: silent deletion is exactly what `specs/delete-and-trash.md` just spent a
-   session removing.)
-3. **First-line naming and RTL.** The first line may be Hebrew; nothing here is direction-specific,
-   but sidebar name rendering already has direction handling worth re-checking.
-4. **Does the pad get a page colour / theme / margin of its own**, or always the defaults? Defaults
-   are the obvious answer, but per-page settings live in `View.extra` alongside the pad flag.
+1. **First-line naming and RTL.** Noted and accepted as a watch item rather than a question: the
+   first line may be Hebrew, and sidebar name rendering already has direction handling worth
+   re-checking during Phase 2.
+2. **Does the pad appear in "recent" surfaces** (search, recent views, `latestOpenView`) before it
+   promotes? It should not, but the filtering points are not all in one place.
 
 ## Session Log
 
@@ -154,4 +191,11 @@ on launch" resolution in one place so it could become a setting without restruct
 Interviewed and scoped; eight decisions taken (table above). The substantive addition beyond the
 interview is the implementation design: the pad is a **real page flagged and filtered**, not an
 in-memory buffer, specifically to avoid remounting the editor mid-keystroke — the failure mode
-behind session 4's "keyboard disabled" report and session 11's title bug. Not yet built.
+behind session 4's "keyboard disabled" report and session 11's title bug.
+
+The four open questions were then answered by the user the same day, adding D9–D11. D10 (promotion
+stays provisional until you navigate away) is a genuine improvement on the original scope and
+removes the "empty page left in Temporary" case entirely; its one cost — sidebar flicker while
+type-and-deleting — is written up above to be judged live rather than guessed at. D11's follow-on
+question (does a *new* pad inherit the look?) was not asked, and is answered here with reasoning as
+"yes, carried forward on promotion", flagged for correction. Not yet built.
