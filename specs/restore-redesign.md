@@ -152,10 +152,7 @@ would still be a guard against a state that cannot legitimately occur.
 
 ## Phased plan
 
-**Phase 0 — prove the primitive.** Before any UI: open a real snapshot's `collab_db` read-only
-from Rust and print its view tree and one document's content. Small, throwaway, and it either
-confirms the finding above or changes the whole plan. **Do not skip this** — the entire shape of
-Phases 1–3 rests on a code read, not a run.
+**Phase 0 — prove the primitive. ✅ DONE 2026-07-26, and it holds.** See "Phase 0 result" below.
 
 **Phase 1 — browse, read-only.** Day/time picker (D3), the tree (D4, D7 rendering), missing-page
 marking and filter (D6). No merging, nothing writable. Useful on its own: it answers "is it even
@@ -171,6 +168,38 @@ Workspace/Private path.
 
 **Phase 5 — live verification with the user**, against real snapshots, restoring into a scratch
 space first.
+
+## Phase 0 result — the primitive holds (2026-07-26)
+
+Run against a **copy** of a real snapshot (`AppFlowy-backup-v0.11.4-20260726-030817.zip`) unpacked
+into a scratch directory. The live data folder was never opened, resolved or written to.
+
+| Claim | Result |
+|---|---|
+| A snapshot carries a readable session | ✅ uid + workspace id read from its `cache.db` |
+| Its `collab_db` opens read-only, in-process | ✅ opened alongside everything else running |
+| The folder loads and the view tree is walkable | ✅ **97 views**, correct hierarchy, Hebrew names intact |
+| Documents yield real content | ✅ **82 of 82 documents loaded with content — 0 empty, 0 failures** |
+| Content is collab, not Markdown | ✅ deltas with inline attributes (`{"attributes":{"bold":true},"insert":"לשנים"}`) |
+
+The richest page read back was `RECOVERED-מעבר-על-דוח-קלוד` — **the very page lost in the session-12
+incident** — at 121KB with its formatting intact. The feature can demonstrably read the thing that
+motivated it.
+
+**Per-page settings survive too, and via a different route worth knowing.** Direction, theme,
+margins and the fork's own space/folder/temporary flags live in `View.extra` on the *folder* side,
+not in the document collab — so they arrive with the tree rather than with the content. Of 97 views,
+37 carry extra: `text_direction` on 10, `is_folder` on 10, `is_space` on 8, `theme_mode` on 3,
+`margin` on 1, `is_temporary` on 1.
+
+**What Phase 0 did NOT prove, stated plainly.** Highlight (`bg_color`), text colour (`font_color`)
+and font size appear in **0** of the 82 pages — they are simply unused in the current content, so
+their fidelity is **untested, not disproven**. Table widths *are* present (7 pages) and survive.
+Proving the highlight/colour case needs a purpose-built page, which belongs to the Phase 3
+acceptance test, not here.
+
+**Consequence for the plan:** the largest unknown is closed. Phases 1–3 are shaping an existing
+primitive rather than inventing one, and no phase needs to invent snapshot reading.
 
 ## How we'll know it's done
 
@@ -227,3 +256,23 @@ arbitrary data folder. That is the primitive this feature needed most, and it re
 unknown. Phase 0 exists specifically to verify that by running it rather than trusting the read.
 
 Not yet built.
+
+### 2026-07-26 (session 13) — Phase 0 run, primitive confirmed
+
+Wrote a scratch probe (`event-integration-test/tests/folder/local_test/zz_phase0_snapshot_reader.rs`,
+`#[ignore]`d, pointed at a snapshot via `LUDWIG_SNAPSHOT_ZIP`) and ran it against a copy of a real
+snapshot. Results in "Phase 0 result" above. Two things the probe corrected along the way, both
+worth keeping:
+
+1. **A space is a Document-layout view with no document collab.** The first version picked
+   "Temporary" as its sample page and reported a failure to load — which was correct behaviour
+   being read as a bug. Spaces are excluded via `space_info().is_some()`. Any future snapshot
+   reader must do the same, or it will report phantom failures on every space.
+2. **Testing formatting fidelity on one page under-tests it** — a page may simply not use the
+   attribute. The probe now counts, across all 82 documents, how many carry each attribute, which
+   is what surfaced that highlights and text colour are unused in the current content and therefore
+   untested rather than proven.
+
+The probe is scratch and should be deleted or promoted before this feature ships; its
+`collab-integrate` / `collab-plugins` / `flowy-sqlite` dev-dependencies on `event-integration-test`
+go with it if deleted.

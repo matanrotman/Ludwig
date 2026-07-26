@@ -38,6 +38,12 @@ collab-document = { workspace = true }
 collab-folder = { workspace = true }
 collab-database = { workspace = true }
 collab-entity = { workspace = true }
+# Phase 0 probe (specs/restore-redesign.md): opening a snapshot's collab_db
+# read-only. Remove alongside zz_phase0_snapshot_reader.rs if the probe is
+# deleted rather than promoted.
+collab-integrate = { workspace = true }
+collab-plugins = { workspace = true }
+flowy-sqlite = { workspace = true }
 rand = { version = "0.8.5", features = [] }
 strum = "0.25.0"
 

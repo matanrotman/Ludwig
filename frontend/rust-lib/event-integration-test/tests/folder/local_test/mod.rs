@@ -1,4 +1,5 @@
 mod delete_branch_test;
+mod zz_phase0_snapshot_reader;
 mod folder_test;
 mod import_test;
 mod script;
