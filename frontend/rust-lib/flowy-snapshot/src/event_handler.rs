@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
+use flowy_document::entities::DocumentDataPB;
 use flowy_error::FlowyError;
 use lib_dispatch::prelude::{data_result_ok, AFPluginData, DataResult};
 
-use crate::entities::{ReadSnapshotTreePayloadPB, SnapshotTreePB, SnapshotViewPB};
+use crate::entities::{
+  ReadSnapshotDocumentPayloadPB, ReadSnapshotTreePayloadPB, SnapshotTreePB, SnapshotViewPB,
+};
 use crate::reader;
 
 /// Reads one snapshot's view tree. Read-only; the live workspace is never touched.
@@ -39,4 +42,22 @@ pub(crate) async fn read_snapshot_tree_handler(
     workspace_id: tree.workspace_id,
     views,
   })
+}
+
+/// Reads one document out of a snapshot for the read-only preview (D5).
+///
+/// Returns the same `DocumentDataPB` a live document open returns, so the Dart side builds
+/// the **real editor** from it. Read-only is enforced on the Dart side — there is nothing
+/// here that could write back even if it tried: no manager, no live workspace, and the
+/// snapshot's database is opened through a read transaction.
+pub(crate) async fn read_snapshot_document_handler(
+  payload: AFPluginData<ReadSnapshotDocumentPayloadPB>,
+) -> DataResult<DocumentDataPB, FlowyError> {
+  let params = payload.into_inner();
+  let zip_path = PathBuf::from(&params.zip_path);
+
+  let extracted = reader::extract_for_reading(&zip_path)?;
+  let document_data = reader::read_document(&extracted.data_dir, &params.view_id)?;
+
+  data_result_ok(DocumentDataPB::from(document_data))
 }

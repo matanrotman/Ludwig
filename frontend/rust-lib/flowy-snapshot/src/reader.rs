@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use collab::preclude::Collab;
+use collab_document::blocks::DocumentData;
+use collab_document::document::Document;
 use collab_folder::{Folder, UserId, View};
 use collab_integrate::{CollabKVAction, CollabKVDB};
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -161,8 +163,16 @@ pub fn extract_for_reading(zip_path: &Path) -> FlowyResult<ExtractedSnapshot> {
   Ok(ExtractedSnapshot { data_dir })
 }
 
-/// Reads the view tree out of an extracted snapshot.
-pub fn read_tree(data_dir: &Path) -> FlowyResult<SnapshotTree> {
+/// A snapshot's own session and collab database, opened for reading.
+///
+/// Both reads below need exactly this, and having one door means the "never touches the
+/// live workspace" property is stated once instead of being re-established per caller.
+struct OpenSnapshot {
+  session: Session,
+  db: Arc<CollabKVDB>,
+}
+
+fn open_snapshot(data_dir: &Path) -> FlowyResult<OpenSnapshot> {
   let data_dir_str = data_dir.to_str().ok_or_else(|| {
     FlowyError::new(ErrorCode::InvalidParams, "snapshot path is not valid UTF-8")
   })?;
@@ -198,6 +208,13 @@ pub fn read_tree(data_dir: &Path) -> FlowyResult<SnapshotTree> {
       format!("can't open the snapshot's database: {}", e),
     )
   })?);
+
+  Ok(OpenSnapshot { session, db })
+}
+
+/// Reads the view tree out of an extracted snapshot.
+pub fn read_tree(data_dir: &Path) -> FlowyResult<SnapshotTree> {
+  let OpenSnapshot { session, db } = open_snapshot(data_dir)?;
   let read_txn = db.read_txn();
 
   let workspace_id = session.workspace_id.to_string();
@@ -239,6 +256,64 @@ pub fn read_tree(data_dir: &Path) -> FlowyResult<SnapshotTree> {
     workspace_id,
     uid: session.user_id,
     views,
+  })
+}
+
+/// Reads one document out of an extracted snapshot, as the same [`DocumentData`] a live
+/// document produces.
+///
+/// ## Why this returns the full document model and not text
+///
+/// `specs/restore-redesign.md` D5: the preview is the **real editor, read-only**, so what
+/// it needs is exactly what the live editor is built from. Returning a lighter shape (plain
+/// text, Markdown) would mean a second document model that drifts from the first, and would
+/// silently drop the very things someone checks a backup for — tables, callouts, colours,
+/// reading direction.
+///
+/// ## Spaces and folders have no document
+///
+/// A space is a Document-*layout* view that holds no document collab of its own (Phase 0
+/// initially misread that as corruption). The caller must not ask for one; if it does, this
+/// says so plainly rather than returning an empty page that would look like lost content.
+pub fn read_document(data_dir: &Path, view_id: &str) -> FlowyResult<DocumentData> {
+  let OpenSnapshot { session, db } = open_snapshot(data_dir)?;
+  let read_txn = db.read_txn();
+
+  let workspace_id = session.workspace_id.to_string();
+  let mut collab = Collab::new(
+    session.user_id,
+    view_id,
+    "ludwig_snapshot_reader",
+    vec![],
+    false,
+  );
+  {
+    let mut txn = collab.transact_mut();
+    read_txn
+      .load_doc_with_txn(session.user_id, &workspace_id, view_id, &mut txn)
+      .map_err(|e| {
+        FlowyError::new(
+          ErrorCode::RecordNotFound,
+          format!(
+            "the snapshot holds no document for {}: {}. Spaces and folders have none — \
+             they are containers.",
+            view_id, e
+          ),
+        )
+      })?;
+  }
+
+  let document = Document::open(collab).map_err(|e| {
+    FlowyError::new(
+      ErrorCode::Internal,
+      format!("can't open the snapshot's document {}: {}", view_id, e),
+    )
+  })?;
+  document.get_document_data().map_err(|e| {
+    FlowyError::new(
+      ErrorCode::Internal,
+      format!("can't read the snapshot's document {}: {}", view_id, e),
+    )
   })
 }
 

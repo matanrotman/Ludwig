@@ -17,7 +17,13 @@ flowy-error = { workspace = true }
 flowy-derive.workspace = true
 flowy-sqlite = { workspace = true }
 flowy-user-pub = { workspace = true }
+# For DocumentDataPB only: the preview mounts the REAL editor (restore-redesign.md
+# D5), and the editor is built from the same payload a live document produces. Any
+# lighter shape here would mean a second, diverging document model. Precedent for
+# reusing another crate's PB: flowy-search's result.rs uses flowy_folder's ViewIconPB.
+flowy-document = { workspace = true }
 collab = { workspace = true }
+collab-document = { workspace = true }
 collab-folder = { workspace = true }
 collab-integrate = { workspace = true }
 collab-plugins = { workspace = true }

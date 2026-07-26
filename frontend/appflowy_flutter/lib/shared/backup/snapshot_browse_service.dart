@@ -1,5 +1,6 @@
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
+import 'package:appflowy_backend/protobuf/flowy-document/entities.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-snapshot/entities.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
@@ -16,6 +17,21 @@ class SnapshotBrowseService {
   Future<FlowyResult<SnapshotTreePB, FlowyError>> readTree(String zipPath) =>
       SnapshotEventReadSnapshotTree(
         ReadSnapshotTreePayloadPB(zipPath: zipPath),
+      ).send();
+
+  /// One page's content inside a snapshot, for the read-only preview (D5).
+  ///
+  /// Returns the same `DocumentDataPB` a live document open returns — which is
+  /// the point: the preview is the **real editor**, so it must be handed exactly
+  /// what the real editor is built from. There is no write counterpart to this
+  /// call anywhere, in this class or in the Rust plugin; a preview cannot be
+  /// saved because there is nothing to save it with.
+  Future<FlowyResult<DocumentDataPB, FlowyError>> readDocument(
+    String zipPath,
+    String viewId,
+  ) =>
+      SnapshotEventReadSnapshotDocument(
+        ReadSnapshotDocumentPayloadPB(zipPath: zipPath, viewId: viewId),
       ).send();
 
   /// Every view id currently visible in the workspace, used to work out what a

@@ -3,6 +3,7 @@ import 'package:appflowy/shared/backup/backup_service.dart';
 import 'package:appflowy/shared/backup/snapshot_browse_bloc.dart';
 import 'package:appflowy/shared/backup/snapshot_browse_model.dart';
 import 'package:appflowy/shared/backup/snapshot_repository.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/backup/snapshot_document_preview.dart';
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -78,9 +79,20 @@ class _SnapshotBrowserState extends State<SnapshotBrowser> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 220, child: _DayList(state: state)),
-                    HSpace(theme.spacing.xl),
-                    Expanded(child: _TreePane(state: state)),
+                    SizedBox(width: 190, child: _DayList(state: state)),
+                    HSpace(theme.spacing.l),
+                    // With a preview open the tree narrows to a fixed column and
+                    // the page takes the rest: the preview is where the decision
+                    // actually gets made, and prose needs the width far more than
+                    // a list of names does. With nothing previewed the tree keeps
+                    // the whole pane rather than leaving dead space beside it.
+                    if (state.previewNode == null)
+                      Expanded(child: _TreePane(state: state))
+                    else ...[
+                      SizedBox(width: 250, child: _TreePane(state: state)),
+                      HSpace(theme.spacing.l),
+                      Expanded(child: _PreviewPane(state: state)),
+                    ],
                   ],
                 ),
               ),
@@ -319,7 +331,13 @@ class _TreePane extends StatelessWidget {
     final rows = <Widget>[];
     void flatten(List<SnapshotNode> nodes, int depth) {
       for (final node in nodes) {
-        rows.add(_NodeRow(node: node, depth: depth));
+        rows.add(
+          _NodeRow(
+            node: node,
+            depth: depth,
+            isPreviewing: state.previewNode?.id == node.id,
+          ),
+        );
         flatten(node.children, depth + 1);
       }
     }
@@ -366,10 +384,15 @@ class _TreePane extends StatelessWidget {
 }
 
 class _NodeRow extends StatelessWidget {
-  const _NodeRow({required this.node, required this.depth});
+  const _NodeRow({
+    required this.node,
+    required this.depth,
+    required this.isPreviewing,
+  });
 
   final SnapshotNode node;
   final int depth;
+  final bool isPreviewing;
 
   @override
   Widget build(BuildContext context) {
@@ -380,14 +403,23 @@ class _NodeRow extends StatelessWidget {
     final style = node.isContainer
         ? theme.textStyle.body.enhanced(color: theme.textColorScheme.primary)
         : theme.textStyle.body.standard(
-            color: node.isRestorable
-                ? theme.textColorScheme.primary
-                // Not restorable in this phase (D4) — visible, but clearly inert.
-                : theme.textColorScheme.tertiary,
+            color: isPreviewing
+                ? theme.textColorScheme.action
+                : node.isRestorable
+                    ? theme.textColorScheme.primary
+                    // Not restorable in this phase (D4) — visible, but inert.
+                    : theme.textColorScheme.tertiary,
           );
 
-    return Padding(
-      padding: EdgeInsets.only(left: 12.0 * depth, top: 3, bottom: 3),
+    final row = Container(
+      decoration: BoxDecoration(
+        // Same rule as the day list: the open thing carries the tinted fill,
+        // hover stays quiet. Reversing it makes whatever the pointer happens to
+        // rest on look chosen.
+        color: isPreviewing ? theme.fillColorScheme.themeSelect : null,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
       child: Row(
         children: [
           Flexible(
@@ -412,6 +444,105 @@ class _NodeRow extends StatelessWidget {
           ],
         ],
       ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(left: 12.0 * depth, top: 1, bottom: 1),
+      // Containers hold no document, so clicking one has nothing to show. It
+      // stays plain text rather than a control that does nothing when pressed.
+      child: node.isContainer
+          ? row
+          : InkWell(
+              onTap: () => context.read<SnapshotBrowseBloc>().preview(node),
+              borderRadius: BorderRadius.circular(6),
+              child: row,
+            ),
+    );
+  }
+}
+
+/// One page from the backup, read-only beside the tree (D5).
+class _PreviewPane extends StatelessWidget {
+  const _PreviewPane({required this.state});
+
+  final SnapshotBrowseState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    final node = state.previewNode;
+    if (node == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                node.name.isEmpty ? 'Untitled' : node.name,
+                style: theme.textStyle.heading4.prominent(
+                  color: theme.textColorScheme.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Same button the header uses, with the explicit hover colour: a
+            // bare Material icon button here would hover the full accent block
+            // (see `_flatHoverTheme` above).
+            FlowyIconButton(
+              width: 24,
+              icon: const FlowySvg(FlowySvgs.close_s),
+              hoverColor: theme.fillColorScheme.contentHover,
+              tooltipText: 'Close preview',
+              onPressed: () =>
+                  context.read<SnapshotBrowseBloc>().closePreview(),
+            ),
+          ],
+        ),
+        // Says plainly what you are looking at. Without it, a preview that looks
+        // exactly like the live page invites the belief that it IS the live page
+        // — the single most dangerous misreading on this screen.
+        Text(
+          'From this backup — you can read it, but not change it.',
+          style: theme.textStyle.caption.standard(
+            color: theme.textColorScheme.secondary,
+          ),
+        ),
+        VSpace(theme.spacing.m),
+        Expanded(child: _previewBody(context, theme, node)),
+      ],
+    );
+  }
+
+  Widget _previewBody(
+    BuildContext context,
+    AppFlowyThemeData theme,
+    SnapshotNode node,
+  ) {
+    if (state.isLoadingPreview) {
+      return const Center(child: CircularProgressIndicator.adaptive());
+    }
+    if (state.previewError != null) {
+      return Text(
+        state.previewError!,
+        style: theme.textStyle.body.standard(color: theme.textColorScheme.error),
+      );
+    }
+    final data = state.preview;
+    if (data == null) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.backgroundColorScheme.primary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.borderColorScheme.primary),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SnapshotDocumentPreview(view: node.view, data: data),
     );
   }
 }

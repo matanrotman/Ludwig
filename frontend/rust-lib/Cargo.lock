@@ -2714,11 +2714,13 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "collab",
+ "collab-document",
  "collab-folder",
  "collab-integrate",
  "collab-plugins",
  "flowy-codegen",
  "flowy-derive",
+ "flowy-document",
  "flowy-error",
  "flowy-sqlite",
  "flowy-user-pub",

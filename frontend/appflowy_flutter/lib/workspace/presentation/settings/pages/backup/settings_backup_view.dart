@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/backup/backup_bloc.dart';
 import 'package:appflowy/shared/backup/backup_service.dart';
@@ -329,16 +331,23 @@ Future<void> _openSnapshotBrowser(BuildContext context, BackupState state) async
   }
   await showDialog<void>(
     context: context,
-    builder: (_) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: SizedBox(
-        width: 900,
-        height: 620,
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: SnapshotBrowser(destinationPath: destination),
+    builder: (dialogContext) {
+      // Phase 2 added a third pane (the preview), so the old fixed 900×620 left
+      // a page of prose in about 360pt. Preferred size first, shrinking only
+      // when the window genuinely can't hold it — the same shape as the
+      // Settings dialog's own width rule.
+      final screen = MediaQuery.sizeOf(dialogContext);
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+        child: SizedBox(
+          width: math.min(1120.0, screen.width * 0.92),
+          height: math.min(700.0, screen.height * 0.88),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SnapshotBrowser(destinationPath: destination),
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }

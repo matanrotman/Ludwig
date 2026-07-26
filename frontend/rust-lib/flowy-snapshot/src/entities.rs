@@ -9,6 +9,19 @@ pub struct ReadSnapshotTreePayloadPB {
   pub zip_path: String,
 }
 
+/// Ask for one document's content inside a snapshot, for the read-only preview (D5).
+#[derive(ProtoBuf, Debug, Default, Clone)]
+pub struct ReadSnapshotDocumentPayloadPB {
+  /// Absolute path to the snapshot zip, as with the tree read.
+  #[pb(index = 1)]
+  pub zip_path: String,
+
+  /// The view whose document to read. Must be a page — spaces and folders hold no
+  /// document of their own, and asking for one is an error rather than an empty page.
+  #[pb(index = 2)]
+  pub view_id: String,
+}
+
 /// One view in a snapshot: enough to draw a row and decide whether it can be ticked.
 #[derive(ProtoBuf, Debug, Default, Clone)]
 pub struct SnapshotViewPB {
