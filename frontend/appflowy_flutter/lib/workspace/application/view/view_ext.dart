@@ -54,6 +54,12 @@ class ViewExtKeys {
   // [fork:folder] marks a view that was deliberately created as a container —
   // see specs/folder.md. Explicit, never inferred from "has children".
   static String isFolderKey = 'is_folder';
+
+  // [fork:ephemeral-pad] marks the one page acting as the blank pad the app
+  // opens on — see specs/ephemeral-pad.md. The pad is a REAL page carrying this
+  // flag, never an in-memory buffer, so nothing remounts the editor when it is
+  // promoted. Filtered out of the sidebar and out of Temporary's count.
+  static String isPadKey = 'is_pad';
   static String spaceCreatorKey = 'space_creator';
   static String spaceCreatedAtKey = 'space_created_at';
   static String spaceIconKey = 'space_icon';

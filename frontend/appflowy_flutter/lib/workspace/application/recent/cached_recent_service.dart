@@ -8,6 +8,7 @@ import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 
@@ -79,8 +80,15 @@ class CachedRecentService {
         return FlowyResult.success(
           RepeatedRecentViewPB(
             // filter the space view and the orphan view
+            //
+            // [fork:ephemeral-pad] D12 — and the pad, which is not a page yet.
+            // Listing it under "recent" would claim it is one, and it would
+            // still be there after it demotes. See specs/ephemeral-pad.md.
             items: recentViews.items.where(
-              (e) => !e.item.isSpace && e.item.id != e.item.parentViewId,
+              (e) =>
+                  !e.item.isSpace &&
+                  e.item.id != e.item.parentViewId &&
+                  !EphemeralPad.isPad(e.item),
             ),
           ),
         );

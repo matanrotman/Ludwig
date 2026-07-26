@@ -1,4 +1,5 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -42,7 +43,10 @@ class TemporaryUnfiledCount extends StatelessWidget {
       create: (_) => ViewBloc(view: space)..add(const ViewEvent.initial()),
       child: BlocBuilder<ViewBloc, ViewState>(
         builder: (context, state) {
-          final count = state.view.childViews.length;
+          // [fork:ephemeral-pad] The pad lives in Temporary as a real page, so
+          // it would otherwise be counted as something sitting unfiled. It
+          // isn't — nothing has been captured yet. See specs/ephemeral-pad.md.
+          final count = EphemeralPad.withoutPad(state.view.childViews).length;
           if (count == 0) {
             return const SizedBox.shrink();
           }

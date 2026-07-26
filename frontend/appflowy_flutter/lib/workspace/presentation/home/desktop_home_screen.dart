@@ -1,13 +1,13 @@
 import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/plugins/blank/blank.dart';
-import 'package:appflowy/startup/plugin/plugin.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/startup/tasks/memory_leak_detector.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
 import 'package:appflowy/workspace/application/home/home_bloc.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/home/home_setting_bloc.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
@@ -109,19 +109,16 @@ class DesktopHomeScreen extends StatelessWidget {
                 listener: (context, state) {
                   final view = state.latestView;
                   if (view != null) {
-                    // Only open the last opened view if the [TabsState.currentPageManager] current opened plugin is blank and the last opened view is not null.
-                    // All opened widgets that display on the home screen are in the form of plugins. There is a list of built-in plugins defined in the [PluginType] enum, including board, grid and trash.
-                    final currentPageManager =
-                        context.read<TabsBloc>().state.currentPageManager;
-
-                    if (currentPageManager.plugin.pluginType ==
-                        PluginType.blank) {
-                      getIt<TabsBloc>().add(
-                        TabsEvent.openPlugin(plugin: view.plugin()),
-                      );
-                    }
-
-                    // switch to the space that contains the last opened view
+                    // [fork:ephemeral-pad] D5 — the app opens on the PAD, not
+                    // on the page you last had open. Upstream reopened
+                    // `latestView` here whenever the current plugin was blank;
+                    // that now races EphemeralPadLauncher and would sometimes
+                    // win, so it is deliberately not done. The page is one
+                    // click away in the sidebar. See specs/ephemeral-pad.md.
+                    //
+                    // The space-follow below is KEPT: it only expands the
+                    // space containing the view, and the sidebar should still
+                    // show you where you were.
                     _switchToSpace(view);
                   }
                 },
@@ -340,6 +337,13 @@ class DesktopHomeScreen extends StatelessWidget {
   }
 
   Future<void> _switchToSpace(ViewPB view) async {
+    // [fork:ephemeral-pad] Opening the pad makes it the workspace's latest
+    // view, so without this every launch would reveal — and permanently
+    // persist as expanded — the space the pad happens to live in. The pad has
+    // no place in the sidebar to point at; there is nothing to switch to.
+    if (EphemeralPad.isPad(view)) {
+      return;
+    }
     final ancestors = await ViewBackendService.getViewAncestors(view.id);
     final space = ancestors.fold(
       (ancestors) =>

@@ -29,6 +29,8 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/command_palette/command_palette.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
+import 'package:appflowy/workspace/presentation/home/pad/ephemeral_pad_launcher.dart';
+import 'package:appflowy/workspace/presentation/home/pad/sidebar_pad_tap_area.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_footer.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_upgrade_application_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar_top_menu.dart';
@@ -231,7 +233,12 @@ class HomeSideBar extends StatelessWidget {
                     },
                   ),
                 ],
-                child: _Sidebar(userProfile: userProfile),
+                // [fork:ephemeral-pad] D5 — open on the pad. Sits here because
+                // this is where SpaceBloc is provided and Temporary (where the
+                // pad lives) becomes resolvable. See specs/ephemeral-pad.md.
+                child: EphemeralPadLauncher(
+                  child: _Sidebar(userProfile: userProfile),
+                ),
               ),
             );
           },
@@ -482,15 +489,19 @@ class _SidebarState extends State<_Sidebar> {
         : Expanded(
             child: Padding(
               padding: menuHorizontalInset - const EdgeInsets.only(right: 6),
-              child: FlowyScrollbar(
-                controller: _scrollController,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(right: 6),
+              // [fork:ephemeral-pad] D4 — a click on the empty area below the
+              // spaces takes you back to the pad. See specs/ephemeral-pad.md.
+              child: SidebarPadTapArea(
+                child: FlowyScrollbar(
                   controller: _scrollController,
-                  physics: const ClampingScrollPhysics(),
-                  child: SidebarSpace(
-                    userProfile: widget.userProfile,
-                    isHoverEnabled: !_isScrolling,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(right: 6),
+                    controller: _scrollController,
+                    physics: const ClampingScrollPhysics(),
+                    child: SidebarSpace(
+                      userProfile: widget.userProfile,
+                      isHoverEnabled: !_isScrolling,
+                    ),
                   ),
                 ),
               ),

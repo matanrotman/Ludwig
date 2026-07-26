@@ -12,6 +12,11 @@ import 'package:appflowy/plugins/document/presentation/editor_drop_handler.dart'
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ai/widgets/ai_writer_scroll_wrapper.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover.dart';
+// [fork:ephemeral-pad] Prefixed because Flutter's material library exports its
+// own, different `kToolbarHeight` — the pad's top inset must track the header's
+// value, not Material's.
+import 'package:appflowy/plugins/document/presentation/editor_plugins/header/document_cover_widget.dart'
+    as document_header;
 import 'package:appflowy/plugins/document/application/page_theme_mode.dart';
 // [fork:ribbon] Phase 5 — per-page colour + margin getters on ViewPB.
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/page_color.dart';
@@ -30,6 +35,8 @@ import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/flowy_error_page.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
+import 'package:appflowy/workspace/presentation/home/pad/ephemeral_pad_promoter.dart';
 import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
@@ -224,6 +231,32 @@ class _DocumentPageState extends State<DocumentPage>
     // avoid the initial selection calculation change when the editorState is not changed
     initialSelection ??= _calculateInitialSelection(editorState);
 
+    // [fork:ephemeral-pad] D7 — the pad is BARE: a blank sheet and a cursor.
+    // No title field, no cover/icon buttons, no "Type '/' for commands". It is
+    // still an ordinary page underneath (that is the whole design — see
+    // specs/ephemeral-pad.md); this only changes what it shows.
+    //
+    // ⚠️ Read from the view this page OPENED with, deliberately not from the
+    // watched `view` above. Promotion clears the flag on the first character,
+    // and a live read would then swap the header in and the placeholder back
+    // **mid-keystroke** — the widget-tree change this whole feature is designed
+    // to avoid. D10 says it outright: "while you are still on it, it is still
+    // the pad." It becomes a page in appearance the next time it is opened,
+    // which is also when promotion becomes permanent.
+    final isPad = EphemeralPad.isPad(widget.view);
+
+    // With the header gone the first line would sit flush against the top of
+    // the sheet, because `documentPadding` is horizontal only — on an ordinary
+    // page it is the header that pushes the text down. So the pad reserves the
+    // header's own height instead of nothing, putting its cursor where a
+    // page's TITLE begins (user's choice, session 14).
+    //
+    // Derived, not a magic number: `kToolbarHeight` is exactly what
+    // `DocumentCoverWidget._calculateOverallHeight` reserves above the title
+    // for a page with no cover and no icon — which is every new page. If that
+    // changes, this follows it.
+    final padHeader = isPad ? const SizedBox(height: document_header.kToolbarHeight) : null;
+
     // [fork:page-surface] Built as a closure of `ctx`, not eagerly, so that on
     // desktop it is built INSIDE PageThemeScope — the EditorStyleCustomizer and
     // the cover/title then resolve every theme colour (text, links, code, …)
@@ -245,32 +278,47 @@ class _DocumentPageState extends State<DocumentPage>
               editorState: editorState,
               pageTextDirection: pageDirection.editorValue,
             ),
-            header: buildCoverAndIcon(context, state),
+            header: padHeader ?? buildCoverAndIcon(context, state),
             initialSelection: initialSelection,
           ),
         );
       }
-      return EditorDropHandler(
-        viewId: widget.view.id,
-        editorState: editorState,
-        isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
-        child: AppFlowyEditorPage(
+      // [fork:ephemeral-pad] Phase 2 — writing in the pad turns it into a page
+      // in Temporary (D2/D6), and emptying it again turns it back (D10).
+      // Mounted only for the pad, and it renders its child unchanged, so no
+      // ordinary page carries any of this.
+      Widget withPromotion(Widget child) => isPad
+          ? EphemeralPadPromoter(
+              view: widget.view,
+              editorState: editorState,
+              child: child,
+            )
+          : child;
+
+      return withPromotion(
+        EditorDropHandler(
+          viewId: widget.view.id,
           editorState: editorState,
-          // if the view's name is empty, focus on the title
-          autoFocus: widget.view.name.isEmpty ? false : null,
-          styleCustomizer: EditorStyleCustomizer(
-            context: ctx,
-            width: width,
-            padding: documentPadding,
+          isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
+          child: AppFlowyEditorPage(
             editorState: editorState,
-            pageTextDirection: pageDirection.editorValue,
+            // if the view's name is empty, focus on the title
+            autoFocus: widget.view.name.isEmpty ? false : null,
+            styleCustomizer: EditorStyleCustomizer(
+              context: ctx,
+              width: width,
+              padding: documentPadding,
+              editorState: editorState,
+              pageTextDirection: pageDirection.editorValue,
+            ),
+            header: padHeader ?? buildCoverAndIcon(ctx, state),
+            initialSelection: initialSelection,
+            placeholderText: (node) => !isPad &&
+                    node.type == ParagraphBlockKeys.type &&
+                    !node.isInTable
+                ? LocaleKeys.editor_slashPlaceHolder.tr()
+                : '',
           ),
-          header: buildCoverAndIcon(ctx, state),
-          initialSelection: initialSelection,
-          placeholderText: (node) =>
-              node.type == ParagraphBlockKeys.type && !node.isInTable
-                  ? LocaleKeys.editor_slashPlaceHolder.tr()
-                  : '',
         ),
       );
     }

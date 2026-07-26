@@ -6,6 +6,8 @@ import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/view_item.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/temporary_space.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
@@ -248,6 +250,14 @@ class _SidebarSpaceListState extends State<SidebarSpaceList> {
                     isExpandedNotifier: _collapseNotifier(space.id),
                     space: space,
                     isHovered: _pagesHovered,
+                    // [fork:ephemeral-pad] The pad is a real page living in
+                    // Temporary, and this is what keeps it off the sidebar —
+                    // see specs/ephemeral-pad.md. Applied to every space, not
+                    // just Temporary: cheap, and it means a pad that somehow
+                    // ends up elsewhere still can't show up as a stray row.
+                    shouldIgnoreView: (view) => EphemeralPad.isPad(view)
+                        ? IgnoreViewType.hide
+                        : IgnoreViewType.none,
                     onSelected: (context, view) {
                       if (HardwareKeyboard.instance.isControlPressed) {
                         context.read<TabsBloc>().openTab(view);
