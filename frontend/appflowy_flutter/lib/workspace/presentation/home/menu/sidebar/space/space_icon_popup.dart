@@ -6,6 +6,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/icon_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
+import 'package:appflowy/util/color_contrast.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -44,6 +45,9 @@ class SpaceIconPopup extends StatefulWidget {
     this.cornerRadius = 16,
     this.space,
     required this.onIconChanged,
+    this.dimension = 32,
+    this.svgSize,
+    this.showBackground = true,
   });
 
   final String? icon;
@@ -51,6 +55,25 @@ class SpaceIconPopup extends StatefulWidget {
   final ViewPB? space;
   final void Function(String? icon, String? color) onIconChanged;
   final double cornerRadius;
+
+  /// [fork:folder] How the trigger preview is drawn. These exist because the
+  /// sidebar's space header opens this picker by clicking the icon *in place*,
+  /// so the trigger IS the sidebar's icon and has to look like it — small, and
+  /// without the filled badge (the header row already carries the space colour
+  /// as a tint; repeating it as a vivid badge said the same thing twice).
+  ///
+  /// The defaults reproduce the previous behaviour exactly, so every other
+  /// caller — the create-space and manage-space dialogs — is unchanged.
+  final double dimension;
+
+  /// Glyph size. Null keeps the original sizing, which deliberately *overflows*
+  /// the legacy `space_icon_*` tiles so they bleed to the edges of the badge.
+  /// That only reads correctly at the full 32pt tile with a background behind
+  /// it; at sidebar size it just crops the glyph, which is why the header
+  /// passes an explicit size.
+  final double? svgSize;
+
+  final bool showBackground;
 
   @override
   State<SpaceIconPopup> createState() => _SpaceIconPopupState();
@@ -106,6 +129,100 @@ class _SpaceIconPopupState extends State<SpaceIconPopup> {
     );
   }
 
+  /// The picker's trigger: what the space's icon looks like right now, including
+  /// a live preview of whatever is being hovered in the open picker.
+  ///
+  /// [fork:folder] All three branches honour [SpaceIconPopup.dimension],
+  /// [SpaceIconPopup.svgSize] and [SpaceIconPopup.showBackground], because the
+  /// sidebar header uses this widget as its icon *in place*. Before, the branches
+  /// hardcoded a 32pt tile with the badge always on — and drew the legacy
+  /// `space_icon_*` glyphs at 42pt inside it, relying on the clip to make them
+  /// bleed. At the header's 22pt that produced a cropped fragment of a glyph on a
+  /// badge that was supposed to be gone.
+  Widget _buildIconTile(BuildContext context, String? value, String color) {
+    // Nothing picked yet: SpaceIcon already handles the name-initial fallback
+    // and the no-badge contrast tinting, so defer to it rather than repeat it.
+    if (value == null) {
+      if (widget.space == null) {
+        return DefaultSpaceIcon(
+          cornerRadius: widget.cornerRadius,
+          dimension: widget.dimension,
+          iconDimension: widget.svgSize ?? widget.dimension,
+        );
+      }
+      return SpaceIcon(
+        dimension: widget.dimension,
+        space: widget.space!,
+        svgSize: widget.svgSize ?? 24,
+        cornerRadius: widget.cornerRadius,
+        showBackground: widget.showBackground,
+      );
+    }
+
+    // A space can carry an empty or malformed colour (spaces created before the
+    // picker existed do), so never parse it eagerly — the previous code only got
+    // away with `int.parse` because it sat behind the icon-content check.
+    final tint = _parseColor(color);
+
+    // With a badge behind it the glyph is knocked out in the surface colour.
+    // Without one it has to carry the space's colour itself, nudged until it
+    // reads against the sidebar — the same rule SpaceIcon applies. With no
+    // usable colour at all, fall back to plain foreground rather than vanish.
+    final surface = Theme.of(context).colorScheme.surface;
+    final Color glyphColor;
+    if (widget.showBackground) {
+      glyphColor = surface;
+    } else if (tint != null) {
+      glyphColor = ensureContrast(tint, surface, minRatio: 3.0);
+    } else {
+      glyphColor = Theme.of(context).colorScheme.onSurface;
+    }
+
+    final Widget glyph;
+    if (value.contains('space_icon')) {
+      glyph = FlowySvg(
+        FlowySvgData('assets/flowy_icons/16x/$value.svg'),
+        // The legacy tiles are drawn to bleed past the badge; that only works
+        // at full size with a background, so an explicit svgSize wins.
+        size: Size.square(widget.svgSize ?? 42),
+        color: glyphColor,
+      );
+    } else {
+      final content = kIconGroups?.findSvgContent(value);
+      if (content == null) {
+        return const SizedBox.shrink();
+      }
+      glyph = FlowySvg.string(
+        content,
+        size: Size.square(widget.svgSize ?? 24),
+        color: glyphColor,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.cornerRadius),
+      child: Container(
+        width: widget.dimension,
+        height: widget.dimension,
+        color: widget.showBackground ? tint : null,
+        child: Align(child: glyph),
+      ),
+    );
+  }
+
+  /// Null rather than throwing, for the empty/legacy/malformed cases.
+  Color? _parseColor(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    try {
+      return Color(int.parse(value));
+    } catch (e) {
+      Log.error('Failed to parse space icon color: $e, value: $value');
+      return null;
+    }
+  }
+
   Widget _buildPreview() {
     bool onHover = false;
     return StatefulBuilder(
@@ -120,57 +237,7 @@ class _SpaceIconPopupState extends State<SpaceIconPopup> {
               return ValueListenableBuilder(
                 valueListenable: selectedIcon,
                 builder: (_, value, __) {
-                  Widget child;
-                  if (value == null) {
-                    if (widget.space == null) {
-                      child = DefaultSpaceIcon(
-                        cornerRadius: widget.cornerRadius,
-                        dimension: 32,
-                        iconDimension: 32,
-                      );
-                    } else {
-                      child = SpaceIcon(
-                        dimension: 32,
-                        space: widget.space!,
-                        svgSize: 24,
-                        cornerRadius: widget.cornerRadius,
-                      );
-                    }
-                  } else if (value.contains('space_icon')) {
-                    child = ClipRRect(
-                      borderRadius: BorderRadius.circular(widget.cornerRadius),
-                      child: Container(
-                        color: Color(int.parse(color)),
-                        child: Align(
-                          child: FlowySvg(
-                            FlowySvgData('assets/flowy_icons/16x/$value.svg'),
-                            size: const Size.square(42),
-                            color: Theme.of(context).colorScheme.surface,
-                          ),
-                        ),
-                      ),
-                    );
-                  } else {
-                    final content = kIconGroups?.findSvgContent(value);
-                    if (content == null) {
-                      child = const SizedBox.shrink();
-                    } else {
-                      child = ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(widget.cornerRadius),
-                        child: Container(
-                          color: Color(int.parse(color)),
-                          child: Align(
-                            child: FlowySvg.string(
-                              content,
-                              size: const Size.square(24),
-                              color: Theme.of(context).colorScheme.surface,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                  }
+                  final child = _buildIconTile(context, value, color);
 
                   if (onHover) {
                     return Stack(

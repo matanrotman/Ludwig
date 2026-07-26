@@ -838,6 +838,13 @@ impl FolderManager {
         }
 
         Self::unfavorite_view_and_decendants(view.clone(), &mut folder);
+        // Only the ROOT of the branch goes into the trash section, on purpose. The read path
+        // already expands a trashed root to its whole branch (`get_all_trash_ids` ->
+        // `get_all_child_view_ids`), so every descendant is treated as trashed without being
+        // listed separately — which is also what makes restoring the root restore the whole
+        // branch. Do not "fix" this by adding descendants here: it would make restore leave
+        // them flagged as trashed, and would turn one deleted page into N rows in the trash
+        // list. The real bug was on the *delete* side; see `delete_trash`.
         folder.add_trash_view_ids(vec![view_id.to_string()]);
         drop(folder);
 
@@ -859,14 +866,19 @@ impl FolderManager {
     Ok(())
   }
 
+  /// Removes the view and every view nested inside it from the favourites list.
+  ///
+  /// This walks the whole branch. It previously used `get_views_belong_to`, which returns only
+  /// the *direct* children, so a favourited grandchild stayed in the favourites list after its
+  /// ancestor was trashed — a favourite pointing at a page the user could no longer open.
   fn unfavorite_view_and_decendants(view: Arc<View>, folder: &mut Folder) {
-    let mut all_descendant_views: Vec<Arc<View>> = vec![view.clone()];
-    all_descendant_views.extend(folder.get_views_belong_to(&view.id));
+    // `get_view_recursively` includes `view` itself and is cycle-safe.
+    let all_descendant_views: Vec<View> = folder.get_view_recursively(&view.id);
 
     let favorite_descendant_views: Vec<ViewPB> = all_descendant_views
       .iter()
       .filter(|view| view.is_favorite)
-      .map(|view| view_pb_without_child_views(view.as_ref().clone()))
+      .map(|view| view_pb_without_child_views(view.clone()))
       .collect();
 
     if !favorite_descendant_views.is_empty() {
@@ -2022,21 +2034,47 @@ impl FolderManager {
   /// Delete the trash permanently.
   /// Delete the view will delete all the resources that the view holds. For example, if the view
   /// is a database view. Then the database will be deleted as well.
+  ///
+  /// This deletes the whole branch — the view and every descendant. It used to delete only
+  /// `view_id`, which left the descendants behind pointing at a parent that no longer existed:
+  /// absent from the sidebar, absent from the trash list, and unreachable by any route in the
+  /// app, even though their data was still on disk. That is how a real page was lost on
+  /// 2026-07-25. See `specs/delete-and-trash.md`.
   #[tracing::instrument(level = "debug", skip(self, view_id), err)]
   pub async fn delete_trash(&self, view_id: &str) -> FlowyResult<()> {
     if let Some(lock) = self.mutex_folder.load_full() {
-      let view = {
+      let deleted_views = {
         let mut folder = lock.write().await;
-        let view = folder.get_view(view_id);
-        folder.delete_trash_view_ids(vec![view_id.to_string()]);
-        folder.delete_views(vec![view_id]);
-        view
+        // Collect the branch BEFORE deleting anything: once the root's entry is gone its
+        // descendants can no longer be walked to, and they would be stranded for good.
+        // `get_view_recursively` includes the view itself and is cycle-safe.
+        let deleted_views = folder.get_view_recursively(view_id);
+        let deleted_view_ids: Vec<String> = deleted_views.iter().map(|v| v.id.clone()).collect();
+        // Descendants are not normally in the trash section (see `move_view_to_trash`), but a
+        // view can be trashed on its own and later swallowed by an ancestor's deletion, so
+        // clear the whole branch rather than just the root.
+        folder.delete_trash_view_ids(deleted_view_ids.clone());
+        folder.delete_views(deleted_view_ids);
+        deleted_views
       };
 
-      if let Some(view) = view {
-        let view_id = Uuid::from_str(view_id)?;
+      // Deleting a view also releases the resources it holds — a database view owns its
+      // database. Every view in the branch needs this, not just the root, or fixing the
+      // orphaned-page bug would simply trade it for orphaned databases.
+      for view in deleted_views {
+        let view_uuid = match Uuid::from_str(&view.id) {
+          Ok(view_uuid) => view_uuid,
+          Err(err) => {
+            error!("Skip deleting resources of view {}: {}", view.id, err);
+            continue;
+          },
+        };
         if let Ok(handler) = self.get_handler(&view.layout) {
-          handler.delete_view(&view_id).await?;
+          // Best-effort: the folder entries are already gone, so a failure here must not
+          // abort the loop and strand the remaining views' resources.
+          if let Err(err) = handler.delete_view(&view_uuid).await {
+            error!("Failed to delete resources of view {}: {}", view.id, err);
+          }
         }
       }
     }

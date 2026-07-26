@@ -302,3 +302,40 @@ with its own tap handler so the click doesn't also toggle the space.
 **Deferred, needs its own discussion (user, 2026-07-25):** *choosing a UI font that properly supports
 Hebrew, Latin and Arabic.* Japanese, Chinese and Urdu explicitly undecided. This is a real cross-cutting
 choice — it affects every weight above — and should be settled before any more typographic tuning.
+
+### 2026-07-26 (session 13) — space icons were rendering corrupted; regression traced and fixed
+
+The user reported the sidebar's space icons looking "corrupted": a colour-filled badge showing what
+was clearly a *fragment* of a glyph, on exactly the spaces whose icons predate the icon picker.
+Both halves of that were real, and both came from session 12's own last commit (`a29ba8963`), not
+from the delete work being done this session.
+
+**What happened.** Round 3 (`4f2507659`) settled the header's icon as
+`SpaceIcon(dimension: 22, svgSize: 12, showBackground: false)` — small, no badge, glyph re-tinted
+for contrast, because the header row already carries the space's colour as a tint and a vivid
+badge said the same thing twice. Then `a29ba8963` added "clicking the icon opens the picker" by
+replacing that `SpaceIcon` with a `SpaceIconPopup`. **`SpaceIconPopup` renders its own trigger
+through `_buildPreview`, which is a completely separate code path** — it hardcoded a 32pt tile with
+the badge always on, and drew legacy `space_icon_*` glyphs at **42pt inside that 32pt box**,
+relying on the `ClipRRect` to make them bleed to the edges.
+
+At the dialog sizes that widget was written for, the 42-in-32 overflow is deliberate and looks
+right. Dropped into a 22pt sidebar row it is just a crop — which is exactly what the user saw. So
+one line intended as a behaviour change (open the picker on click) silently reverted a settled
+*visual* decision, because the replacement widget had a parallel renderer nobody looked at.
+
+**The lesson worth keeping:** when swapping a display widget for an interactive wrapper "that shows
+the same thing", check whether the wrapper *re-implements* the rendering rather than delegating to
+it. Here it did, and the two drifted instantly.
+
+**Fix.** `SpaceIconPopup` gained `dimension` / `svgSize` / `showBackground`, all defaulting to the
+previous values so the create-space and manage-space dialogs are unchanged, and its three preview
+branches were folded into one `_buildIconTile` that honours them (and applies the same
+`ensureContrast` tinting `SpaceIcon` uses when there is no badge). The header passes the round-3
+numbers back in: `dimension: 22, svgSize: 12, showBackground: false`.
+
+Also fixed while in there: `_buildPreview` called `int.parse` on the icon colour **before** the
+"is there any icon content" check, so a space with an empty or malformed colour threw a
+`FormatException` mid-build. It only escaped notice because the old code happened to sit behind
+the content check. Colour parsing is now null-returning, with a plain-foreground fallback — caught
+by `space_list_header_test.dart`, which exercises exactly that empty-colour case.

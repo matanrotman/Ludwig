@@ -21,6 +21,7 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/delete_with_children_dialog.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/inline_rename_field.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
@@ -28,7 +29,6 @@ import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_more_action_button.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/more_view_actions/widgets/lock_page_action.dart';
 import 'package:appflowy/workspace/presentation/widgets/rename_view_popover.dart';
 import 'package:appflowy_backend/log.dart';
@@ -886,20 +886,17 @@ class _SingleInnerViewItemState extends State<SingleInnerViewItem> {
               );
               break;
             case ViewMoreActionType.delete:
-              // get if current page contains published child views
-              final (containPublishedPage, _) =
-                  await ViewBackendService.containPublishedPage(widget.view);
-              if (containPublishedPage && context.mounted) {
-                await showConfirmDeletionDialog(
-                  context: context,
-                  name: widget.view.name,
-                  description: LocaleKeys.publish_containsPublishedPage.tr(),
-                  onConfirm: () =>
-                      context.read<ViewBloc>().add(const ViewEvent.delete()),
-                );
-              } else if (context.mounted) {
-                context.read<ViewBloc>().add(const ViewEvent.delete());
-              }
+              // Deleting something that contains other pages asks first, and offers to
+              // move the contents out instead. A page with nothing inside it is deleted
+              // with no dialog, exactly as before. The published-page warning that used
+              // to live here moved inside, so the two can be shown together rather than
+              // one silently replacing the other. See specs/delete-and-trash.md.
+              final viewBloc = context.read<ViewBloc>();
+              await showDeleteViewDialog(
+                context: context,
+                view: widget.view,
+                onDelete: () => viewBloc.add(const ViewEvent.delete()),
+              );
               break;
             case ViewMoreActionType.duplicate:
               context.read<ViewBloc>().add(const ViewEvent.duplicate());

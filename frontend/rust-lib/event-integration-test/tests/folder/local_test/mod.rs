@@ -1,3 +1,4 @@
+mod delete_branch_test;
 mod folder_test;
 mod import_test;
 mod script;

@@ -1,16 +1,13 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
-import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/sidebar/folder/folder_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
-import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/delete_with_children_dialog.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_more_action_button.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -53,21 +50,15 @@ class ViewAction extends StatelessWidget {
   ) async {
     switch (type) {
       case ViewMoreActionType.delete:
-        final (containPublishedPage, _) =
-            await ViewBackendService.containPublishedPage(view);
-
-        if (containPublishedPage && context.mounted) {
-          await showConfirmDeletionDialog(
-            context: context,
-            name: view.nameOrDefault,
-            description: LocaleKeys.publish_containsPublishedPage.tr(),
-            onConfirm: () {
-              context.read<ViewBloc>().add(const ViewEvent.delete());
-            },
-          );
-        } else if (context.mounted) {
-          context.read<ViewBloc>().add(const ViewEvent.delete());
-        }
+        // Same ask-first flow as the sidebar's delete — a page that contains other
+        // pages must never take them without saying so, whichever menu it is deleted
+        // from. See specs/delete-and-trash.md.
+        final viewBloc = context.read<ViewBloc>();
+        await showDeleteViewDialog(
+          context: context,
+          view: view,
+          onDelete: () => viewBloc.add(const ViewEvent.delete()),
+        );
       case ViewMoreActionType.duplicate:
         context.read<ViewBloc>().add(const ViewEvent.duplicate());
       case ViewMoreActionType.moveTo:

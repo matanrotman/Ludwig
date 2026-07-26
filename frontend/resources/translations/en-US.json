@@ -3538,5 +3538,15 @@
   },
   "shareSection": {
     "shared": "Shared with me"
+  },
+  "deleteWithChildren": {
+    "title": "Delete \"{}\"?",
+    "countOne": "It contains 1 page.",
+    "countMany": "It contains {} pages.",
+    "alsoPublished": "Some of them are published and will be unpublished.",
+    "deleteEverything": "Delete everything",
+    "moveThemElsewhere": "Move them elsewhere…",
+    "movePickerTitle": "Where should the pages inside \"{}\" go?",
+    "moveFailed": "Some pages could not be moved, so nothing was deleted."
   }
 }

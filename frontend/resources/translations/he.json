@@ -2079,5 +2079,15 @@
     "privacyPolicy": "מדיניות פרטיות",
     "signInError": "שגיאת כניסה",
     "login": "הרשמה או כניסה"
+  },
+  "deleteWithChildren": {
+    "title": "למחוק את \"{}\"?",
+    "countOne": "יש בתוכו דף אחד.",
+    "countMany": "יש בתוכו {} דפים.",
+    "alsoPublished": "חלק מהם מפורסמים ויוסר פרסומם.",
+    "deleteEverything": "למחוק הכול",
+    "moveThemElsewhere": "להעביר אותם למקום אחר…",
+    "movePickerTitle": "לאן יעברו הדפים שבתוך \"{}\"?",
+    "moveFailed": "חלק מהדפים לא הועברו, ולכן דבר לא נמחק."
   }
 }

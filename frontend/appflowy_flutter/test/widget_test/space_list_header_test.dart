@@ -20,6 +20,10 @@ void main() {
   setUp(() {
     spaceBloc = MockSpaceBloc();
     when(() => spaceBloc.stream).thenAnswer((_) => const Stream.empty());
+    // The header reads the bloc's state to decide whether this row is the Temporary
+    // space (added with temp-space Phase 1), so the mock has to answer with a real
+    // state rather than null.
+    when(() => spaceBloc.state).thenReturn(SpaceState());
     toggles = 0;
   });
 
@@ -45,6 +49,7 @@ void main() {
                 onAddPage: (_) {},
                 onCreateNewSpace: () {},
                 onCollapseAllPages: () {},
+                onCreateFolder: () {},
               ),
             ),
           ),

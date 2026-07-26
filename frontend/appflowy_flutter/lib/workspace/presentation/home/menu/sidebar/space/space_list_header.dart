@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -12,13 +13,13 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/manage_space_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_action_type.dart';
+import 'package:appflowy/workspace/presentation/home/menu/view/delete_with_children_dialog.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_more_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/temporary_unfiled_count.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/double_click_detector.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/inline_rename_field.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -203,6 +204,14 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
             icon: widget.space.spaceIcon,
             iconColor: widget.space.spaceIconColor,
             cornerRadius: 8.0,
+            // [fork:folder] Match the sidebar's icon exactly — the picker's
+            // trigger IS this row's icon, so it keeps the settled visual
+            // language: small, no filled badge, glyph tinted for contrast
+            // against the already-tinted row. Without these the popup fell back
+            // to its dialog-sized 32pt badge and cropped the glyph.
+            dimension: 22,
+            svgSize: 12,
+            showBackground: false,
             onIconChanged: (icon, color) => context.read<SpaceBloc>().add(
                   SpaceEvent.changeIcon(
                     space: widget.space,
@@ -335,7 +344,7 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
         widget.onCollapseAllPages();
         break;
       case SpaceMoreActionType.delete:
-        _showDeleteSpaceDialog(context);
+        unawaited(_showDeleteSpaceDialog(context));
         break;
       case SpaceMoreActionType.duplicate:
         context
@@ -363,13 +372,16 @@ class _SpaceListHeaderState extends State<SpaceListHeader> {
     );
   }
 
-  void _showDeleteSpaceDialog(BuildContext context) {
+  Future<void> _showDeleteSpaceDialog(BuildContext context) async {
     final spaceBloc = context.read<SpaceBloc>();
-    showConfirmDeletionDialog(
+    // A space is a container like any other (capture-and-structure decision 1), so it gets
+    // the same ask-first treatment: the real count of what is inside, and the option to
+    // move those pages somewhere else instead. An empty space still deletes in one step.
+    // See specs/delete-and-trash.md.
+    await showDeleteViewDialog(
       context: context,
-      name: widget.space.name,
-      description: LocaleKeys.space_deleteConfirmationDescription.tr(),
-      onConfirm: () => spaceBloc.add(SpaceEvent.delete(widget.space)),
+      view: widget.space,
+      onDelete: () => spaceBloc.add(SpaceEvent.delete(widget.space)),
     );
   }
 }
