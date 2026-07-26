@@ -339,3 +339,15 @@ Also fixed while in there: `_buildPreview` called `int.parse` on the icon colour
 `FormatException` mid-build. It only escaped notice because the old code happened to sit behind
 the content check. Colour parsing is now null-returning, with a plain-foreground fallback — caught
 by `space_list_header_test.dart`, which exercises exactly that empty-colour case.
+
+### 2026-07-26 (session 13) — follow-up (a) closed
+
+Follow-up (a) from the Phase 1 live testing — "deleting a folder silently takes its pages, and the
+user wants an ask-first policy offering Move to" — is **done**, and turned out to be the visible half
+of a real data-loss bug. It grew its own spec, `specs/delete-and-trash.md`: deleting a container now
+asks first, counts every nested page at any depth, and offers to move the contents elsewhere via the
+existing `MovePageMenu`. Live-verified by the user.
+
+Follow-up 5 (clicking empty sidebar space deselects the open page) remains blocked on the ephemeral
+pad, which is now fully scoped in `specs/ephemeral-pad.md` — the gesture is D4 there and ships as that
+feature's Phase 3, so it should be built with the pad rather than separately.

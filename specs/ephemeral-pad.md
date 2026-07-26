@@ -51,7 +51,8 @@ that gesture and blocked it precisely because there was nothing to return *to*.
 | D8 | The top New Page button | **Opens the pad** instead of creating a page. One capture route, not two. |
 | D9 | The pad and tabs | **The pad can never be open in two tabs at once.** Asking for it while it is already open focuses the tab that has it. |
 | D10 | Emptying a promoted pad | **While you are still on it, it is still the pad.** Type (it promotes), delete it all again, and it demotes — the sidebar row goes away. Promotion only becomes final when you navigate away. |
-| D11 | The pad's own look | **The pad gets its own page colour, theme and margins**, like any page. Those settings **carry forward to the next pad** when one promotes (see below). |
+| D11 | The pad's own look | **The pad gets its own page colour, theme and margins**, like any page. Each **new pad starts from the defaults** — the look does not carry forward. |
+| D12 | The pad and search | **The pad must not be findable before it promotes.** It is not a page yet, so it must not appear in search, recent views, or any "where was I" surface. |
 
 ## ⚠️ The main technical risk, and the design that avoids it
 
@@ -103,6 +104,8 @@ purity at the price of the two most expensive bug classes this fork has hit.
   decision 3; this refines it, and the spec text there should be updated rather than contradicted.
 - **Temporary's `(n)` count**: must not count the pad. Likely the first thing to break.
 - **Tabs** (D9): `TabsBloc` — opening the pad must focus an existing pad tab rather than add one.
+- **Search / recent exclusion** (D12): `flowy-search` indexing plus the recent-views surfaces. The
+  pad flag is the filter; the work is finding every place that needs it.
 
 ## Phased plan
 
@@ -134,9 +137,10 @@ D10 sidebar flicker on the real thing.
 - Temporary's `(n)` never counts the pad.
 - Exactly one pad view exists — verifiable in the folder data, not just on screen.
 - The pad is never open in two tabs (D9).
+- Searching for text that is in the un-promoted pad finds **nothing** (D12).
+- A page colour set on the pad is **gone** on the next pad, and still there on the promoted page (D11).
 - Typing then deleting everything, without navigating away, leaves **nothing** in Temporary (D10).
 - Navigating away after typing makes the page permanent, even if it is later emptied.
-- A page colour set on the pad is still there on the next pad (D11).
 
 ## Multi-user readiness
 
@@ -166,23 +170,33 @@ Decide from the real thing, not from here.
 
 ## Where the pad's look lives (D11)
 
-The pad carries per-page settings in `View.extra` like any page, alongside the pad flag. But a look
-you set on the pad would be pointless if every new pad reverted to defaults — so **on promotion,
-the newly created pad inherits the promoted one's page colour, theme and margins.** The settings
-stay entirely in `View.extra`; no new preference store, no second place for this to live.
+The pad carries per-page settings in `View.extra` like any page, alongside the pad flag. **A new pad
+starts from the defaults** (user, 2026-07-26): the look you gave one pad does not follow you into the
+next one. A pad is a fresh sheet in every sense.
 
-**Flagged because it is a judgment call, not something the interview settled:** this means changing
-the pad's look changes it for all future pads, and the page you just promoted keeps that look too
-(it is the same view). If you would rather the look reset each time, say so — it is a one-line
-difference at promotion.
+Two consequences worth stating, because neither is a bug:
+
+- **The page you just promoted keeps the look you gave it.** Unavoidable and correct — it is the same
+  view, and the look is part of the page you wrote.
+- **Styling the pad is therefore a per-sheet act, not a preference.** If a persistent "this is how my
+  pad always looks" is ever wanted, that is a different feature (a stored default applied at pad
+  creation) and should be asked for as one rather than grown into.
+
+Everything stays in `View.extra`. No second place for this to live, and nothing to migrate.
 
 ## Open questions
 
-1. **First-line naming and RTL.** Noted and accepted as a watch item rather than a question: the
-   first line may be Hebrew, and sidebar name rendering already has direction handling worth
-   re-checking during Phase 2.
-2. **Does the pad appear in "recent" surfaces** (search, recent views, `latestOpenView`) before it
-   promotes? It should not, but the filtering points are not all in one place.
+None outstanding. All four raised at scoping were answered by the user on 2026-07-26 (D9–D12, plus
+the D11 amendment).
+
+Two **watch items** carried into the build rather than left as questions:
+
+1. **First-line naming and RTL** (Phase 2). The first line may be Hebrew; sidebar name rendering
+   already has direction handling worth re-checking rather than assuming.
+2. **D12's filtering points are not all in one place.** The pad must be excluded from search, recent
+   views and `latestOpenView`, and those are separate call sites. Missing one would leak a
+   not-yet-a-page into a surface that implies it is one — worth a deliberate sweep rather than
+   fixing them as they are noticed.
 
 ## Session Log
 
@@ -197,5 +211,24 @@ The four open questions were then answered by the user the same day, adding D9�
 stays provisional until you navigate away) is a genuine improvement on the original scope and
 removes the "empty page left in Temporary" case entirely; its one cost — sidebar flicker while
 type-and-deleting — is written up above to be judged live rather than guessed at. D11's follow-on
-question (does a *new* pad inherit the look?) was not asked, and is answered here with reasoning as
-"yes, carried forward on promotion", flagged for correction. Not yet built.
+question (does a *new* pad inherit the look?) was not asked; it was proposed as "carried forward",
+flagged for correction, and the user **corrected it the same day: reset each time**. D12 (never
+findable before promotion) closed the last open question. No open questions remain. Not yet built.
+
+### 2026-07-26 (session 13, later) — open questions closed
+
+The user answered all four the same day, adding D9–D12 and amending D11:
+
+- **D9** the pad can never be open in two tabs.
+- **D10** promotion is provisional until you navigate away — a genuine improvement on the original
+  scope, since it removes the "empty page left in Temporary" case without silently deleting
+  anything. Its cost (sidebar flicker while type-and-deleting) is written up above with two possible
+  mitigations, to be judged on the real thing.
+- **D11 amended.** It was proposed that a new pad inherit the promoted one's look, flagged as a
+  judgment call; the user corrected it to **reset each time**. A pad is a fresh sheet in every sense.
+- **D12** the pad must not be findable before it promotes — no search, no recent views, no
+  "where was I".
+
+**No open questions remain.** Two watch items carried into the build: RTL first-line naming, and the
+fact that D12's filtering points are spread across several call sites and need a deliberate sweep
+rather than being fixed as they are noticed.
