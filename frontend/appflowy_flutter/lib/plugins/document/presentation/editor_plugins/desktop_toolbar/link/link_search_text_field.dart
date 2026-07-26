@@ -6,6 +6,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emo
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/list_extension.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
@@ -332,8 +333,11 @@ class LinkSearchTextField {
         .toNullable()
         ?.items
         .where(
+          // [fork:ephemeral-pad] D12 — linking to the un-promoted pad would
+          // point at a page that does not exist yet.
           (view) =>
               (view.id != currentViewId) &&
+              !EphemeralPad.isPad(view) &&
               (view.name.toLowerCase().contains(search.toLowerCase()) ||
                   (view.name.isEmpty && search.isEmpty) ||
                   (view.name.isEmpty &&

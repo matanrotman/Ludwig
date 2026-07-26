@@ -2,6 +2,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/flowy_search_text_field.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/base/drag_handler.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -171,8 +172,10 @@ class _MobilePageSelectorBodyState extends State<_MobilePageSelectorBody> {
     );
   }
 
-  Future<List<ViewPB>> _fetchViews() async =>
-      (await ViewBackendService.getAllViews()).toNullable()?.items ?? [];
+  // [fork:ephemeral-pad] D12 — see the note in `mobile_page_selector_sheet.dart`.
+  Future<List<ViewPB>> _fetchViews() async => EphemeralPad.withoutPad(
+        (await ViewBackendService.getAllViews()).toNullable()?.items ?? [],
+      );
 }
 
 class _Header extends SliverPersistentHeaderDelegate {

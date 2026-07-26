@@ -12,6 +12,7 @@ import 'package:appflowy/shared/flowy_error_page.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/list_extension.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
@@ -95,7 +96,14 @@ class InlinePageReferenceService extends InlineActionsDelegate {
     return _allViews = viewResult
             .toNullable()
             ?.items
-            .where((v) => viewLayout == null || v.layout == viewLayout)
+            // [fork:ephemeral-pad] D12 — `@`-mentioning the un-promoted pad
+            // would embed a link to a page that does not exist yet, and that
+            // link would break the moment the pad demotes.
+            .where(
+              (v) =>
+                  (viewLayout == null || v.layout == viewLayout) &&
+                  !EphemeralPad.isPad(v),
+            )
             .toList() ??
         const [];
   }

@@ -5,6 +5,7 @@ import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_she
 import 'package:appflowy/mobile/presentation/widgets/widgets.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -143,6 +144,10 @@ class _MobilePageSelectorBodyState extends State<_MobilePageSelectorBody> {
     );
   }
 
-  Future<List<ViewPB>> _fetchViews() async =>
-      (await ViewBackendService.getAllViews()).toNullable()?.items ?? [];
+  // [fork:ephemeral-pad] D12 — the pad is desktop-only today, but the data it
+  // writes is shared, so the mobile pickers filter it too rather than depending
+  // on which client happens to be open.
+  Future<List<ViewPB>> _fetchViews() async => EphemeralPad.withoutPad(
+        (await ViewBackendService.getAllViews()).toNullable()?.items ?? [],
+      );
 }

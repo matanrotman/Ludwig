@@ -65,6 +65,42 @@ class EphemeralPad {
 
   /// [views] without the pad. The sidebar, the unfiled count and anything else
   /// that lists Temporary's contents goes through this.
+  ///
+  /// ## D12 — every surface that can reveal a page (the sweep)
+  ///
+  /// An un-promoted pad is not a page yet, so no surface may offer it as one.
+  /// The filtering points are deliberately **not** in one place — each one is a
+  /// different query — so they are listed here rather than rediscovered:
+  ///
+  /// | Surface | Where |
+  /// |---|---|
+  /// | Sidebar tree | `sidebar_space_list.dart` (`shouldIgnoreView`) |
+  /// | Temporary's `(n)` | `temporary_unfiled_count.dart` |
+  /// | Recent views | `cached_recent_service.dart` |
+  /// | What opens on launch | `desktop_home_screen.dart` (`_switchToSpace`) |
+  /// | Command palette results | `command_palette_bloc.dart` |
+  /// | Sidebar + move-to search | `space_search_bloc.dart` |
+  /// | Move-to tree | `move_page_menu.dart` |
+  /// | Editor `@` page mention | `inline_page_reference.dart` |
+  /// | Toolbar "link to page" | `link_search_text_field.dart` |
+  /// | AI chat `@` mention | `chat_input_control_cubit.dart` |
+  /// | Mobile page selector | `mobile_page_selector_sheet.dart` |
+  /// | Mobile AI mention | `mention_page_bottom_sheet.dart` |
+  ///
+  /// **Deliberately NOT filtered**, so a later session doesn't "fix" them:
+  /// the restore browser (`snapshot_browse_service.dart`) — a recovery tool
+  /// that hides content is worse than useless; the settings data-repair tool;
+  /// and reminders, which resolve one known id rather than offering a list.
+  ///
+  /// ## Why the filter is on the READ side, not the index
+  ///
+  /// The tempting fix for search is to stop indexing the pad. It is wrong:
+  /// the local index stores document *content*, written when the document
+  /// changes — and promotion changes only the view's name and `extra`. A pad
+  /// excluded at index time would promote into a page whose contents are
+  /// **permanently unsearchable** until the user happened to edit it again.
+  /// Filtering results keeps one rule: the flag is absent, so it is a page, so
+  /// it is findable — with no reindex and no Rust change.
   static List<ViewPB> withoutPad(List<ViewPB> views) =>
       views.where((view) => !isPad(view)).toList();
 
@@ -124,6 +160,16 @@ class EphemeralPad {
     final result = await ViewBackendService.updateView(
       viewId: viewId,
       name: name,
+      // [fork:no-titles] The promoted page carries NO first-line tracking, and
+      // that is deliberate rather than an omission.
+      //
+      // A brief version of this set the tracking flag here, reasoning that a
+      // promoted pad had never been *deliberately* named. The user's "window in
+      // time" rule (session 15) makes it unnecessary and wrong: the pad's own
+      // promoter names the page from its first line for as long as you are on
+      // it, and **navigating away closes the window** — which for the pad is the
+      // very moment D10 already makes promotion permanent. Setting the flag here
+      // would reopen a window that has just shut.
       extra: extraWithoutFlag(view),
     );
     return result.fold((_) => true, (error) {

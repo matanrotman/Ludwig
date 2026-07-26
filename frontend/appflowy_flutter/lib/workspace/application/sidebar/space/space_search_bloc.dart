@@ -1,3 +1,4 @@
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
@@ -12,8 +13,11 @@ class SpaceSearchBloc extends Bloc<SpaceSearchEvent, SpaceSearchState> {
       (event, emit) async {
         await event.when(
           initial: () async {
+            // [fork:ephemeral-pad] D12 — the un-promoted pad is not a page yet,
+            // so it must not be findable here (this bloc backs both the sidebar
+            // search field and the move-to picker's search).
             _allViews = await ViewBackendService.getAllViews().fold(
-              (s) => s.items,
+              (s) => EphemeralPad.withoutPad(s.items),
               (_) => <ViewPB>[],
             );
           },

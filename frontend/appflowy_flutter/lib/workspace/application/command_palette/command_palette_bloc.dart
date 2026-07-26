@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appflowy/plugins/trash/application/trash_listener.dart';
 import 'package:appflowy/plugins/trash/application/trash_service.dart';
 import 'package:appflowy/workspace/application/command_palette/search_service.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
@@ -240,6 +241,7 @@ class CommandPaletteBloc
 
     final combinedItems = <String, SearchResultItem>{};
     for (final item in event.serverItems ?? state.serverResponseItems) {
+      if (_isPad(item.id)) continue;
       combinedItems[item.id] = SearchResultItem(
         id: item.id,
         icon: item.icon,
@@ -250,6 +252,7 @@ class CommandPaletteBloc
     }
 
     for (final item in event.localItems ?? state.localResponseItems) {
+      if (_isPad(item.id)) continue;
       combinedItems.putIfAbsent(
         item.id,
         () => SearchResultItem(
@@ -331,6 +334,23 @@ class CommandPaletteBloc
 
   bool _isActiveSearch(String searchId) =>
       !isClosed && state.searchId == searchId;
+
+  /// [fork:ephemeral-pad] D12 — a result that is really the un-promoted pad.
+  ///
+  /// Search results carry only an id, so the flag is read off the cached
+  /// `ViewPB`. That cache is refreshed every time the palette opens
+  /// (`CommandPaletteEvent.refreshCachedViews`), so it agrees with the folder
+  /// for the whole of a palette session — you cannot promote the pad while you
+  /// are typing into the search box.
+  ///
+  /// **A view the cache has never heard of is shown, not hidden.** The two
+  /// mistakes are not symmetric: showing the pad is a stray row, while hiding
+  /// on a guess means the user's own writing is missing from search with no way
+  /// to tell why. See specs/ephemeral-pad.md.
+  bool _isPad(String viewId) {
+    final view = state.cachedViews[viewId];
+    return view != null && EphemeralPad.isPad(view);
+  }
 }
 
 @freezed

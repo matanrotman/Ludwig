@@ -1,4 +1,5 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/sidebar/folder/folder_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_search_bloc.dart';
@@ -168,5 +169,10 @@ class _MovePageGroupedViews extends StatelessWidget {
 }
 
 bool _shouldIgnoreView(ViewPB view, ViewPB sourceView) {
-  return view.id == sourceView.id;
+  // [fork:ephemeral-pad] D12 — you cannot move a page into the pad. It is not a
+  // page yet, and dropping a real page inside it would be swept along by
+  // promotion or demotion. Note this hides it from the *tree*; the search path
+  // above is filtered in `SpaceSearchBloc` instead, because it never consults
+  // this function.
+  return view.id == sourceView.id || EphemeralPad.isPad(view);
 }

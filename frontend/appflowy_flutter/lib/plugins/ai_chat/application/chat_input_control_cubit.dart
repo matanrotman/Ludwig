@@ -1,4 +1,5 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/workspace/application/pad/ephemeral_pad.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/log.dart';
@@ -47,10 +48,13 @@ class ChatInputControlCubit extends Cubit<ChatInputControlState> {
       (result) {
         return result.items
             .where(
+              // [fork:ephemeral-pad] D12 — the un-promoted pad is not a page,
+              // so it cannot be given to the assistant as one.
               (v) =>
                   !v.isSpace &&
                   v.layout.isDocumentView &&
-                  v.parentViewId != v.id,
+                  v.parentViewId != v.id &&
+                  !EphemeralPad.isPad(v),
             )
             .toList();
       },
