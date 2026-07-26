@@ -1,11 +1,14 @@
+import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/shared/backup/backup_service.dart';
 import 'package:appflowy/shared/backup/snapshot_browse_bloc.dart';
 import 'package:appflowy/shared/backup/snapshot_browse_model.dart';
 import 'package:appflowy/shared/backup/snapshot_repository.dart';
+import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// The restore browser (`specs/restore-redesign.md` Phase 1).
@@ -29,9 +32,33 @@ class _SnapshotBrowserState extends State<SnapshotBrowser> {
   )..loadDays();
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKeyEvent);
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     _bloc.close();
     super.dispose();
+  }
+
+  /// Escape closes the browser.
+  ///
+  /// A keyboard hook rather than `CallbackShortcuts`, because the focus-based
+  /// route never fires here: **Escape closes no dialog in this app** — not
+  /// Settings either, verified live — so whatever swallows it sits above the
+  /// dialog's focus scope. Fixing that app-wide is its own job; this hook is
+  /// scoped to exactly as long as the browser is on screen.
+  bool _onKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape ||
+        !mounted) {
+      return false;
+    }
+    Navigator.of(context).maybePop();
+    return true;
   }
 
   @override
@@ -39,27 +66,50 @@ class _SnapshotBrowserState extends State<SnapshotBrowser> {
     final theme = AppFlowyTheme.of(context);
     return BlocProvider.value(
       value: _bloc,
-      child: BlocBuilder<SnapshotBrowseBloc, SnapshotBrowseState>(
-        builder: (context, state) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Header(state: state),
-            VSpace(theme.spacing.l),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(width: 220, child: _DayList(state: state)),
-                  HSpace(theme.spacing.xl),
-                  Expanded(child: _TreePane(state: state)),
-                ],
+      child: _flatHoverTheme(
+        context,
+        child: BlocBuilder<SnapshotBrowseBloc, SnapshotBrowseState>(
+          builder: (context, state) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(state: state),
+              VSpace(theme.spacing.l),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 220, child: _DayList(state: state)),
+                    HSpace(theme.spacing.xl),
+                    Expanded(child: _TreePane(state: state)),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Neutralises the legacy Material hover for everything in this dialog.
+///
+/// **The trap:** AppFlowy's `ThemeData.hoverColor` is `hoverBG2`, which in the
+/// dark theme is `darkMain1` — the full-strength accent blue. Nothing else in
+/// the app shows it because the app's own rows hover through `FlowyHover` with
+/// explicit colours; a bare Material `InkWell`/`ExpansionTile` inherits it and
+/// paints a solid blue block that swallows its own text. Any new UI built from
+/// stock Material widgets needs this, or its own explicit hover colours.
+Widget _flatHoverTheme(BuildContext context, {required Widget child}) {
+  final theme = AppFlowyTheme.of(context);
+  return Theme(
+    data: Theme.of(context).copyWith(
+      hoverColor: theme.fillColorScheme.contentHover,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+    ),
+    child: child,
+  );
 }
 
 class _Header extends StatelessWidget {
@@ -90,13 +140,25 @@ class _Header extends StatelessWidget {
                 ),
               ),
               const HSpace(8),
-              Switch(
+              // The app's own toggle, not Material's `Switch` — the Backup page
+              // three rows up uses this one, and a stock Switch reads grey in
+              // both states here instead of picking up the accent.
+              Toggle(
                 value: state.showOnlyMissing,
                 onChanged: (_) =>
                     context.read<SnapshotBrowseBloc>().toggleMissingOnly(),
+                padding: EdgeInsets.zero,
               ),
             ],
           ),
+        const HSpace(12),
+        FlowyIconButton(
+          width: 24,
+          icon: const FlowySvg(FlowySvgs.close_s),
+          hoverColor: theme.fillColorScheme.contentHover,
+          tooltipText: 'Close',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
       ],
     );
   }
@@ -123,14 +185,20 @@ class _DayList extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
-      itemCount: state.days.length,
-      itemBuilder: (context, index) {
-        final day = state.days[index];
-        // The two most recent days open by default: same-day mistakes are the
-        // common case, and their times are what you'd reach for first (D3).
-        return _DayTile(day: day, initiallyExpanded: index < 2, state: state);
-      },
+    // A visible scrollbar, not the default fade-away one: a year of backups
+    // lives in this list and the bottom edge otherwise reads as "that's all".
+    return Scrollbar(
+      thumbVisibility: true,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(right: 8, bottom: 8),
+        itemCount: state.days.length,
+        itemBuilder: (context, index) {
+          final day = state.days[index];
+          // The two most recent days open by default: same-day mistakes are the
+          // common case, and their times are what you'd reach for first (D3).
+          return _DayTile(day: day, initiallyExpanded: index < 2, state: state);
+        },
+      ),
     );
   }
 }
@@ -172,7 +240,14 @@ class _DayTile extends StatelessWidget {
         return InkWell(
           onTap: () => context.read<SnapshotBrowseBloc>().open(snapshot),
           borderRadius: BorderRadius.circular(6),
-          child: Padding(
+          child: Container(
+            decoration: BoxDecoration(
+              // The open backup carries the tinted fill; hover stays quiet.
+              // The other way round (a loud hover over a text-only selection)
+              // makes whatever the pointer happens to sit on look chosen.
+              color: isSelected ? theme.fillColorScheme.themeSelect : null,
+              borderRadius: BorderRadius.circular(6),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
             child: Row(
               children: [
@@ -254,6 +329,17 @@ class _TreePane extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Which backup am I looking at? Without this the pane is anonymous —
+        // collapse its day group on the left and the answer is off-screen.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            _snapshotLabel(state.selected!),
+            style: theme.textStyle.caption.standard(
+              color: theme.textColorScheme.secondary,
+            ),
+          ),
+        ),
         if (state.comparisonUnavailable)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -265,7 +351,15 @@ class _TreePane extends StatelessWidget {
               ),
             ),
           ),
-        Expanded(child: ListView(children: rows)),
+        Expanded(
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: ListView(
+              padding: const EdgeInsets.only(right: 8, bottom: 8),
+              children: rows,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -340,6 +434,16 @@ class _MissingBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Yesterday at 22:18", and the pre-restore copies say so.
+String _snapshotLabel(SnapshotInfo snapshot) {
+  final local = snapshot.timestamp.toLocal();
+  final day = DateTime(local.year, local.month, local.day);
+  final label = 'Backup from ${_dayLabel(day)} at ${DateFormat.Hm().format(local)}';
+  return snapshot.kind == SnapshotKind.preRestore
+      ? '$label — taken before a restore'
+      : label;
 }
 
 String _dayLabel(DateTime day) {
