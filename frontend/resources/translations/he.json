@@ -1,5 +1,5 @@
 {
-  "appName": "AppFlowy",
+  "appName": "Ludwig",
   "defaultUsername": "אני",
   "welcomeText": "ברוך בואך אל @:appName",
   "welcomeTo": "ברוך בואך אל",
@@ -802,8 +802,8 @@
       "cloudServerType": "שרת ענן",
       "cloudServerTypeTip": "נא לשים לב שהפעולה הזאת עלולה להוציא אותך מהחשבון הנוכחי שלך לאחר מעבר לשרת הענן",
       "cloudLocal": "מקומי",
-      "cloudAppFlowy": "@:appName בענן בטא",
-      "cloudAppFlowySelfHost": "@:appName בענן באירוח עצמי",
+      "cloudAppFlowy": "AppFlowy בענן בטא",
+      "cloudAppFlowySelfHost": "AppFlowy בענן באירוח עצמי",
       "appFlowyCloudUrlCanNotBeEmpty": "כתובת הענן לא יכולה להישאר ריקה",
       "clickToCopy": "לחיצה להעתקה",
       "selfHostStart": "אם אין לך שרת, נא לפנות אל",
@@ -827,7 +827,7 @@
       "customPathPrompt": "אחסון תיקיית הנתונים של @:appName בתיקייה שמסונכרנת עם הענן כגון Google Drive יכול להוות סיכון. אם למסד הנתונים בתיקייה הזאת ניגשים או עורכים ממגוון מקומות בו־זמנית, יכולות לקרות סתירות סנכרון והנתונים יכולים להינזק",
       "importAppFlowyData": "ייבוא נתונים מתיקיית @:appName חיצונית",
       "importingAppFlowyDataTip": "מתבצע ייבוא נתונים. נא לא לסגור את היישום",
-      "importAppFlowyDataDescription": "העתקת נתונים מתיקיית נתונים חיצונית של @:appName ולייבא אותה לתיקיית הנתונים הנוכחית של AppFlowy",
+      "importAppFlowyDataDescription": "העתקת נתונים מתיקיית נתונים חיצונית של @:appName ולייבא אותה לתיקיית הנתונים הנוכחית של @:appName",
       "importSuccess": "תיקיית הנתונים של @:appName יובאה בהצלחה",
       "importFailed": "ייבוא תיקיית הנתונים של @:appName נכשל",
       "importGuide": "לפרטים נוספים, נא לעיין במסמך המוזכר"
@@ -2051,7 +2051,7 @@
     "reportPage": "דיווח על עמוד",
     "databaseHasNotBeenPublished": "עדיין אין תמיכה בפרסום למסדי נתונים.",
     "createdWith": "נוצר עם",
-    "downloadApp": "הורדת AppFlowy",
+    "downloadApp": "הורדת @:appName",
     "copy": {
       "codeBlock": "תוכן מקטע הקוד הועתק ללוח הגזירים",
       "imageBlock": "קישור התמונה הועתק ללוח הגזירים",

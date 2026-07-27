@@ -143,10 +143,17 @@ void main() {
 
     // Safety net #1: today's state was zipped before anything changed, and
     // the zip is genuinely restorable (extract + compare).
+    // Matched through the filename grammar rather than a literal prefix, so
+    // this does not break the next time the app is renamed -- the Ludwig
+    // rename (2026-07-27) broke exactly this line.
     final preRestoreZips = io.Directory(snapshotsDir)
         .listSync()
         .whereType<io.File>()
-        .where((f) => p.basename(f.path).startsWith('AppFlowy-prerestore-'))
+        .where(
+          (f) =>
+              SnapshotRepository.parse(p.basename(f.path))?.kind ==
+              SnapshotKind.preRestore,
+        )
         .toList();
     expect(preRestoreZips, hasLength(1));
     final checkDir = p.join(sandbox.path, 'prerestore-check');

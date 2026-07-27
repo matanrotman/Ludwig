@@ -27,11 +27,21 @@ class SnapshotInfo {
 /// Filename grammar and listing for the snapshot destination folder.
 ///
 /// Grammar (sortable, greppable, version-stamped):
-///   `AppFlowy-backup-v<version>-<yyyyMMdd-HHmmss>.zip`
-///   `AppFlowy-prerestore-v<version>-<yyyyMMdd-HHmmss>.zip`
+///   `Ludwig-backup-v<version>-<yyyyMMdd-HHmmss>.zip`
+///   `Ludwig-prerestore-v<version>-<yyyyMMdd-HHmmss>.zip`
 /// In-progress writes use a dot-prefixed temp name (`.<finalName>.tmp`) and
 /// are renamed into place only when complete, so a name matching this grammar
 /// is by construction a finished snapshot.
+///
+/// ⚠️ The READER accepts `AppFlowy-` as well, and must keep doing so. Every
+/// snapshot taken before the Ludwig rename carries the old prefix, and they
+/// are real backups of the user's real writing. Narrowing this regex to
+/// `Ludwig-` alone would make the restore browser, "Find something you lost"
+/// and the retention pruner all silently blind to them -- the backups would
+/// still be on disk, and nothing in the app would admit they existed.
+/// The WRITER emits `Ludwig-` only; the two prefixes coexist by design and
+/// old snapshots are deliberately NOT renamed on disk (renaming files inside
+/// a proven backup set to make them tidier is a bad trade).
 ///
 /// Everything here is strict-match: the pruner deletes ONLY names this
 /// grammar produces, so foreign files in the user's Drive folder are never
@@ -43,8 +53,11 @@ class SnapshotRepository {
 
   static const snapshotsSubfolder = 'snapshots';
 
+  /// The prefix new snapshots are written with.
+  static const _writePrefix = 'Ludwig';
+
   static final RegExp _nameGrammar = RegExp(
-    r'^AppFlowy-(backup|prerestore)-v(.+)-(\d{8})-(\d{6})\.zip$',
+    r'^(?:Ludwig|AppFlowy)-(backup|prerestore)-v(.+)-(\d{8})-(\d{6})\.zip$',
   );
 
   static String tempNameFor(String finalName) => '.$finalName.tmp';
@@ -59,7 +72,7 @@ class SnapshotRepository {
       SnapshotKind.preRestore => 'prerestore',
     };
     final ts = _formatTimestamp(timestamp);
-    return 'AppFlowy-$kindLabel-v$appVersion-$ts.zip';
+    return '$_writePrefix-$kindLabel-v$appVersion-$ts.zip';
   }
 
   static String _formatTimestamp(DateTime t) {

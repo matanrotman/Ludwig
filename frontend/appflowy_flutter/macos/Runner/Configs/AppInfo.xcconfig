@@ -5,10 +5,17 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = AppFlowy
+// NOTE: this also decides the built bundle's FILENAME (Ludwig.app), so changing
+// it moves the build output and breaks any Dock tile pointing at the old path.
+PRODUCT_NAME = Ludwig
 
-// The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = io.appflowy.appflowy
+// The application's bundle identifier.
+// ⚠️ macOS keys the preferences domain AND the Application Support data folder to
+// this string, so changing it relocates both. It must not be edited casually —
+// see specs/distribution.md (decision D3) before touching it.
+// NOTE: the Runner target in project.pbxproj sets this too, and that value WINS.
+// Keep the two in step or the effective id is not the one written here.
+PRODUCT_BUNDLE_IDENTIFIER = app.ludwig.desktop
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 AppFlowy.IO. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Matan Rotman. Ludwig is a fork of AppFlowy, © AppFlowy.IO, used under the AGPL-3.0.
