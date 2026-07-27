@@ -272,6 +272,600 @@ flutter:
   uses-material-design: true
 
   fonts:
+    # ---------------------------------------------------------------------
+    # Ludwig: 111 Hebrew/Arabic families bundled so a download works offline.
+    # GENERATED — regenerate rather than hand-edit (see specs/fonts.md).
+    #
+    # Declared as ordinary Flutter families rather than left to google_fonts,
+    # which matches bundled assets by the filename `Family-Variant.ttf`: 46 of
+    # these are VARIABLE fonts named `Cairo[slnt,wght].ttf` that never match,
+    # and several families are absent from that package's catalogue entirely.
+    # Variable files carry no `weight:` on purpose — Flutter reads the axis.
+    # ---------------------------------------------------------------------
+    - family: Alef
+      fonts:
+        - asset: assets/google_fonts_ludwig/Alef-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Alef-Bold.ttf
+          weight: 700
+    - family: Alexandria
+      fonts:
+        - asset: assets/google_fonts_ludwig/Alexandria[wght].ttf
+    - family: Alkalami
+      fonts:
+        - asset: assets/google_fonts_ludwig/Alkalami-Regular.ttf
+          weight: 400
+    - family: Almarai
+      fonts:
+        - asset: assets/google_fonts_ludwig/Almarai-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/Almarai-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Almarai-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/Almarai-ExtraBold.ttf
+          weight: 800
+    - family: Alyamama
+      fonts:
+        - asset: assets/google_fonts_ludwig/Alyamama[wght].ttf
+    - family: Amatic SC
+      fonts:
+        - asset: assets/google_fonts_ludwig/AmaticSC-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/AmaticSC-Bold.ttf
+          weight: 700
+    - family: Amiri
+      fonts:
+        - asset: assets/google_fonts_ludwig/Amiri-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Amiri-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/Amiri-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/Amiri-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Amiri Quran
+      fonts:
+        - asset: assets/google_fonts_ludwig/AmiriQuran-Regular.ttf
+          weight: 400
+    - family: Aref Ruqaa
+      fonts:
+        - asset: assets/google_fonts_ludwig/ArefRuqaa-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/ArefRuqaa-Bold.ttf
+          weight: 700
+    - family: Aref Ruqaa Ink
+      fonts:
+        - asset: assets/google_fonts_ludwig/ArefRuqaaInk-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/ArefRuqaaInk-Bold.ttf
+          weight: 700
+    - family: Arimo
+      fonts:
+        - asset: assets/google_fonts_ludwig/Arimo[wght].ttf
+        - asset: assets/google_fonts_ludwig/Arimo-Italic[wght].ttf
+          style: italic
+    - family: Assistant
+      fonts:
+        - asset: assets/google_fonts_ludwig/Assistant[wght].ttf
+    - family: Badeen Display
+      fonts:
+        - asset: assets/google_fonts_ludwig/BadeenDisplay-Regular.ttf
+          weight: 400
+    - family: Baloo Bhaijaan 2
+      fonts:
+        - asset: assets/google_fonts_ludwig/BalooBhaijaan2[wght].ttf
+    - family: Beiruti
+      fonts:
+        - asset: assets/google_fonts_ludwig/Beiruti[wght].ttf
+    - family: Bellefair
+      fonts:
+        - asset: assets/google_fonts_ludwig/Bellefair-Regular.ttf
+          weight: 400
+    - family: Blaka
+      fonts:
+        - asset: assets/google_fonts_ludwig/Blaka-Regular.ttf
+          weight: 400
+    - family: Blaka Hollow
+      fonts:
+        - asset: assets/google_fonts_ludwig/BlakaHollow-Regular.ttf
+          weight: 400
+    - family: Blaka Ink
+      fonts:
+        - asset: assets/google_fonts_ludwig/BlakaInk-Regular.ttf
+          weight: 400
+    - family: Bona Nova
+      fonts:
+        - asset: assets/google_fonts_ludwig/BonaNova-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/BonaNova-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/BonaNova-Bold.ttf
+          weight: 700
+    - family: Bona Nova SC
+      fonts:
+        - asset: assets/google_fonts_ludwig/BonaNovaSC-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/BonaNovaSC-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/BonaNovaSC-Bold.ttf
+          weight: 700
+    - family: Cairo
+      fonts:
+        - asset: assets/google_fonts_ludwig/Cairo[slnt,wght].ttf
+    - family: Cairo Play
+      fonts:
+        - asset: assets/google_fonts_ludwig/CairoPlay[slnt,wght].ttf
+    - family: Cardo
+      fonts:
+        - asset: assets/google_fonts_ludwig/Cardo-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Cardo-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/Cardo-Bold.ttf
+          weight: 700
+    - family: Cascadia Code
+      fonts:
+        - asset: assets/google_fonts_ludwig/CascadiaCode[wght].ttf
+        - asset: assets/google_fonts_ludwig/CascadiaCode-Italic[wght].ttf
+          style: italic
+    - family: Cascadia Mono
+      fonts:
+        - asset: assets/google_fonts_ludwig/CascadiaMono[wght].ttf
+        - asset: assets/google_fonts_ludwig/CascadiaMono-Italic[wght].ttf
+          style: italic
+    - family: Changa
+      fonts:
+        - asset: assets/google_fonts_ludwig/Changa[wght].ttf
+    - family: Cousine
+      fonts:
+        - asset: assets/google_fonts_ludwig/Cousine-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Cousine-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/Cousine-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/Cousine-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: David Libre
+      fonts:
+        - asset: assets/google_fonts_ludwig/DavidLibre-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/DavidLibre-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/DavidLibre-Bold.ttf
+          weight: 700
+    - family: El Messiri
+      fonts:
+        - asset: assets/google_fonts_ludwig/ElMessiri[wght].ttf
+    - family: Estedad
+      fonts:
+        - asset: assets/google_fonts_ludwig/Estedad[wght].ttf
+    - family: Frank Ruhl Libre
+      fonts:
+        - asset: assets/google_fonts_ludwig/FrankRuhlLibre[wght].ttf
+    - family: Fredoka
+      fonts:
+        - asset: assets/google_fonts_ludwig/Fredoka[wdth,wght].ttf
+    - family: Fustat
+      fonts:
+        - asset: assets/google_fonts_ludwig/Fustat[wght].ttf
+    - family: Gulzar
+      fonts:
+        - asset: assets/google_fonts_ludwig/Gulzar-Regular.ttf
+          weight: 400
+    - family: Gveret Levin
+      fonts:
+        - asset: assets/google_fonts_ludwig/GveretLevin-Regular.ttf
+          weight: 400
+    - family: Handjet
+      fonts:
+        - asset: assets/google_fonts_ludwig/Handjet[ELGR,ELSH,wght].ttf
+    - family: Harmattan
+      fonts:
+        - asset: assets/google_fonts_ludwig/Harmattan-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Harmattan-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/Harmattan-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/Harmattan-Bold.ttf
+          weight: 700
+    - family: Heebo
+      fonts:
+        - asset: assets/google_fonts_ludwig/Heebo[wght].ttf
+    - family: IBM Plex Sans Arabic
+      fonts:
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-Thin.ttf
+          weight: 100
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-ExtraLight.ttf
+          weight: 200
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/IBMPlexSansArabic-Bold.ttf
+          weight: 700
+    - family: IBM Plex Sans Hebrew
+      fonts:
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-Thin.ttf
+          weight: 100
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-ExtraLight.ttf
+          weight: 200
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/IBMPlexSansHebrew-Bold.ttf
+          weight: 700
+    - family: Jomhuria
+      fonts:
+        - asset: assets/google_fonts_ludwig/Jomhuria-Regular.ttf
+          weight: 400
+    - family: Karantina
+      fonts:
+        - asset: assets/google_fonts_ludwig/Karantina-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/Karantina-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Karantina-Bold.ttf
+          weight: 700
+    - family: Katibeh
+      fonts:
+        - asset: assets/google_fonts_ludwig/Katibeh-Regular.ttf
+          weight: 400
+    - family: Kufam
+      fonts:
+        - asset: assets/google_fonts_ludwig/Kufam[wght].ttf
+        - asset: assets/google_fonts_ludwig/Kufam-Italic[wght].ttf
+          style: italic
+    - family: Lalezar
+      fonts:
+        - asset: assets/google_fonts_ludwig/Lalezar-Regular.ttf
+          weight: 400
+    - family: Lateef
+      fonts:
+        - asset: assets/google_fonts_ludwig/Lateef-ExtraLight.ttf
+          weight: 200
+        - asset: assets/google_fonts_ludwig/Lateef-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/Lateef-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Lateef-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/Lateef-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/Lateef-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/Lateef-ExtraBold.ttf
+          weight: 800
+    - family: Lemonada
+      fonts:
+        - asset: assets/google_fonts_ludwig/Lemonada[wght].ttf
+    - family: Libertinus Serif
+      fonts:
+        - asset: assets/google_fonts_ludwig/LibertinusSerif-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/LibertinusSerif-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/LibertinusSerif-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/LibertinusSerif-SemiBoldItalic.ttf
+          weight: 600
+          style: italic
+        - asset: assets/google_fonts_ludwig/LibertinusSerif-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/LibertinusSerif-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Lunasima
+      fonts:
+        - asset: assets/google_fonts_ludwig/Lunasima-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Lunasima-Bold.ttf
+          weight: 700
+    - family: M PLUS 1p
+      fonts:
+        - asset: assets/google_fonts_ludwig/MPLUS1p-Thin.ttf
+          weight: 100
+        - asset: assets/google_fonts_ludwig/MPLUS1p-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/MPLUS1p-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/MPLUS1p-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/MPLUS1p-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/MPLUS1p-ExtraBold.ttf
+          weight: 800
+        - asset: assets/google_fonts_ludwig/MPLUS1p-Black.ttf
+          weight: 900
+    - family: Mada
+      fonts:
+        - asset: assets/google_fonts_ludwig/Mada[wght].ttf
+    - family: Marhey
+      fonts:
+        - asset: assets/google_fonts_ludwig/Marhey[wght].ttf
+    - family: Markazi Text
+      fonts:
+        - asset: assets/google_fonts_ludwig/MarkaziText[wght].ttf
+    - family: Miriam Libre
+      fonts:
+        - asset: assets/google_fonts_ludwig/MiriamLibre[wght].ttf
+    - family: Mirza
+      fonts:
+        - asset: assets/google_fonts_ludwig/Mirza-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Mirza-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/Mirza-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/Mirza-Bold.ttf
+          weight: 700
+    - family: Noto Kufi Arabic
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoKufiArabic[wght].ttf
+    - family: Noto Naskh Arabic
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoNaskhArabic[wght].ttf
+    - family: Noto Nastaliq Urdu
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoNastaliqUrdu[wght].ttf
+    - family: Noto Rashi Hebrew
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoRashiHebrew[wght].ttf
+    - family: Noto Sans Arabic
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoSansArabic[wdth,wght].ttf
+    - family: Noto Sans Hebrew
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoSansHebrew[wdth,wght].ttf
+    - family: Noto Serif Hebrew
+      fonts:
+        - asset: assets/google_fonts_ludwig/NotoSerifHebrew[wdth,wght].ttf
+    - family: Oi
+      fonts:
+        - asset: assets/google_fonts_ludwig/Oi-Regular.ttf
+          weight: 400
+    - family: Open Sans
+      fonts:
+        - asset: assets/google_fonts_ludwig/OpenSans[wdth,wght].ttf
+        - asset: assets/google_fonts_ludwig/OpenSans-Italic[wdth,wght].ttf
+          style: italic
+    - family: Parastoo
+      fonts:
+        - asset: assets/google_fonts_ludwig/Parastoo[wght].ttf
+    - family: Playpen Sans Arabic
+      fonts:
+        - asset: assets/google_fonts_ludwig/PlaypenSansArabic[wght].ttf
+    - family: Playpen Sans Hebrew
+      fonts:
+        - asset: assets/google_fonts_ludwig/PlaypenSansHebrew[wght].ttf
+    - family: Qahiri
+      fonts:
+        - asset: assets/google_fonts_ludwig/Qahiri-Regular.ttf
+          weight: 400
+    - family: Rakkas
+      fonts:
+        - asset: assets/google_fonts_ludwig/Rakkas-Regular.ttf
+          weight: 400
+    - family: Readex Pro
+      fonts:
+        - asset: assets/google_fonts_ludwig/ReadexPro[HEXP,wght].ttf
+    - family: Reem Kufi
+      fonts:
+        - asset: assets/google_fonts_ludwig/ReemKufi[wght].ttf
+    - family: Reem Kufi Fun
+      fonts:
+        - asset: assets/google_fonts_ludwig/ReemKufiFun[wght].ttf
+    - family: Reem Kufi Ink
+      fonts:
+        - asset: assets/google_fonts_ludwig/ReemKufiInk-Regular.ttf
+          weight: 400
+    - family: Rubik
+      fonts:
+        - asset: assets/google_fonts_ludwig/Rubik[wght].ttf
+        - asset: assets/google_fonts_ludwig/Rubik-Italic[wght].ttf
+          style: italic
+    - family: Rubik 80s Fade
+      fonts:
+        - asset: assets/google_fonts_ludwig/Rubik80sFade-Regular.ttf
+          weight: 400
+    - family: Rubik Beastly
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikBeastly-Regular.ttf
+          weight: 400
+    - family: Rubik Broken Fax
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikBrokenFax-Regular.ttf
+          weight: 400
+    - family: Rubik Bubbles
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikBubbles-Regular.ttf
+          weight: 400
+    - family: Rubik Burned
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikBurned-Regular.ttf
+          weight: 400
+    - family: Rubik Dirt
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikDirt-Regular.ttf
+          weight: 400
+    - family: Rubik Distressed
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikDistressed-Regular.ttf
+          weight: 400
+    - family: Rubik Doodle Shadow
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikDoodleShadow-Regular.ttf
+          weight: 400
+    - family: Rubik Doodle Triangles
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikDoodleTriangles-Regular.ttf
+          weight: 400
+    - family: Rubik Gemstones
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikGemstones-Regular.ttf
+          weight: 400
+    - family: Rubik Glitch
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikGlitch-Regular.ttf
+          weight: 400
+    - family: Rubik Glitch Pop
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikGlitchPop-Regular.ttf
+          weight: 400
+    - family: Rubik Iso
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikIso-Regular.ttf
+          weight: 400
+    - family: Rubik Lines
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikLines-Regular.ttf
+          weight: 400
+    - family: Rubik Maps
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikMaps-Regular.ttf
+          weight: 400
+    - family: Rubik Marker Hatch
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikMarkerHatch-Regular.ttf
+          weight: 400
+    - family: Rubik Maze
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikMaze-Regular.ttf
+          weight: 400
+    - family: Rubik Microbe
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikMicrobe-Regular.ttf
+          weight: 400
+    - family: Rubik Moonrocks
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikMoonrocks-Regular.ttf
+          weight: 400
+    - family: Rubik Pixels
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikPixels-Regular.ttf
+          weight: 400
+    - family: Rubik Puddles
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikPuddles-Regular.ttf
+          weight: 400
+    - family: Rubik Scribble
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikScribble-Regular.ttf
+          weight: 400
+    - family: Rubik Spray Paint
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikSprayPaint-Regular.ttf
+          weight: 400
+    - family: Rubik Storm
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikStorm-Regular.ttf
+          weight: 400
+    - family: Rubik Vinyl
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikVinyl-Regular.ttf
+          weight: 400
+    - family: Rubik Wet Paint
+      fonts:
+        - asset: assets/google_fonts_ludwig/RubikWetPaint-Regular.ttf
+          weight: 400
+    - family: Ruwudu
+      fonts:
+        - asset: assets/google_fonts_ludwig/Ruwudu-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Ruwudu-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/Ruwudu-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/Ruwudu-Bold.ttf
+          weight: 700
+    - family: Scheherazade New
+      fonts:
+        - asset: assets/google_fonts_ludwig/ScheherazadeNew-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/ScheherazadeNew-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/ScheherazadeNew-SemiBold.ttf
+          weight: 600
+        - asset: assets/google_fonts_ludwig/ScheherazadeNew-Bold.ttf
+          weight: 700
+    - family: Secular One
+      fonts:
+        - asset: assets/google_fonts_ludwig/SecularOne-Regular.ttf
+          weight: 400
+    - family: Solitreo
+      fonts:
+        - asset: assets/google_fonts_ludwig/Solitreo-Regular.ttf
+          weight: 400
+    - family: Suez One
+      fonts:
+        - asset: assets/google_fonts_ludwig/SuezOne-Regular.ttf
+          weight: 400
+    - family: Tajawal
+      fonts:
+        - asset: assets/google_fonts_ludwig/Tajawal-ExtraLight.ttf
+          weight: 200
+        - asset: assets/google_fonts_ludwig/Tajawal-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/Tajawal-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Tajawal-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts_ludwig/Tajawal-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/Tajawal-ExtraBold.ttf
+          weight: 800
+        - asset: assets/google_fonts_ludwig/Tajawal-Black.ttf
+          weight: 900
+    - family: Varela Round
+      fonts:
+        - asset: assets/google_fonts_ludwig/VarelaRound-Regular.ttf
+          weight: 400
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/google_fonts_ludwig/Vazirmatn[wght].ttf
+    - family: Vibes
+      fonts:
+        - asset: assets/google_fonts_ludwig/Vibes-Regular.ttf
+          weight: 400
+    - family: Zain
+      fonts:
+        - asset: assets/google_fonts_ludwig/Zain-ExtraLight.ttf
+          weight: 200
+        - asset: assets/google_fonts_ludwig/Zain-Light.ttf
+          weight: 300
+        - asset: assets/google_fonts_ludwig/Zain-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/google_fonts_ludwig/Zain-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts_ludwig/Zain-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/google_fonts_ludwig/Zain-Bold.ttf
+          weight: 700
+        - asset: assets/google_fonts_ludwig/Zain-ExtraBold.ttf
+          weight: 800
+        - asset: assets/google_fonts_ludwig/Zain-Black.ttf
+          weight: 900
     - family: Poppins
       fonts:
         - asset: assets/google_fonts/Poppins/Poppins-ExtraLight.ttf
@@ -303,6 +897,9 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    # Ludwig: the OFL licence text, which must ship WITH the fonts. The fonts
+    # themselves are registered under `fonts:` below, not here.
+    - assets/google_fonts_ludwig/OFL-LICENSES.txt
     - assets/images/
     - assets/images/appearance/
     - assets/images/built_in_cover_images/

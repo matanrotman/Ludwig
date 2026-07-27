@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:google_fonts/google_fonts.dart';
+
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/desktop_toolbar/desktop_floating_toolbar.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/desktop_toolbar/link/link_hover_menu.dart';
@@ -36,6 +38,14 @@ class FlowyRunnerContext {
 
 Future<void> runAppFlowy({bool isAnon = false}) async {
   Log.info('restart AppFlowy: isAnon: $isAnon');
+
+  // Ludwig: never fetch a font over the network. All 111 offered families are
+  // bundled (assets/google_fonts_ludwig/), so a fetch could only mean something
+  // is wrong — and silently reaching Google's servers would contradict both the
+  // local-first promise and LEGAL/PRIVACY.md. With this off, a missing font
+  // throws in testing instead of working on the developer's machine and failing
+  // on a stranger's. See specs/fonts.md.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   if (kReleaseMode) {
     await FlowyRunner.run(

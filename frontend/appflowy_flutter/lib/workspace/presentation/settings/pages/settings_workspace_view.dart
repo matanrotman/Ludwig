@@ -50,7 +50,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:appflowy/env/ludwig_bundled_fonts.dart';
 
 class SettingsWorkspaceView extends StatelessWidget {
   const SettingsWorkspaceView({
@@ -945,7 +945,11 @@ class _FontSelectorDropdown extends StatefulWidget {
 }
 
 class _FontSelectorDropdownState extends State<_FontSelectorDropdown> {
-  late final _options = [defaultFontFamily, ...GoogleFonts.asMap().keys];
+  // Ludwig: only the families we actually bundle. Upstream listed the whole
+  // Google catalogue (~1,800) and downloaded each on demand; Ludwig ships its
+  // fonts and has runtime fetching off, so anything not bundled would be a
+  // choice that silently fails to load. See lib/env/ludwig_bundled_fonts.dart.
+  late final _options = [defaultFontFamily, ...LudwigBundledFonts.families];
   final _focusNode = FocusNode();
   final _controller = PopoverController();
   late final ScrollController _scrollController;
