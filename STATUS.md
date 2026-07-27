@@ -2,7 +2,7 @@
 
 *The current snapshot only — replace sections when they change, don't append to them. Detailed history lives in each feature's spec, under its own "Session Log."*
 
-**Last updated:** 2026-07-27 (session 15) (**A long session: the pad's D12 sweep finished the ephemeral-pad feature; restore Phase 2 (the read-only preview) was built; `no-titles` was interviewed to completion AND built through phase 4; and the product's direction was written down for the first time.** (1) **`specs/product-direction.md` is NEW and binding** — Ludwig is *digital paper*, deliberately nobody's professional software for anything (Word/Figma/InDesign/Photoshop own those). Features come from a real felt need, never from a category being missing. A draft roadmap (Excalidraw board, music-sheet writer, study tools) is recorded as candidates with **no commitment**; the committed part is the priority order: **rebrand+distribution → the page → the pad → folders → ribbon → Excalidraw**. (2) **Grid, Board, Calendar and AI Chat are to be retired from the UI, code kept** (`specs/retire-non-core-surfaces.md`). **A merge-cost argument against deleting them was measured and found WRONG** — upstream has not touched `plugins/database` in 13 months, or `flowy-database2` in 14, and upstream/main has 2 commits in 6 months. The subsystem is ~194k lines / ~82k hand-written; coupling is 50 files of which 27 are mobile. Deleting was affordable and still not chosen, because retiring the UI buys the whole identity change and keeps the decision reversible. **In-page tables already exist** (`simple_table`, 11,371 lines). NOT BUILT. (3) **The ephemeral pad is COMPLETE** — D12's sweep found **seven** unfiltered surfaces, not one, and the load-bearing call is *filter on the READ side, never the index* (the local index stores content, and promotion changes only name+extra, so index-side exclusion would leave promoted pages permanently unsearchable). (4) **Restore Phase 2 built**: the real editor, read-only, via a new `ReadSnapshotDocument` event returning `DocumentDataPB`. **Media blocks render as named placeholders — that is correctness, not a shortcut**: a local image path resolves against TODAY's data folder, so rendering it would show the current picture inside an old backup. **Never opened.** (5) **`no-titles` phases 1-4 built and live-tested twice.** The rule, amended by the user mid-test: *a page's name comes from its first line while you are first writing it; leaving the page freezes it; only an explicit rename changes it after that* — **a title is a window in time**. That unified the pad's D10 and this feature into one sentence. **⚠️ The flag's polarity is the safety property** and the natural English reading is the destructive one — see the spec. (6) **Two decisions built and reversed the same day**: pad D8 (New Page opens the pad) — rejected as a broken-feeling button; and promote-sets-tracking, superseded by the window rule. (7) **Escape closing the restore browser is VERIFIED** on real hardware — session 14's one open item. Analyzer clean, 40 naming+pad tests, 3 feature commits. **Round 2 of no-titles is NOT re-verified, and the restore preview has never been looked at.**) — *Prior (session 14):* 
+**Last updated:** 2026-07-27 (session 16) (**Everything on the session's list got done and verified. (1) The four no-titles round-2 fixes RE-TESTED AND ALL PASS** — the gate first (rename in the sidebar, then edit the first line: the name holds), the naming window closing on leave, the header spacing, and New Page. *Method note worth keeping: the freeze test appeared to fail once and had not — the away-navigation never happened, and the caret still sitting where I left it was the tell.* (2) **`no-titles` PHASE 5 IS DONE — the migration RAN against real data.** Backup taken and **verified on disk** rather than by its label; dry run shown and approved; **112 views, 48 written, 64 skipped, 0 unreadable**; then re-run afterwards reporting **WOULD WRITE: 0**, which *proves* idempotency instead of arguing it. Built as a **one-off offline Rust tool with the app quit**, not an in-app migration — it runs once on one workspace ever, so there is no general case, and offline removes every hazard the spec named. **The title box is now gone from every page**, which also killed a live defect: `showTitle` was gated on the naming flag, so under round 2's rule every page grew a title box on its *second* visit and showed its name twice. (3) **The restore preview was OPENED for the first time and works** — ordinary page, Hebrew (RTL + links correct), image renders "An image was here.", rapid clicking between pages resolves to the last one, hover states clean. *Incidental proof: opened against a pre-migration snapshot, it correctly showed a page WITHOUT its migrated first line — direct evidence it reads the snapshot, not live data.* (4) **Grid, Board, Calendar and AI Chat are RETIRED from the UI**, one sweep, no code deleted, `RetiredSurfaces` the single findable place; the guard test caught **four** files I had missed on its first run. (5) **The UI font question is ANSWERED and half-delivered** — see its own section below. **⚠️ Two things need the user's own hands: Escape in the restore browser, and the sidebar `+` menu** — automation cannot drive either, and reporting them as broken would be measuring the tooling.) — *Prior (session 15):* 
 
 *Prior session (2026-07-21 session 6):* (**Sidebar-improvements feature: interviewed, spec'd, signed off, and ALL FOUR PHASES BUILT in one session** — `specs/sidebar-improvements.md` is the authoritative record. (1) ··· is now the outermost hover icon on pages+spaces; (2) double-click renames **in place** (rebuilt to a thin-framed in-row field after the user rejected the popover version on first look); (3) the in-page trash banner is gone — deleting the open page navigates to a neighbor, and the footer trash icon turns into a hand-drawn "full trash" when trash has items; (4) **every space is now visible and independently collapsible** — switcher dropdown retired, "New Space" row under "New Page", New Page targets the open page's space, per-space "…" actions explicitly target their space. Phases 1–3 user-verified live ("good"/"great"); **Phase 4 + the in-place rename are built, shipped, contents-verified, but NOT yet user-verified — that's the next session's first item.** 5 commits, 15 new tests, SpaceBloc untouched. ⚠️ One deliberate visual change to confirm with the user: space headers now put the name on the LEFT like page rows (old header dock-mirrored it right in their right-docked layout).)
 
@@ -258,16 +258,15 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 
 ## Where things stand
 - Repo forked (`origin` = matanrotman/AppFlowy), `upstream` = AppFlowy-IO/AppFlowy.
-- **Fork-sync (checked 2026-07-27 session 15, both ends, at close):** app `main` **0 behind**
-  `upstream/main` (114 ahead; **90 commits not pushed to `origin`** — the user's own fork, harmless,
-  push on request). Editor fork `rtl-direction-aware-selection-menu` **38 behind / 20 ahead** — the
-  deliberately-deferred number, see the merge section above. **Pin ↔ pushed HEAD: in sync
-  (`4e0ee071`)**; the editor fork was NOT touched this session. Dock app rebuilt against that pin and
-  **content-verified**: test-binding refs **0**, `runAppFlowy` **31**, `FirstLineNamer` **6**,
-  `closeNamingWindow` **3**, `kTitlelessHeaderTopGap` **3**, `SnapshotDocumentPreview` **8**,
-  `ReadSnapshotDocument` **24**. The Rust core was rebuilt this session (a new `flowy-snapshot`
-  event) and its symbols confirmed in the linked binary. No stray test data-path pref; **no
-  integration tests were run**, so neither `-d macos` hazard applies.
+- **Fork-sync (checked 2026-07-27 session 16, both ends):** app `main` **0 behind** `upstream/main`
+  (117 ahead; the ahead count grows every session — re-run the check, never trust a written number).
+  Editor fork `rtl-direction-aware-selection-menu` **38 behind / 20 ahead** — the deliberately
+  deferred number, see the merge section above. **Pin ↔ pushed HEAD: in sync (`4e0ee071`)**; the
+  editor fork was NOT touched this session. Dock app rebuilt twice and **content-verified** each
+  time: test-binding refs **0**, `runAppFlowy` **31**, `RetiredSurfaces` **12**. **The Rust core was
+  NOT rebuilt** — the only Rust change is an `examples/` file plus a `uuid` dev-dependency, and
+  examples are not part of the shipped cdylib. **No integration tests were run**, so neither
+  `-d macos` hazard applies, and no stray test data-path pref exists.
 - *(Prior, session 10):* app `main` **0 behind** of `upstream/main` (ahead count grows every session — don't trust a written number, re-run the check). Editor fork `rtl-direction-aware-selection-menu` **38 behind / 18 ahead** — the ahead count grew by 1 this session (the Phase 4 super/subscript + justify commit `c48c69f5`); still the deliberately-deferred number, see the merge section above before acting on it. **Pin ↔ pushed HEAD: in sync** (`c48c69f5`, verified — the fork WAS touched this session and re-pinned from `d15e3c3a`). **Note:** local `main` has ~90 commits not pushed to `origin` (the user's own fork) — harmless, push on request.
 - **The dock app was rebuilt 2026-07-25 (session 10) against the re-pinned editor fork (`c48c69f5`) and content-verified**: test-binding refs **0**, `runAppFlowy` **31**, `toggleExclusiveAttribute` **5**, `blockTextAlign` **13**, `meta+shift+equal` **2**, `Justify text` **3** (symbols that exist only because of Phase 4, proving the code is genuinely in the bundle). Lock `resolved-ref` = `c48c69f5` (git pin, not the temporary path override, which was reverted). No stray test data-path pref. **No `.dart` or fork change happened after that final build.** ⚠️ **The user must QUIT AND REOPEN AppFlowy to pick this up** — super/subscript + justify ride on the fork pin, so a stale running instance won't have them. *(Historical: also rebuilt twice in session 4 — after the r2 shortcut/arrow-up fixes, and again after the theme split — content-verified each time: test-binding refs 0, `runAppFlowy` > 0, markers `_adjacentVisualLineEdge`, `PageThemeScope`, `chromeAppearance` present. The chrome-theme pref was set and then deleted during that session's live verification, so the app is back on the default "Same as pages".)*
 - *(Historical, 2026-07-16):* app `main` **0 behind** `upstream/main` — that's the number that matters. (The "ahead" count climbs with every commit here, so don't treat any figure written down as current; the session-start fork-sync check is authoritative.) Editor fork branch `rtl-direction-aware-selection-menu` **36 behind, 12 ahead** of `AppFlowy-IO/appflowy-editor` (tagged 6.1.0; our pin reports 5.2.0) — see the "deferred on purpose" section at the top before acting on that number. Pin ↔ pushed-HEAD: **in sync** (`5354a98d`).
@@ -309,11 +308,11 @@ to be, and the committed priority order. This table is engineering state; that f
 | Ribbon menu | `ribbon-menu.md` | Phases 1–5 done. Ruler + footnote split out |
 | **Ephemeral pad** | `ephemeral-pad.md` | **DONE — all phases + D12, live-verified. D8 reversed** |
 | RTL support | `rtl-support.md` | Phase 1 done; Phase 2 mostly; bidi arrow-keys scoped, unbuilt |
-| **Titleless pages** | `no-titles.md` | **Phases 1–4 built + live-tested. Round-2 fixes unverified. Phase 5 scoped, not built** |
-| Restore redesign | `restore-redesign.md` | Phases 0–2 built. **Phase 2 never opened.** 3–5 left |
+| **Titleless pages** | `no-titles.md` | **COMPLETE — all 5 phases. Migration ran on real data; no title box anywhere** |
+| Restore redesign | `restore-redesign.md` | Phases 0–2 built **and Phase 2 now opened + verified**. 3–5 left |
 | Folders | `folder.md` | Phase 1 of 4. Phase 2 (the folder page) next |
 | **Product direction** | `product-direction.md` | **NEW — philosophy binding, roadmap a draft** |
-| **Retire Grid/Board/Calendar/AI Chat** | `retire-non-core-surfaces.md` | **NEW — decided, measured, NOT built** |
+| **Retire Grid/Board/Calendar/AI Chat** | `retire-non-core-surfaces.md` | **BUILT + verified live. `RetiredSurfaces` is the one place** |
 | Distribution | `distribution.md` | Placeholder, not scoped — **now priority #1** |
 | Meeting transcription | `meeting-transcription.md` | Stub |
 | Tables | `tables.md` | Spec only |
@@ -321,25 +320,54 @@ to be, and the committed priority order. This table is engineering state; that f
 
 **Immediate queue, in order:**
 
-1. **Re-test no-titles round 2** — four fixes shipped after the user stopped testing, none verified.
-   The list is in session 15's closing prompt. **The rename fix is the one that matters**; if it
-   fails, nothing downstream is worth testing.
-2. **Look at the restore preview.** Built, never opened. Order: an ordinary page, a Hebrew one
-   (direction), one with an image (must say "An image was here."), then click quickly between two
-   pages. Plus hover states, since the tree rows became clickable.
-3. **`no-titles` Phase 5** — the one-off migration (names → first lines) plus retiring the title box.
-   **Requested by the user; deliberately not fired off at wrap-up.** It writes into every document in
-   the workspace. Backup first, dry-run report, idempotency marker. Scoped in the spec.
-4. **Rebrand + distribution** — priority #1 in `product-direction.md`, and nothing has started.
+1. **The UI font — finish the three-way comparison.** See "UI font" below. The download and the
+   decision are done; what is left is `fontFamilyFallback` support so IBM Plex and Noto can be tried
+   at all.
+2. **Two by-hand checks that automation cannot do** (30 seconds total): Escape in the restore
+   browser, and the sidebar `+` menu showing only Document/folder/import.
+3. **Rebrand + distribution** — priority #1 in `product-direction.md`, still nothing started.
+4. **Restore redesign Phase 3** (the merge — the only phase that writes) or **folder Phase 2**,
+   whichever the user wants; both are below distribution in the priority order.
+
+## UI font — answered, half-delivered (session 16)
+
+**The problem, measured:** the UI font is **Poppins**, which contains **no Hebrew and no Arabic at
+all**. Every Hebrew row in the sidebar is silently falling back to a system font — which is why
+Hebrew and English rows have never looked like the same typeface.
+
+**The user's answer: try IBM Plex Sans, Rubik and Noto Sans**, plus "download all the Hebrew and
+Arabic free fonts from Google Fonts."
+
+- **Downloaded: 113 of 114 families, 206 TTF files, 108MB**, in the session scratchpad under
+  `google_fonts_he_ar/` with a manifest. Only "Google Sans" is missing (proprietary, not in the OFL
+  repo). **They live at `~/Projects/ludwig-fonts/google_fonts_he_ar/`** — outside the repo on
+  purpose (108MB of TTFs should be a deliberate bundling decision, not an accidental commit), with
+  the fetch script beside them. Note `fonts.google.com/download` now serves an HTML app page rather
+  than a zip; the working source is the `google/fonts` GitHub repo via one recursive tree listing.
+- **The finding that shapes the work:** **Rubik is a single family covering Latin + Hebrew + Arabic**
+  and is **selectable today** — Settings → Workspace → Font → "Rubik", no code needed. **IBM Plex
+  Sans and Noto Sans each split into three families** (`… Hebrew`, `… Arabic`), so picking them today
+  gives Latin only and Hebrew falls back exactly as it does now.
+- **So a fair comparison needs `fontFamilyFallback` chains.** `base_appearance.dart` builds the theme
+  from a single `fontFamily`; the picker at `settings_workspace_view.dart:948` already lists every
+  Google font. That is the bounded piece of work left.
+- **For distribution, bundling beats the runtime download** the `google_fonts` package does today —
+  worth settling while this is open, since offline is the point of a downloadable build.
 
 **Waiting on the user:**
 - **The UI font covering Hebrew + Latin + Arabic** — still blocks further typographic tuning. Raised
   in session 15 but deferred in favour of no-titles; raise it again early.
 - Page↔folder conversion.
+- **Two 30-second by-hand checks automation cannot do:** (a) does **Escape** close the restore
+  browser? (b) does the sidebar **`+` menu** now show only Document, New folder and Import?
 - Deleting the junk test pages (automation cannot open the sidebar "…" menu): Temporary has
-  "zz scratch - selection test" plus empty "Untitled" pages; לקוחות has an "Untitled" containing
-  "hello world bye zz1234". **Plus whatever session 15's testing created** — several new pages named
-  after their first lines.
+  "zz scratch - selection test", empty "Untitled" pages, session 15's leftovers, and **session 16
+  added five more, all prefixed `zz16`** (`zz16 probe A`, `zz16 probe B`, `zz16 sidebar name`,
+  `zz16 window test SHOULD NOT RENAME`, plus one). לקוחות has an "Untitled" containing
+  "hello world bye zz1234". **All of them were migrated too**, so they now carry their name as a
+  first line — harmless, they are for deletion.
+- **A page named `commands` holds what looks like a live Google API key in plain text** (found while
+  reading first lines for the migration; the value was not reproduced anywhere). Worth rotating.
 
 **Small open items:**
 - The pad's breadcrumb reads "Pad ‹ Temporary", exposing the internal stored name and where the pad

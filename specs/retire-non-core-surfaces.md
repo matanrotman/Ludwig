@@ -1,7 +1,9 @@
 # Retiring Grid, Board, Calendar and AI Chat from the UI
 
-**Status: decided 2026-07-26 (session 15), not built.** The decision is settled and recorded below
-with the argument that produced it. The build is a scoping pass away, not a discussion away.
+**Status: BUILT 2026-07-27 (session 16) and verified live.** The decision below is unchanged; what
+follows it is now shipped. `RetiredSurfaces`
+(`lib/workspace/application/retired_surfaces.dart`) is the single findable place — empty its two
+sets and all four come back.
 
 ## The decision
 
@@ -120,3 +122,44 @@ This is a **product** decision, not a personal one — it applies to anyone who 
 the change that most distinguishes Ludwig from AppFlowy for a future user. The re-enable path should
 stay a single, findable place rather than 20 scattered conditions, so the decision can be revisited
 as a decision.
+
+
+## Session Log
+
+### 2026-07-27 (session 16) — built, in one sweep
+
+Built exactly as the spec asked: **one deliberate sweep with a written list**, not fixes as noticed.
+No code deleted; four surfaces stop being creatable or advertised.
+
+**`RetiredSurfaces` is the whole decision in one file.** Two sets — `layouts` and `pluginTypes` —
+plus the classified surface list. Every call site routes through it rather than naming a layout
+inline, so re-enabling is one edit. Two vocabularies are listed rather than converted because the app
+genuinely has two: the folder speaks `ViewLayoutPB`, the plugin sandbox speaks `PluginType`, and the
+mapping between them is not total (`blank`, `trash`, `databaseDocument` have no layout).
+
+**The sidebar gate went into `pluginBuilders()`, not into each plugin's own `creatable` config.**
+Upstream already has that config mechanism and it looked like the obvious hook — but those configs
+live *inside* the subsystems being retired. Putting the decision in the code being retired is
+precisely what turns "re-enable it" into archaeology.
+
+**The referenced-database slash items were retired alongside the creating ones.** That is not
+over-reach: with nothing creatable there is nothing to reference, so keeping them would advertise a
+feature whose only possible outcome is an empty picker.
+
+**CSV import goes too, and it is the one that stings** — a genuinely useful import, retired only
+because its output is a Grid. Recorded in `import_type.dart`: if CSV ever needs to land in Ludwig it
+should arrive as an in-page table, which is a feature to scope, not a filter to loosen.
+
+**The guard test earned its keep immediately.** It scans `lib/` and fails when a new file names a
+retired layout without being classified — and on its first run it caught **four** files I had missed.
+All four turned out to be correctly exempt (two already-dead definition sites that nothing
+references, one definition consumed by the gated builder, and a naming rule downstream of the gated
+picker), but "correctly exempt" is a conclusion the test forced rather than one I reached by luck.
+
+**Verified live:** `/grid`, `/board` and `/calendar` each return only "Link to page"; `/table` still
+offers Table, so in-page tables are untouched. 469 unit tests pass, analyzer clean, Rust untouched.
+
+**Not verified live:** the sidebar `+` menu and the mobile sheet. Synthetic clicks do not open
+popovers in this app (a long-standing tooling limit, see STATUS.md), so the `+` menu rests on
+`pluginBuilders()` being the single documented choke point plus the guard test. **Worth 10 seconds of
+the user's own click.**

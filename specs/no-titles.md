@@ -1,10 +1,9 @@
 # Titleless pages — the first line is the page
 
-**Status: PHASES 1–4 BUILT AND LIVE-TESTED across two rounds on 2026-07-26 (session 15). The second
-round's fixes are shipped but NOT re-tested — that is the first item next session. Phase 5 (the
-one-off migration + retiring the title box) is SCOPED BUT NOT BUILT** — the user asked for it at the
-end of session 15; it writes into every document in the workspace and was deliberately not fired off
-at wrap-up time. See "Phase 5" below.
+**Status: COMPLETE. Phases 1–4 built session 15; round 2's fixes RE-TESTED AND PASSED session 16;
+Phase 5 (the one-off migration + retiring the title box) BUILT, RUN against real data, and verified
+session 16.** Every page in the workspace is now named by its own first line, and no page draws a
+title box. See the session-16 log at the bottom.
 
 **The whole feature in one rule** — amended session 15 after live use:
 
@@ -400,7 +399,7 @@ ordinary page.
 test reaching it would have to mount the editor, the same wall that killed the preview render test
 earlier this session. The *pad* half of it (bug 2) is properly covered by a unit test.
 
-## Phase 5 — the one-off migration and retiring the title box (SCOPED, NOT BUILT)
+## Phase 5 — the one-off migration and retiring the title box (DONE, session 16)
 
 **Asked for by the user at the end of session 15**, reversing session 14's answer 2 ("the user
 converts them by hand… no migration is written and none should be"):
@@ -490,3 +489,54 @@ app rebuilt and content-verified: test bindings **0**, `runAppFlowy` **31**, `cl
 `kTitlelessHeaderTopGap` **3**.
 
 **None of round 2 is live-verified.** The re-test list is in the session's closing prompt.
+
+
+### 2026-07-27 (session 16) — round 2 re-tested, then Phase 5 built and run
+
+**All four round-2 fixes pass.** The gate first, because nothing downstream was worth testing
+otherwise: new page → typed a first line → renamed it in the sidebar → edited the first line again,
+and the name held. Leaving a page and returning freezes the name (verified twice, at 2s and 10s
+away). The header has air above and below and the first line carries no hint. New Page creates an
+"Untitled" page in Temporary.
+
+**One honest note on method:** the freeze test *appeared* to fail on the first attempt. It had not —
+the away-navigation never happened, and the caret still sitting where I left it was the tell. Two
+clean runs since. Worth recording because the wrong conclusion was one screenshot away.
+
+**A free indicator, discovered by accident and worth keeping:** while the title box was still gated
+on the tracking flag, *the title box reappearing was a visible readout of the flag being cleared*.
+That is how the freeze was confirmed without instrumenting anything.
+
+**That same behaviour was a live defect, and Phase 5 removed it.** `showTitle: !tracksFirstLine` plus
+round 2's "leaving closes the window" meant every page grew a title box on its **second** visit and
+showed its name twice. Not a new bug — an unhandled consequence of the rule change, fixed by the step
+4 that was already written down.
+
+**The migration ran against real data, in the order the spec demanded.** Backup through Settings →
+Backup, then verified **on disk** rather than by its own success label (`unzip -t` clean, 170 files,
+`skippedFiles: []`, correct source folder) — the pre-migration-snapshot bug in `specs/temp-space.md`
+is exactly the precedent for checking. Then a dry-run report, approved before a byte was written.
+**112 views: 48 written, 64 skipped, 0 unreadable.** The skips: 7 already had their name as line one,
+31 had no name to move, 18 containers, 1 pad, 7 non-documents.
+
+**Built as a one-off offline tool rather than an in-app migration, and that is the load-bearing
+call.** It runs once, on one workspace, ever — after Phase 5 there is no title box, so no page can
+acquire a name that is not already its first line. There is no general case to design for. Running
+it with the app quit removes every hazard the spec named: no `SpaceEvent.initial` timing trap, no
+lock contention, no half-migrated *live* workspace behind a running editor. It lives at
+`frontend/rust-lib/flowy-snapshot/examples/title_migration.rs`.
+
+**Idempotency has two guards, and the second is the one that matters.** A marker file is written
+beside the data folder — but a migrated page's first line *equals its name*, which is precisely the
+skip condition, so a second run cannot double anything even with the marker deleted. **Proven rather
+than argued:** re-running the classifier over the live folder afterwards reports `WOULD WRITE: 0`.
+
+The dry run and the apply share one `build_plan`. That is deliberate: if they could diverge, the
+report shown to the user would be a description of something other than what runs.
+
+**Verified live afterwards**, not assumed: a page whose name was unrelated to its body opens with the
+name as line 1 and its original Hebrew line beneath, RTL intact; a Hebrew-named page renders the
+inserted line right-aligned with checklist strikethroughs untouched; no title box anywhere.
+
+`cover_title.dart` is left on disk unused — the same retired-but-kept treatment the sidebar's
+replaced widgets got, so a future upstream merge has something to land against.

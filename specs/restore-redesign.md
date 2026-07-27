@@ -447,3 +447,44 @@ Nothing about it has been judged by eye. Two things to drive, in this order:
    `ThemeData.hoverColor` is the full accent in dark mode. The rows sit under the browser's
    `_flatHoverTheme` and the close button carries an explicit hover colour, so this is a
    confirmation, not a suspicion — but it has bitten this exact dialog before.
+
+
+## Session Log — 2026-07-27 (session 16)
+
+### Phase 2 (the read-only preview) was OPENED for the first time, and it works
+
+Built session 15, never looked at. Walked in the order the risk demanded.
+
+- **An ordinary page** — heading, the "From this backup — you can read it, but not change it"
+  subtitle, and the content. Correct.
+- **A Hebrew page** — the whole paragraph right-aligned, links intact and correctly positioned.
+  Direction is parsed from the snapshot row and getting it wrong would make every Hebrew page look
+  corrupted; it does not.
+- **A page with an image** — renders **"An image was here."**, never a picture. This is the D-level
+  decision holding: a local image path resolves against TODAY's data folder, so drawing it would show
+  the current picture inside an old backup.
+- **Clicking quickly between two pages** — title, tree selection and content all agreed on the last
+  one clicked. The slower page did not land late and overwrite it.
+- **Hover states** — backup rows, tree rows, the × buttons and the toggle are all subtle greys. No
+  accent-blue block anywhere, so session 14's `_flatHoverTheme` fix is holding on the rows that
+  became clickable in Phase 2.
+
+**An incidental proof worth keeping:** the preview was opened against a *pre-migration* snapshot on
+the day the no-titles migration ran, and it correctly showed the page **without** its migrated first
+line. That is direct evidence the preview reads the snapshot rather than live data — the property the
+whole feature rests on, demonstrated by accident rather than asserted.
+
+### ⚠️ Escape did not close the browser, and I could not tell you why
+
+STATUS.md records Escape as verified on real hardware in session 15. This session it did nothing —
+with a preview open, with the preview closed, and on a freshly opened dialog.
+
+**This is reported as unverified, not as a regression**, and the distinction is the point. The hook
+is `HardwareKeyboard.instance.addHandler`, and I have **no confirmed case of a synthetic Escape
+reaching this app at all** this session — every attempt to prove the tooling works (the sidebar
+rename field, which needs a popover) hit the known limit that synthetic clicks do not open popovers
+here. Measuring the tooling and calling it the app is the exact mistake STATUS.md warns about for
+scroll events.
+
+**Needs five seconds of a real keypress.** If Escape genuinely fails, the hook is the first place to
+look; if it works, delete this note.
