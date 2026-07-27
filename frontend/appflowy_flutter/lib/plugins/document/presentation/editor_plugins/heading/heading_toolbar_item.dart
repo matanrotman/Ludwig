@@ -94,7 +94,11 @@ final headingsToolbarItem = ToolbarItem(
                     node.attributes[blockComponentBackgroundColor],
                 blockComponentTextDirection:
                     node.attributes[blockComponentTextDirection],
-                blockComponentDelta: delta,
+                // Per node. The captured `delta` above belongs to the block at
+                // `selection.start` only, and this callback runs for every
+                // block in the selection -- reusing it destroyed the others'
+                // text (2026-07-27). The single-node path above may keep it.
+                blockComponentDelta: (node.delta ?? Delta()).toJson(),
               },
             ),
           );

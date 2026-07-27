@@ -230,14 +230,17 @@ enum TextHeadingCommand {
 
 void formatNodeToText(EditorState editorState) {
   final selection = editorState.selection!;
-  final node = editorState.getNodeAtPath(selection.start.path)!;
-  final delta = (node.delta ?? Delta()).toJson();
+  // The delta MUST be read from the node being transformed, not captured once
+  // from `selection.start`. `formatNode` runs this callback for every node in
+  // the selection, so hoisting the delta out stamped the first block's text
+  // over every other block and destroyed their content -- real data loss on a
+  // real page, 2026-07-27. See multi_block_turn_into_test.dart.
   editorState.formatNode(
     selection,
     (node) => node.copyWith(
       type: ParagraphBlockKeys.type,
       attributes: {
-        blockComponentDelta: delta,
+        blockComponentDelta: (node.delta ?? Delta()).toJson(),
         blockComponentBackgroundColor:
             node.attributes[blockComponentBackgroundColor],
         blockComponentTextDirection:
