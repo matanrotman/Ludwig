@@ -1,4 +1,5 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/env/ludwig_legal.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/setting/widgets/mobile_setting_trailing.dart';
 import 'package:appflowy/startup/tasks/device_info_task.dart';
@@ -25,14 +26,14 @@ class AboutSettingGroup extends StatelessWidget {
           trailing: MobileSettingTrailing(
             text: '',
           ),
-          onTap: () => afLaunchUrlString('https://appflowy.com/privacy'),
+          onTap: () => afLaunchUrlString(LudwigLegal.privacyUrl),
         ),
         MobileSettingItem(
           name: LocaleKeys.settings_mobile_termsAndConditions.tr(),
           trailing: MobileSettingTrailing(
             text: '',
           ),
-          onTap: () => afLaunchUrlString('https://appflowy.com/terms'),
+          onTap: () => afLaunchUrlString(LudwigLegal.termsUrl),
         ),
         if (kDebugMode)
           MobileSettingItem(
