@@ -40,20 +40,17 @@ that is the thing to be aware of. macOS FileVault encrypts your whole disk and i
 
 ## What Ludwig sends over the network
 
-Three things, all of which you control:
+Two things, both of which you control. **Fonts used to be a third — they no longer are.** Every font
+Ludwig offers is now bundled inside the app, and font downloading is switched off entirely, so
+choosing a font contacts nobody. Ludwig makes **no network request of its own** in normal use.
 
-**1. Fonts.** Ludwig ships with two fonts built in. If you choose a different font in
-Settings → Workspace, Ludwig downloads it from Google's font servers (`fonts.gstatic.com`) the first
-time and caches it locally. That request tells Google your IP address and which font you asked for.
-It happens only when you choose a non-bundled font, and never again for that font afterwards.
-
-**2. Backups — only where you point them.** Ludwig can write periodic backup archives to a folder you
+**1. Backups — only where you point them.** Ludwig can write periodic backup archives to a folder you
 choose. If you choose a folder that syncs to a cloud service (Google Drive, Dropbox, iCloud), then
 your writing goes wherever that service takes it, under *that* service's privacy policy, not this
 one. If you choose a local folder, or turn backups off, nothing leaves your machine. Ludwig has no
 backup server of its own.
 
-**3. AppFlowy Cloud — only if you deliberately turn it on.** Ludwig is local-only by default and a
+**2. AppFlowy Cloud — only if you deliberately turn it on.** Ludwig is local-only by default and a
 fresh install never asks you to sign in. The underlying AppFlowy sync code is still present and can
 be enabled by hand. **If you do that, your writing is sent to AppFlowy.IO's servers and is governed
 by [AppFlowy's privacy policy](https://appflowy.com/privacy), not this one.** We have no visibility
