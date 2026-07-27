@@ -188,8 +188,33 @@ Make a clean launch correct for someone who is not me.
 - AGPL: license preserved, release links the exact source commit, AppFlowy attributed.
 
 ### Phase 4 — Publish
-GitHub Releases on `matanrotman/AppFlowy`, release notes, README, the pitch. Manual re-download for
+GitHub Releases on `matanrotman/Ludwig`, release notes, README, the pitch. Manual re-download for
 updates — no updater in v1.
+
+**The GitHub page itself is a Phase 4 deliverable** (user, session 18). The repo is *already* named
+**Ludwig**, which makes the mismatch worse rather than better — everything around the name still
+sells AppFlowy. Surveyed session 18:
+
+- **Repo description** is AppFlowy's marketing copy verbatim ("Bring projects, wikis, and teams
+  together with AI… The leading open source Notion alternative").
+- **Homepage link** points at `appflowy.com`.
+- **`README.md` (157 lines) is AppFlowy's landing page**: the title links to appflowy.com, the
+  tagline is "The Open Source Alternative To Notion", and the badge/nav rows push AppFlowy's
+  Discord, Forum, Reddit and Twitter.
+- **⚠️ The sharpest problem: the README advertises features Ludwig has deliberately removed.** Its
+  five hero screenshots are the **Kanban board, Grid databases, Sites, AI and Templates** — and
+  Grid, Board, Calendar and AI Chat were retired from the UI on purpose
+  (`specs/retire-non-core-surfaces.md`). Someone downloading on the strength of that page would find
+  the opposite app. That is a correctness problem, not a branding one.
+
+**What replaces it is the pitch** (open question 5, still unanswered): the reason to download Ludwig
+rather than AppFlowy. `specs/product-direction.md` is the source — digital paper, the on-the-go
+version of a thing, RTL that actually works, local backup you own. **Not** a feature-comparison
+table; the whole point is that Ludwig does less.
+
+**Attribution stays.** Removing AppFlowy's marketing is not the same as hiding the lineage — AGPL
+obligations hold, the fork relationship is public, and the release must link the exact source commit
+and credit AppFlowy plainly. The goal is an honest Ludwig page, not a scrubbed one.
 
 ## Signing — the decision deferred by D6
 | Option | Cost | Gatekeeper | Permissions survive updates? |
@@ -212,7 +237,8 @@ feature is built.
 4. **Existing snapshots keep the `AppFlowy-` prefix forever.** Acceptable (the reader handles both),
    or rename them on disk? Leaning: leave them — renaming files in a proven backup set to make them
    prettier is a bad trade.
-5. **What's the pitch?** Which features are the reason to download Ludwig. Shapes Phase 4.
+5. **What's the pitch?** Which features are the reason to download Ludwig. Shapes Phase 4 — and now
+   blocks the README rewrite, since the pitch is what replaces AppFlowy's marketing copy.
 
 ## Out of scope (first version)
 Windows and Linux builds; auto-update infrastructure; App Store / Flathub / Snap; any server the

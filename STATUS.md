@@ -278,10 +278,10 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
       still behind the first-contributor approval gate. **`gh pr checks` hides gated workflows;**
       use `gh api repos/<o>/<r>/commits/<sha>/check-suites` to see them. So this code has **still
       never been compiled by anyone's CI.**
-    - **Open, and needs the user's call: Sourcery's inline comment thread was never replied to.**
-      The fix was pushed silently. A maintainer skimming the PR sees an unanswered review comment on
-      a PR whose tests never ran. A one-line "addressed in 6476db053" reply would cost nothing —
-      **but that posts publicly under the user's name, so it needs an explicit yes.**
+    - **✅ Sourcery's inline thread was replied to (session 18, with the user's explicit yes)** —
+      it had sat unanswered since the fix was pushed silently on 07-21, so the PR read as having an
+      open review comment *and* no CI. Reply: https://github.com/AppFlowy-IO/AppFlowy/pull/8874#discussion_r3656347833
+    - **Nothing further is planned for this PR.** It is upstream's move now; the gate is theirs.
   - *(Historical)* **Upstream PR PREPARED but NOT pushed (awaiting user go, 2026-07-20 r3).** Vanilla AppFlowy has the identical bug (confirmed against `upstream/main`). Local branch **`fix/arrow-up-to-title-first-visual-line`** (off `upstream/main`, commit `38be8900c`, one file +36) holds an **upstream-compatible rewrite**: our in-app fix uses the fork-only `getLineBoundaryInPosition`, which vanilla's editor lacks, so the PR version instead compares caret rects via `getCursorRectInPosition` (a real vanilla `SelectableMixin` API) to detect the first visual line. The user said "let's do it," but the follow-up confirm-to-push question went unanswered, so nothing was pushed. **To ship it:** `git push origin fix/arrow-up-to-title-first-visual-line` then `gh pr create` against `AppFlowy-IO/AppFlowy:main` (CLA check will run; user has signed AppFlowy's CLA before). PR title: "fix: arrow-up only jumps to the title from the first visual line".
 - **Dark/light: layout vs. per-page — REWORKED to the right model, live-verified (2026-07-20 session 4 r2→r4).** Final commit `4762b470d` (supersedes the r2/r3 attempts `3ba5f93b8`, `0b818f19d`, which had it inverted). **The user's rule: Settings control the layout + default page look; the ribbon controls this page's look.**
   - **Settings → Appearance drives the whole app** (chrome + any page that inherits) — reverted the earlier chrome/global split, so setting it Light makes the *layout* light again (the earlier build made that impossible). This is just upstream's original `themeMode` behavior, restored.
@@ -347,7 +347,7 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
   **Lead for that diagnosis — deliberately left in place:** `~/Library/Caches/appflowy_integration_test` has **52** accumulated run dirs (14M). It's the prime suspect for the hang, so it was *not* cleaned at session end: wiping it would destroy the repro and probably mask the flake. It is test cache only — the real data is `~/Library/Application Support/app.ludwig.desktop/data_dev_beta.appflowy.cloud` (was `com.appflowy.appflowy.flutter/…` before the session-17 rename), a different tree entirely — so it's safe to clear once the diagnosis is done (or if the flake ever blocks real work).
 - **✅ Upstream toolbar PR SENT — https://github.com/AppFlowy-IO/appflowy-editor/pull/1222** (opened 2026-07-15 r2 at the user's explicit instruction). Branch `fix/floating-toolbar-debounce-race`, commit `7299f9d4`, 1 file, +24/−9. The debounce-key split + post-frame deferral, rebased onto upstream's newer `dispose()`. If accepted, `floating_toolbar.dart` leaves the fork for good — one less file to reconcile at every future merge.
   - **CLA signed (confirmed 2026-07-16); `license/cla` check passes.** **Confirmed 2026-07-21: both test workflows are `action_required`** — a maintainer must approve first-contributor runs; zero maintainer activity, zero reviews (this repo doesn't run the Sourcery bot) in 6 days. **User decision 2026-07-21: WAIT** — a polite nudge comment only if it stays silent another week or two.
-  - **Re-checked 2026-07-27 (session 18): still OPEN, still no review, `updatedAt` unchanged since 2026-07-15.** That is now **12 days silent**, which is past the "another week or two" threshold the user set — **the nudge is due, and it needs their explicit go since it posts publicly.**
+  - **Re-checked 2026-07-27 (session 18): still OPEN, still no review, `updatedAt` unchanged since 2026-07-15** — 12 days silent, past the threshold the user set on 07-21. **DECISION (user, session 18): do NOT nudge. "It seems like they don't care about this project anymore."** So the 07-21 "nudge after a week or two" plan is **cancelled, not pending** — don't resurrect it from that older note. The PR stays open; if upstream ever moves, we respond. **Practical consequence: `floating_toolbar.dart` stays in the fork indefinitely** — plan on maintaining it through every future merge rather than expecting it to leave.
   - Never compiled locally (upstream needs Flutter ≥3.32, we're on 3.27.4); verified by inspection only — parses, `dart format`-clean, no dangling `_debounceKey`. **Upstream's CI (Flutter 3.38.5) is the first real compile — check it.**
   - The PR states plainly that no widget test reproduces the race (a `jumpTo()` + settle can't recreate a real drag's continuous scroll-tick stream), so expect maintainers may ask for one.
 - **The user's dock app now runs the fixed code with their real data — confirmed live by the user** ("everything's back", cursor fix works). Done by rebuilding the debug app in place (`flutter build macos --debug`), which is what the dock icon points at.
@@ -392,9 +392,15 @@ to be, and the committed priority order. This table is engineering state; that f
 1. **Distribution Phase 2 — the fresh-install path.** The next real work, and priority #1 in
    `product-direction.md`. **Write `kCloudType = 2` for this install BEFORE flipping the default to
    local** — that ordering is the whole landmine; see the top of this file.
-2. **Two by-hand checks that automation cannot do** (30 seconds total): Escape in the restore
+2. **The GitHub page still sells AppFlowy** (user, session 18 — a Phase 4 item, not urgent). The
+   repo is already named **Ludwig**, but the description, the homepage link and all 157 README lines
+   are AppFlowy's landing page. **The real problem is not branding: the README's hero screenshots
+   advertise Kanban, Grid, Sites and AI — the exact surfaces Ludwig deliberately retired.** Anyone
+   downloading on the strength of that page gets the opposite app. Blocked on the pitch (open
+   question 5 in `distribution.md`). Attribution stays — honest Ludwig page, not a scrubbed one.
+3. **Two by-hand checks that automation cannot do** (30 seconds total): Escape in the restore
    browser, and the sidebar `+` menu showing only Document/folder/import.
-3. **Restore redesign Phase 3** (the merge — the only phase that writes) or **folder Phase 2**,
+4. **Restore redesign Phase 3** (the merge — the only phase that writes) or **folder Phase 2**,
    whichever the user wants; both are below distribution in the priority order.
 
 **Settled in session 17, so no longer in this queue:** the **UI font is Rubik** — one family
