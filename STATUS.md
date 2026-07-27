@@ -291,6 +291,18 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
    (`runAppFlowy` is still the entrypoint's name in code — the rename was the product's, not the
    function's. It is the right symbol to grep for, and 31 is its current count.)
    (Grepping the blob for a *test filename* is a false-positive detector — it matches a code comment in `appflowy_rich_text.dart` that references the test file.)
+2b. **Verifying a RELEASE build is different, and rule 2's recipe will wrongly reject a good one.**
+   (Learned 2026-07-27, Phase 3.) Release is **AOT-compiled**: there is **no `kernel_blob.bin`** —
+   the Dart code lives in `Contents/Frameworks/App.framework/Versions/A/App`. Grep that instead.
+   **`LudwigServerPolicy` greps to 0 in a correct release build** — it is a compile-time const, so
+   AOT folds it away; it works as a debug marker and is useless as a release one. Check the shipped
+   Ludwig assets (`ludwig_logo.png`, `ludwig_launch_splash.jpg`) instead.
+   **Just run `./frontend/scripts/ludwig/build_release.sh`** — it encodes all of this, plus the
+   PATH the build needs, the stale-cache guard, signing, and the source-commit report.
+   Release lives at `…/Products/**Release**/Ludwig.app` and is also copied to
+   `appflowy_flutter/product/<version>/macos/Release/`. **It shares the bundle id with the debug
+   build**, so launching it reads and writes the *same* preferences — back them up first, and note
+   its data dir is `data*` (no `_dev`), a different folder from the daily app's.
 3. **⚠️ HAZARD — `flutter test integration_test/... -d macos` OVERWRITES the dock app with a TEST build.** (Found 2026-07-15 r2.) The run rebuilds *in place* at `build/macos/Build/Products/Debug/Ludwig.app` — the exact path the Dock tile points at — using the test as the Dart entrypoint. Verified: afterwards the bundle carried **14** `IntegrationTestWidgetsFlutterBinding` refs. Clicking the dock icon then launches the test harness, not AppFlowy. This is silent, and is very likely a *second* cause of the "blank window / looks broken" reports previously blamed only on the pref below.
    **Always re-run `flutter build macos --debug` after any `-d macos` integration test**, then verify by contents as above.
 4. **⚠️ HAZARD — integration tests pollute the user's REAL app preferences.** `initializeAppFlowy()` → `mockApplicationDataStorage()` writes
@@ -421,17 +433,19 @@ to be, and the committed priority order. This table is engineering state; that f
 | Folders | `folder.md` | Phase 1 of 4. Phase 2 (the folder page) next |
 | **Product direction** | `product-direction.md` | **NEW — philosophy binding, roadmap a draft** |
 | **Retire Grid/Board/Calendar/AI Chat** | `retire-non-core-surfaces.md` | **BUILT + verified live. `RetiredSurfaces` is the one place** |
-| **Distribution / Ludwig** | `distribution.md` | **Phases 1 + 2 DONE — Ludwig identity, local-first fresh install, drilled live. Phases 3–4 left, blocked on the auto-updater** |
+| **Distribution / Ludwig** | `distribution.md` | **Phases 1–3 DONE — identity, local-first install, and a SIGNED RELEASE BUILD that runs. Only Phase 4 (publish) left** |
 | Meeting transcription | `meeting-transcription.md` | Stub |
 | Tables | `tables.md` | Spec only |
 | Plugin system | `plugin-system.md` | Resolved: no plugin system, sidecar modules |
 
 **Immediate queue, in order:**
 
-1. **Distribution Phase 3 — the release build.** `flutter build macos --release` as a genuinely new
-   target (never validated for this fork; it opens a *different* data dir), the signing decision
-   (D6), a repeatable build script, and the AGPL obligations. The auto-updater that blocked this is
-   fixed — see the ✅ section near the top.
+1. **Distribution Phase 4 — publish.** The last phase: GitHub Releases on `matanrotman/Ludwig`,
+   release notes, **the README rewrite** (item 2 below), and the pitch. Phase 3 is done — there is a
+   signed, working release binary. **Blocked on the pitch** (open question 5 in `distribution.md`):
+   what the reason to download Ludwig actually is. That is a conversation, not code.
+   **Also still AppFlowy-branded and reachable:** the cloud sign-in screen says *"you agreed to
+   AppFlowy's Terms and Privacy Policy"* — a legal statement about the wrong entity.
 2. **The GitHub page still sells AppFlowy** (user, session 18 — a Phase 4 item, not urgent). The
    repo is already named **Ludwig**, but the description, the homepage link and all 157 README lines
    are AppFlowy's landing page. **The real problem is not branding: the README's hero screenshots

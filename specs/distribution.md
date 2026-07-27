@@ -237,12 +237,57 @@ off.
 `kCloudType = 2` — but it means a future local-mode launch would find a stale drill workspace rather
 than a clean slate. Safe to delete.
 
-### Phase 3 — The release build
-- `flutter build macos --release` as a **genuinely new target** — `STATUS.md` warns it opens a
-  different data dir and it has never been validated for this fork.
-- Signing decision (D6 comes due here).
-- A repeatable build script.
-- AGPL: license preserved, release links the exact source commit, AppFlowy attributed.
+### Phase 3 — The release build ✅ DONE (session 18d)
+- ✅ **The release build works and RUNS** — validated for the first time in this fork. 185MB,
+  arm64, built via `cargo make --profile production-mac-arm64 appflowy` (release Rust core →
+  codegen → Flutter release → copy), 535s once the blockers below were cleared.
+- ✅ **Signing: self-signed** (D6, user's choice over $99/yr notarization).
+  `Authority=Ludwig Self-Signed`, replacing ad-hoc. Gatekeeper still says `rejected` with
+  `origin=Ludwig Self-Signed` — **that is the expected, accepted trade**: downloaders right-click →
+  Open once. What it buys is a *stable code hash*, so granted macOS permissions survive an update
+  instead of silently resetting (the 2026-07-19 finding; it will matter for the microphone).
+- ✅ **Repeatable build script:** [`frontend/scripts/ludwig/build_release.sh`](../frontend/scripts/ludwig/build_release.sh).
+- ✅ **AGPL:** `LICENSE` (AGPL-3.0) preserved at the root; AppFlowy attributed in the copyright
+  string (*"Ludwig is a fork of AppFlowy, © AppFlowy.IO, used under the AGPL-3.0"*); the script
+  prints the exact source commit and **warns when the tree is dirty**, so a release cannot silently
+  claim to match a commit it does not.
+
+**Five blockers, none of which debug builds can reach.** This is why the spec called it "a genuinely
+new target" — the debug path only relinks a prebuilt Rust library and never re-runs code generation.
+
+1. **`PRODUCT_NAME` was still `AppFlowy`** in `frontend/Makefile.toml`, while Xcode produces
+   `Ludwig.app`. The copy step would have found nothing — **silently**, since it does not check.
+   Phase 1's rename trap, one layer deeper.
+2. **🔴 The folder rename broke the Rust build.** `flowy-codegen` resolves its template directory
+   from `env!("CARGO_MANIFEST_DIR")`, baked in **at compile time**, and every crate's build script
+   statically links that copy. After `Projects/AppFlowy` → `Projects/Ludwig`, all of them panicked
+   on a path that no longer exists. **It took three failed builds to clear**, in layers:
+   `cargo clean -p flowy-codegen` (which silently missed the rlib), then the dependent build-script
+   binaries, then the rlib and fingerprint by hand. The script now detects and clears this, and
+   `LUDWIG_RENAME_BY_HAND.md` warns about it — it had anticipated Flutter's stale path and Claude
+   Code's, but not this one, which is the only one that actually breaks a build.
+3. **`protoc-gen-dart` not on PATH.** It lives in `~/.pub-cache/bin`, which a login shell has and a
+   build shell does not. The script sets the full PATH and checks every tool up front.
+4. **A release bundle has no `kernel_blob.bin`.** Release is AOT-compiled into
+   `App.framework/Versions/A/App`. `STATUS.md`'s verification recipe is debug-only; applied to a
+   release build it rejects a perfectly good one.
+5. **`LudwigServerPolicy` greps to 0 in a release bundle** — it is a compile-time const, so AOT
+   folds it away. It works as a debug marker and is **useless as a release one**. The script checks
+   the shipped Ludwig *assets* instead.
+
+**Do not "fix" the certificate trust warning.** `security find-identity -p codesigning` omits the
+self-signed cert as `CSSMERR_TP_NOT_TRUSTED`, but `codesign` signs with it perfectly well (verified).
+Trust governs *verification* on someone else's Mac, where Gatekeeper rejects self-signed regardless.
+Nobody needs to mark anything trusted, and the script matches without the `-p codesigning` filter.
+
+**Hardened runtime deliberately NOT enabled.** It enforces library validation — every loaded library
+signed by the same team — and a self-signed certificate has no team, so Flutter's embedded
+frameworks can fail to load. It is a prerequisite for *notarization*, which this build does not do.
+
+**⚠️ One more AppFlowy leftover, found by running the release build and NOT yet fixed:** the cloud
+sign-in screen reads *"By clicking "Continue" above, you agreed to **AppFlowy's** Terms and Privacy
+Policy"*, linking AppFlowy's documents. It is a legal statement about the wrong entity. Only reachable
+in cloud mode, which a fresh download no longer defaults to — but it is reachable. Phase 4.
 
 ### Phase 4 — Publish
 GitHub Releases on `matanrotman/Ludwig`, release notes, README, the pitch. Manual re-download for
@@ -326,6 +371,26 @@ AppFlowy, no attempt to sync into anyone's account, no route to silent data loss
 the exact source commit and preserves the AGPL license.
 
 ## Session Log
+- **2026-07-27 (session 18d) — PHASE 3 DONE: the release build exists, is signed, and RUNS.**
+  Full detail under "Phase 3" above. The headline is that **the release target had never been
+  validated for this fork, and five separate things were broken** — every one of them invisible to
+  debug builds, because debug only relinks a prebuilt Rust library and never re-runs codegen.
+  **The expensive one: the folder rename broke the Rust build**, via a path baked in at compile
+  time by `env!("CARGO_MANIFEST_DIR")`. Three failed builds to clear, in layers, because
+  `cargo clean -p` silently missed the rlib. Now auto-detected by the build script and written into
+  `LUDWIG_RENAME_BY_HAND.md`.
+  **Verified end to end on a real binary:** signed `Authority=Ludwig Self-Signed` (was ad-hoc),
+  `codesign --verify` reports *valid on disk* and *satisfies its Designated Requirement*, Gatekeeper
+  reports `rejected / origin=Ludwig Self-Signed` exactly as self-signed implies, and the app
+  **launches**. With `kCloudType` removed — which is what a fresh download on someone else's Mac
+  looks like — it opens on "Welcome to Ludwig", one Quick Start button, no sign-in wall, storing to
+  a bare `data` folder. **That single screenshot validates Phase 2 and Phase 3 together on a release
+  binary.** Preferences were backed up and restored around the test: 21 keys, none missing, none
+  changed; the user's writing untouched at 339 files / 18M.
+  **The reusable lesson: a self-signed identity reads as untrusted and signs fine anyway.**
+  `security find-identity -p codesigning` hides it behind `CSSMERR_TP_NOT_TRUSTED`, which looks like
+  a setup error and invites someone to go change a security setting. It is not one. Trust governs
+  verification on a *downloader's* Mac, where Gatekeeper rejects self-signed regardless.
 - **2026-07-27 (session 18c) — THE FOUR APPFLOWY LEFTOVERS THE DRILL EXPOSED, ALL FIXED.**
   User's instruction: kill the update invite (keeping a placeholder for Ludwig's own), change the
   welcome logo, hide Cloud Settings. A fourth was found while doing it.

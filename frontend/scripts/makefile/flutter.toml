@@ -168,7 +168,10 @@ script = [
   mkdir -p ${output_path}
 
   product=${PRODUCT_NAME}.${PRODUCT_EXT}
-  cp -R ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/appflowy_flutter/build/${TARGET_OS}/Build/Products/${FLUTTER_OUTPUT_DIR}/${product} \
+  # Ludwig: ditto, not `cp -R`. Copying a .app with cp -R corrupts its code
+  # signature, which matters the moment we sign a release (specs/distribution.md
+  # D6) — and a broken signature on a downloaded build is a Gatekeeper wall.
+  ditto ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/appflowy_flutter/build/${TARGET_OS}/Build/Products/${FLUTTER_OUTPUT_DIR}/${product} \
   ${output_path}/${product}
   """,
 ]

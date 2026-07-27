@@ -92,7 +92,21 @@ rm -rf ~/Projects/AppFlowy && ls -d ~/Projects/*
 **If anything looks wrong before you delete:** `~/Projects/AppFlowy` is still there, untouched.
 Just `rm -rf ~/Projects/Ludwig` and you're back where you started.
 
-### Two small things afterwards
+### Three small things afterwards
+
+**Added 2026-07-27, after this bit us for real.** The Rust build cache also remembers the old path,
+and unlike the two below it is *not* harmless — it breaks the release build with a confusing panic
+about a file that does not exist. `flowy-codegen` bakes its own location in at compile time
+(`env!("CARGO_MANIFEST_DIR")`), and every crate's build script statically links that stale copy.
+**Debug builds never notice**, because they only relink a prebuilt library and never re-run code
+generation — so the breakage stays hidden until the first release build, possibly weeks later.
+
+```bash
+cd ~/Projects/Ludwig/frontend/rust-lib && rm -f target/release/deps/libflowy_codegen-*.rlib target/release/deps/libflowy_codegen-*.rmeta target/release/deps/flowy_codegen-*.d && rm -rf target/release/.fingerprint/flowy-codegen-* target/release/build/flowy-* target/release/build/dart-ffi-* && echo done
+```
+
+`frontend/scripts/ludwig/build_release.sh` now detects and clears this automatically, so you only
+need the command above if you are building by hand.
 
 Flutter regenerates one file with an absolute path in it; harmless, but this clears it:
 

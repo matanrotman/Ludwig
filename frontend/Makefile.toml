@@ -28,7 +28,11 @@ CARGO_MAKE_CRATE_NAME = "dart-ffi"
 LIB_NAME = "dart_ffi"
 APPFLOWY_VERSION = "0.11.4"
 FLUTTER_DESKTOP_FEATURES = "dart"
-PRODUCT_NAME = "AppFlowy"
+# Ludwig: must match PRODUCT_NAME in macos/Runner.xcodeproj/project.pbxproj and
+# AppInfo.xcconfig — it names the built .app that copy-to-product looks for, so
+# a mismatch makes the release pipeline silently copy nothing. (Phase 1 renamed
+# the Xcode side; this was missed until Phase 3.)
+PRODUCT_NAME = "Ludwig"
 MACOSX_DEPLOYMENT_TARGET = "11.0"
 # CRATE_TYPE: https://doc.rust-lang.org/reference/linkage.html
 # If you update the macOS's CRATE_TYPE, don't forget to update the
