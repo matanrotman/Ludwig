@@ -637,7 +637,7 @@
         "logoutLabel": "Log out"
       },
       "isUpToDate": "@:appName is up to date!",
-      "officialVersion": "Version {version} (Official build)"
+      "officialVersion": "Version {version}"
     },
     "workspacePage": {
       "menuLabel": "Workspace",
@@ -3470,7 +3470,7 @@
     "bannerUpdateDescription": "Get the latest features and fixes. Click \"Update\" to install now",
     "bannerUpdateButton": "Update",
     "settingsUpdateTitle": "New Version ({newVersion}) Available!",
-    "settingsUpdateDescription": "Current version: {currentVersion} (Official build) → {newVersion}",
+    "settingsUpdateDescription": "Current version: {currentVersion} → {newVersion}",
     "settingsUpdateButton": "Update",
     "settingsUpdateWhatsNew": "What's new"
   },

@@ -117,8 +117,13 @@ class _DesktopSplashBody extends StatelessWidget {
             fit: BoxFit.cover,
             width: size.width,
             height: size.height,
+            // Ludwig: upstream's splash is an AppFlowy advert ("Making it
+            // possible for anyone to create apps") shown at EVERY desktop
+            // launch. Replaced with Ludwig's own mark. The AppFlowy file is
+            // left in place unused, so an upstream merge touching it is a
+            // no-op here rather than a conflict.
             image: const AssetImage(
-              'assets/images/appflowy_launch_splash.jpg',
+              'assets/images/ludwig_launch_splash.jpg',
             ),
           ),
           const CircularProgressIndicator.adaptive(),

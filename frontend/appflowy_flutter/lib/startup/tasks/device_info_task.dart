@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/env/ludwig_update_policy.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:auto_updater/auto_updater.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -28,6 +29,15 @@ class ApplicationInfo {
 
   // If the latest version is greater than the current version, it means there is an update available
   static bool get isUpdateAvailable {
+    // Ludwig: the single gate both update surfaces read — the sidebar banner
+    // and the Settings → Account & App row. Disabling the launch task already
+    // leaves `latestVersion` empty, so this is belt-and-braces: it means no
+    // future code path can surface an update prompt while updates are off.
+    // See lib/env/ludwig_update_policy.dart.
+    if (!LudwigUpdatePolicy.checkForUpdates) {
+      return false;
+    }
+
     try {
       if (latestVersion.isEmpty) {
         return false;

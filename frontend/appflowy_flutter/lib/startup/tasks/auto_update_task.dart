@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:appflowy/env/ludwig_update_policy.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/version_checker/version_checker.dart';
 import 'package:appflowy/startup/tasks/app_widget.dart';
@@ -24,6 +25,25 @@ class AutoUpdateTask extends LaunchTask {
   @override
   Future<void> initialize(LaunchContext context) async {
     await super.initialize(context);
+
+    // Ludwig: updates are off. Upstream's feed points at AppFlowy's releases,
+    // so leaving this on makes Ludwig invite users to replace it with AppFlowy
+    // — and contacts AppFlowy's servers on every launch. Returning here kills
+    // the check, the listener and the blocking critical-update dialog in one
+    // place. See lib/env/ludwig_update_policy.dart.
+    if (!LudwigUpdatePolicy.checkForUpdates) {
+      Log.info('[AutoUpdate] disabled by LudwigUpdatePolicy');
+      return;
+    }
+
+    // Ludwig: guard the seam rather than trusting a future reader. Turning
+    // checks on without setting Ludwig's own feed would silently fall back to
+    // upstream's AppFlowy feed — the exact bug this policy exists to prevent.
+    assert(
+      LudwigUpdatePolicy.feedUrl != null,
+      'LudwigUpdatePolicy.checkForUpdates is true but feedUrl is null, which '
+      'would check AppFlowy\'s releases. Set feedUrl to Ludwig\'s own appcast.',
+    );
 
     // the auto updater is not supported on mobile
     if (UniversalPlatform.isMobile) {
@@ -57,7 +77,8 @@ class AutoUpdateTask extends LaunchTask {
     );
 
     // Since the appcast.xml is not supported the arch, we separate the feed url by os and arch.
-    final feedUrl = _feedUrl
+    // Ludwig: prefer Ludwig's own feed; `_feedUrl` is upstream's AppFlowy one.
+    final feedUrl = (LudwigUpdatePolicy.feedUrl ?? _feedUrl)
         .replaceAll('{os}', ApplicationInfo.os)
         .replaceAll('{arch}', ApplicationInfo.architecture);
 

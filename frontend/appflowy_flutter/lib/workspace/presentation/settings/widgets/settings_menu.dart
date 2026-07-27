@@ -1,3 +1,4 @@
+import 'package:appflowy/env/ludwig_server_policy.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/feature_flags.dart';
@@ -93,13 +94,17 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_bell_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            SettingsMenuElement(
-              page: SettingsPage.cloud,
-              selectedPage: currentPage,
-              label: LocaleKeys.settings_menu_cloudSettings.tr(),
-              icon: const FlowySvg(FlowySvgs.settings_page_cloud_m),
-              changeSelectedPage: changeSelectedPage,
-            ),
+            // Ludwig: no Cloud Settings row — with the server switcher hidden
+            // it leads to a page with nothing on it.
+            // See lib/env/ludwig_server_policy.dart.
+            if (LudwigServerPolicy.showCloudSettingsPage)
+              SettingsMenuElement(
+                page: SettingsPage.cloud,
+                selectedPage: currentPage,
+                label: LocaleKeys.settings_menu_cloudSettings.tr(),
+                icon: const FlowySvg(FlowySvgs.settings_page_cloud_m),
+                changeSelectedPage: changeSelectedPage,
+              ),
             SettingsMenuElement(
               page: SettingsPage.shortcuts,
               selectedPage: currentPage,

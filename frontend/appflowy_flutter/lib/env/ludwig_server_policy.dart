@@ -38,4 +38,19 @@ class LudwigServerPolicy {
   /// migrate anyone: an install already on AppFlowy Cloud stays there, because
   /// the stored value is untouched and only the *control* disappears.
   static const bool showServerSwitcher = false;
+
+  /// Whether Settings lists a "Cloud Settings" page at all.
+  ///
+  /// False since 2026-07-27. With [showServerSwitcher] off and local mode the
+  /// default, that page collapses to a lone "Restart" button and a sentence
+  /// about changes taking effect — for changes that can no longer be made. A
+  /// row that leads nowhere is worse than no row.
+  ///
+  /// **Scope: the main Settings dialog only.** The sign-in screen's smaller
+  /// dialog (`SimpleSettingsDialog`) still lists it, deliberately: on desktop
+  /// local mode routes to the skip-login screen so that dialog is unreachable,
+  /// and on mobile it is the *only* settings surface — emptying it there would
+  /// trade a useless row for a broken screen. Revisit if Ludwig ever targets
+  /// mobile.
+  static const bool showCloudSettingsPage = false;
 }

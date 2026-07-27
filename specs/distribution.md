@@ -208,6 +208,10 @@ into the Drive history and muddle the restore browser), `kCloudType` deleted, ap
 Afterwards the preference domain was restored from the backup and diffed against it: **21 keys, none
 missing, none changed.**
 
+**✅ Both drill findings were FIXED the same session (see the session log). The updater is off with
+a placeholder seam for Ludwig's own feed, the welcome logo and launch splash are Ludwig's, and
+Cloud Settings is gone from Settings.** The original findings, kept because the reasoning matters:
+
 **⚠️ Two findings from the drill, neither of them anticipated:**
 
 1. **🔴 A downloaded Ludwig would tell every user to install AppFlowy over it.** The fresh install
@@ -322,6 +326,45 @@ AppFlowy, no attempt to sync into anyone's account, no route to silent data loss
 the exact source commit and preserves the AGPL license.
 
 ## Session Log
+- **2026-07-27 (session 18c) — THE FOUR APPFLOWY LEFTOVERS THE DRILL EXPOSED, ALL FIXED.**
+  User's instruction: kill the update invite (keeping a placeholder for Ludwig's own), change the
+  welcome logo, hide Cloud Settings. A fourth was found while doing it.
+  1. **Auto-update off** — `lib/env/ludwig_update_policy.dart`. `AutoUpdateTask` returns early, so
+     no network call, no listener, and **no blocking "Update required to continue" dialog** — that
+     one could have locked a Ludwig user out of their own writing until they installed AppFlowy.
+     Belt-and-braces, the gate also sits on `ApplicationInfo.isUpdateAvailable`, **the single
+     property both update surfaces read** (sidebar banner + Settings row), so one edit covers both
+     and no future code path can surface a prompt. The placeholder the user asked for is
+     `feedUrl`, with a runtime `assert` pairing it to `checkForUpdates`: turning checks on without
+     a Ludwig feed would silently fall back to *AppFlowy's* feed, which is the exact bug being
+     fixed — so it fails loudly rather than trusting a future reader.
+  2. **Welcome logo** — upstream's `AFLogo` drew AppFlowy's petal mark, untouched by Phase 1 (which
+     changed the app *icon*). Now the icon's artwork with the white removed. Built three candidates
+     and let the user look: the icon tile, a naive background-removal (rejected — the white trapped
+     *inside* the loops survived as blobs), and the line-art. **Line-art won because it reads
+     identically on light and dark**, and the welcome screen follows the theme.
+  3. **Launch splash** — found while chasing the logo, not asked for: upstream's desktop splash is a
+     full-screen AppFlowy advert, *"Making it possible for anyone to create apps"*, shown at **every**
+     launch rather than just the first. Replaced with Ludwig's mark on the app's dark background.
+     The AppFlowy file is left in the repo unused so an upstream merge touching it is a no-op.
+  4. **Cloud Settings row removed** + "(Official build)" dropped from the version strings — it meant
+     "an official *AppFlowy* release" and read as a claim about Ludwig.
+  **8 tests, proven failing-then-passing** (3 fail with the update gate removed). The behavioural
+  one sets a real newer version and asserts nothing offers it.
+  **⚠️ The method note that nearly cost a wrong conclusion.** First verification showed *both* the
+  Cloud row and the update prompt still present, and the obvious reading was "the code does not
+  work". It was a **stale app**: the user had reopened Ludwig at 16:28, the build finished at 16:44,
+  and `open` merely re-activated the running instance. Caught by comparing the process start time
+  with the kernel blob's — after confirming the *bundle* did contain the new symbols. **When a
+  change appears not to work, check what is actually running before you touch the code.** This is
+  the same trap `STATUS.md`'s verification rules were written for, in a new disguise.
+  **Verified live after a real restart:** Cloud Settings absent, "Ludwig is up to date!" with no
+  Update button, the welcome screen showing Ludwig's mark. **Not seen by eye: the splash** — the app
+  loads in under three seconds, so it is verified by the asset being bundled and the code pointing
+  at it, nothing more.
+  **Also checked, because a count moved:** the real data folder read 335 files where the drill had
+  recorded 356. It is AppFlowy's own `log.sync.*` rotation, not loss — `collab_db` 5.2M plus an
+  8.7M history copy, 318 files in the workspace, folder still 18M.
 - **2026-07-27 (session 18b) — PHASE 2 BUILT AND DRILLED.** Local-first fresh install, switcher
   hidden everywhere, 5 tests proven failing-then-passing, and a real simulated fresh install on the
   live machine that was fully reverted afterwards (21 preference keys, none missing, none changed).

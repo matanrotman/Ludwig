@@ -79,17 +79,28 @@ daemon rewrites a running app's domain from its own cache on exit, so a write du
 silently vanishes. To restore the switcher instead, flip `showServerSwitcher` in
 `lib/env/ludwig_server_policy.dart`.
 
-## ⚠️ A downloaded Ludwig would tell users to install AppFlowy over it (found session 18, UNFIXED)
+## ✅ The AppFlowy branding leftovers are gone (session 18, all four fixed and verified live)
 
-The fresh-install drill surfaced this and it is a **Phase 3/4 blocker**. A clean Ludwig launch shows
-a "New Version Available" toast, and Settings → Account & App reads: *"New Version (0.13.0)
-Available! Current version: 0.11.4 (**Official build**) → 0.13.0"* with an **Update** button. The
-updater checks **AppFlowy's** releases, labels our build an "Official build", and offers an upgrade
-that would replace Ludwig with AppFlowy. It also contacts AppFlowy's servers on launch, which
-contradicts the local-only promise Phase 2 just established. **Do not ship without deciding this** —
-point it at Ludwig's own releases, or remove it for v1 (no updater is already the Phase 4 plan).
-Related, cosmetic: the in-app welcome logo is still AppFlowy's petal mark under the words "Welcome
-to Ludwig" — Phase 1 changed the app icon, not this bundled asset.
+The fresh-install drill surfaced these; all four were fixed the same session, at the user's
+instruction, and confirmed on screen afterwards.
+1. **The auto-updater is OFF.** It checked **AppFlowy's** releases and offered *"New Version (0.13.0)
+   Available… Current version: 0.11.4 (Official build)"* with a working Update button — a downloaded
+   Ludwig inviting its users to replace it with AppFlowy, while contacting AppFlowy's servers on
+   every launch. Now `lib/env/ludwig_update_policy.dart`, with **a placeholder for Ludwig's own feed**
+   (the user asked to keep the seam) and a runtime `assert` so turning checks on without setting that
+   feed cannot silently fall back to AppFlowy's. Settings now reads "Ludwig is up to date!".
+2. **The welcome logo is Ludwig's mark** — the app icon's artwork with its white background removed,
+   chosen by the user from a side-by-side. Upstream's `AFLogo` drew AppFlowy's petal mark; Phase 1
+   had changed only the app icon.
+3. **The desktop launch splash** was a full-screen AppFlowy advert ("Making it possible for anyone to
+   create apps") shown at **every** launch. Now Ludwig's mark on the app's dark background.
+4. **Cloud Settings is gone from Settings** — with the switcher hidden it led to a page with nothing
+   on it. Also dropped "(Official build)" from the version strings, which meant "an official
+   *AppFlowy* release".
+
+**Still AppFlowy-branded, deliberately left:** the GitHub page (a Phase 4 deliverable, see the
+roadmap) and the mobile/AI-chat logo surfaces (retired or not a target). The unused
+`appflowy_launch_splash.jpg` stays in the repo so an upstream merge touching it is a no-op.
 
 ## Project stance — personal build now, designed to open to others later (set 2026-07-17)
 This fork is being positioned so it *could* one day be used by other people — especially those who want RTL support, local backup, and the roadmap features. **Nothing needs to work for everyone today.** The rule (full version in `CLAUDE.md` → "Designing for other users, not just me"): a feature may ship local-only-for-me first, but must be *designed* so a later "make it multi-user" step is a small, bounded edit — not a rewrite. Personal-only assumptions get isolated and named, not baked in.
@@ -417,8 +428,10 @@ to be, and the committed priority order. This table is engineering state; that f
 
 **Immediate queue, in order:**
 
-1. **Decide the auto-updater** — see the ⚠️ section near the top. It blocks Phase 3/4 and it is the
-   only thing on this list that would actively harm someone who downloads Ludwig.
+1. **Distribution Phase 3 — the release build.** `flutter build macos --release` as a genuinely new
+   target (never validated for this fork; it opens a *different* data dir), the signing decision
+   (D6), a repeatable build script, and the AGPL obligations. The auto-updater that blocked this is
+   fixed — see the ✅ section near the top.
 2. **The GitHub page still sells AppFlowy** (user, session 18 — a Phase 4 item, not urgent). The
    repo is already named **Ludwig**, but the description, the homepage link and all 157 README lines
    are AppFlowy's landing page. **The real problem is not branding: the README's hero screenshots
