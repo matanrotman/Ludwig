@@ -10,7 +10,12 @@ import 'package:window_manager/window_manager.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 class InitAppWindowTask extends LaunchTask with WindowListener {
-  InitAppWindowTask({this.title = 'AppFlowy'});
+  // Ludwig: the WINDOW title, which is a different thing from the app's name in
+  // Info.plist and is what macOS shows over each window in Mission Control. The
+  // bundle, LaunchServices, Spotlight and the process all said "Ludwig" while
+  // this still said "AppFlowy" — which is exactly why the rename looked done
+  // everywhere except the four-finger view.
+  InitAppWindowTask({this.title = 'Ludwig'});
 
   final String title;
   final windowSizeManager = WindowSizeManager();
