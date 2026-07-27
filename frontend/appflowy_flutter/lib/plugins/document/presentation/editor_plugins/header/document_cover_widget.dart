@@ -96,7 +96,6 @@ class DocumentCoverWidget extends StatefulWidget {
     required this.onIconChanged,
     required this.view,
     required this.tabs,
-    this.showTitle = true,
   });
 
   final Node node;
@@ -104,17 +103,6 @@ class DocumentCoverWidget extends StatefulWidget {
   final ValueChanged<EmojiIconData> onIconChanged;
   final ViewPB view;
   final List<PickerTabType> tabs;
-
-  /// [fork:no-titles] Whether to draw the title field — see specs/no-titles.md.
-  ///
-  /// False for a page whose name comes from its first line: there is nowhere to
-  /// type a title, because the title is the first line of the document.
-  ///
-  /// **The cover and the icon deliberately stay.** They belong to the page, not
-  /// to its name, and losing them was never part of removing titles — this is
-  /// where it differs from the pad, which hides the whole header because a pad
-  /// is meant to be bare (`specs/ephemeral-pad.md` D7).
-  final bool showTitle;
 
   @override
   State<DocumentCoverWidget> createState() => _DocumentCoverWidgetState();
@@ -207,7 +195,7 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
             // page, and padding above it would leave a strip of desk showing
             // through where the image should run to the edge.
             padding: EdgeInsets.only(
-              top: widget.showTitle || hasCover ? 0 : kTitlelessHeaderTopGap,
+              top: hasCover ? 0 : kTitlelessHeaderTopGap,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -253,21 +241,23 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
                     _buildAlignedCoverIcon(context),
                   ],
                 ),
-                // [fork:no-titles] Omitted entirely rather than sized to zero: an
-                // invisible `CoverTitle` still holds a focus node and still seeds
-                // itself from the view's name, and this header is rebuilt whenever
-                // a paste grows the document (it is item 0 of a virtualized list).
-                // That combination is precisely what produced session 11's title
-                // bug, and there is no reason to keep a dormant copy of it around.
+                // [fork:no-titles] **PHASE 5 — there is no title box any more.**
+                // A page is named by its first line, everywhere, with no second
+                // kind of page left in the wild: the one-off migration moved
+                // every existing name into its document as line one.
                 //
-                // The space it occupied IS kept, though. Without it the "Add
-                // Cover / Add icon" row sits directly on the first line of text
-                // (user, session 15: "too close to first line of text") — on an
-                // ordinary page it is the title that holds those apart.
-                if (widget.showTitle)
-                  _buildAlignedTitle(context)
-                else
-                  const SizedBox(height: kTitlelessHeaderGap),
+                // Omitted entirely rather than sized to zero. An invisible
+                // `CoverTitle` still holds a focus node and still seeds itself
+                // from the view's name, and this header is rebuilt whenever a
+                // paste grows the document (it is item 0 of a virtualized list).
+                // That combination is precisely what produced session 11's title
+                // bug, and there is no reason to keep a dormant copy of it.
+                //
+                // The space it occupied IS kept. Without it the "Add Cover / Add
+                // icon" row sits directly on the first line of text (user,
+                // session 15: "too close to first line of text") — on the old
+                // page it was the title that held those apart.
+                const SizedBox(height: kTitlelessHeaderGap),
               ],
             ),
           );
@@ -286,45 +276,10 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
         layoutDirection: Directionality.of(context),
       );
 
-  Widget _buildAlignedTitle(BuildContext context) {
-    return Directionality(
-      // Wrapping (rather than setting `textDirection` on the field) also fixes
-      // the field's *alignment*: TextField defaults to `TextAlign.start`, which
-      // resolves against the ambient direction — so one wrapper moves both the
-      // glyph order and which margin the title sits against.
-      textDirection: _headerDirection(context),
-      child: Center(
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth:
-                widget.editorState.editorStyle.maxWidth ?? double.infinity,
-          ),
-          // [fork:rtl] Lines the title up with the first line of body text. The
-          // old `symmetric(horizontal: 44)` was a stale copy of the block option
-          // gutter's width, which has since grown to ~73 — leaving the title 29px
-          // outside the text (measured on the real target, 2026-07-19).
-          padding: widget.editorState.editorStyle.padding +
-              EditorStyleCustomizer.textAlignmentInsetFor(
-                widget.editorState.editorStyle.padding,
-              ),
-          child: MouseRegion(
-            onEnter: (event) => isCoverTitleHovered.value = true,
-            onExit: (event) => isCoverTitleHovered.value = false,
-            child: CoverTitle(
-              // [fork:title-fix] `view` (kept live by the ViewListener above),
-              // NOT `widget.view` — the latter is the snapshot captured when the
-              // page was opened, so a title typed after that is missing from it.
-              // CoverTitle seeds its text controller once in initState, and the
-              // editor's virtualized list disposes/recreates this header when a
-              // paste grows the document — reseeding from a stale empty name is
-              // exactly what made the title revert to "Untitled".
-              view: view,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // [fork:no-titles] Phase 5 removed `_buildAlignedTitle` — the title field it
+  // drew no longer exists on any page. `cover_title.dart` itself is left on disk
+  // unused, the same retired-but-kept treatment the sidebar's replaced widgets
+  // got, so a future upstream merge has something to land against.
 
   Widget _buildAlignedCoverIcon(BuildContext context) {
     if (!hasIcon) {

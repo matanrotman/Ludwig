@@ -2729,6 +2729,7 @@ dependencies = [
  "serde_json",
  "strum_macros 0.21.1",
  "tracing",
+ "uuid",
  "zip 2.2.0",
 ]
 

@@ -337,12 +337,10 @@ class _DocumentPageState extends State<DocumentPage>
             isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
             child: AppFlowyEditorPage(
               editorState: editorState,
-              // [fork:no-titles] A titleless page has no title to focus, so the
-              // cursor belongs in the document — which is also the only place
-              // its name can come from.
-              autoFocus: tracksFirstLine
-                  ? true
-                  : (widget.view.name.isEmpty ? false : null),
+              // [fork:no-titles] Phase 5: no page has a title to focus any more,
+              // so the cursor always belongs in the document — which is also the
+              // only place a name can come from.
+              autoFocus: true,
               styleCustomizer: EditorStyleCustomizer(
                 context: ctx,
                 width: width,
@@ -350,8 +348,7 @@ class _DocumentPageState extends State<DocumentPage>
                 editorState: editorState,
                 pageTextDirection: pageDirection.editorValue,
               ),
-              header: padHeader ??
-                  buildCoverAndIcon(ctx, state, showTitle: !tracksFirstLine),
+              header: padHeader ?? buildCoverAndIcon(ctx, state),
               initialSelection: initialSelection,
               placeholderText: (node) {
                 if (isPad ||
@@ -359,15 +356,16 @@ class _DocumentPageState extends State<DocumentPage>
                     node.isInTable) {
                   return '';
                 }
-                // [fork:no-titles] The first line of a titleless page IS the
-                // page's name, and it now sits exactly where a title used to.
-                // Body-text guidance in that spot reads as a label for the
-                // title, so the line is left blank — the same bare treatment
-                // the pad gets. The hint still appears on every line after it,
-                // so nothing is lost but the wrong placement.
+                // [fork:no-titles] The first line IS the page's name, and it
+                // sits exactly where a title used to. Body-text guidance in that
+                // spot reads as a label for the title, so the line is left blank
+                // — the same bare treatment the pad gets. The hint still appears
+                // on every line after it, so nothing is lost but the wrong
+                // placement. Phase 5: this holds for every page, not only pages
+                // that are still naming themselves.
                 final isFirstLine =
                     node.path.length == 1 && node.path.first == 0;
-                if (tracksFirstLine && isFirstLine) {
+                if (isFirstLine) {
                   return '';
                 }
                 return LocaleKeys.editor_slashPlaceHolder.tr();
@@ -466,9 +464,8 @@ class _DocumentPageState extends State<DocumentPage>
 
   Widget buildCoverAndIcon(
     BuildContext context,
-    DocumentState state, {
-    bool showTitle = true,
-  }) {
+    DocumentState state,
+  ) {
     final editorState = state.editorState;
     final userProfilePB = state.userProfilePB;
     if (editorState == null || userProfilePB == null) {
@@ -490,7 +487,6 @@ class _DocumentPageState extends State<DocumentPage>
       tabs: widget.tabs,
       editorState: editorState,
       view: widget.view,
-      showTitle: showTitle,
       onIconChanged: (icon) async => ViewBackendService.updateViewIcon(
         view: widget.view,
         viewIcon: icon,
