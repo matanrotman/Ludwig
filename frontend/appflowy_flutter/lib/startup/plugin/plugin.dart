@@ -3,6 +3,8 @@ library;
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/startup/plugin/plugin.dart';
 import 'package:appflowy/startup/startup.dart';
+// [fork:retire-non-core-surfaces]
+import 'package:appflowy/workspace/application/retired_surfaces.dart';
 import 'package:appflowy/workspace/presentation/home/home_stack.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
@@ -107,6 +109,14 @@ List<PluginBuilder> pluginBuilders() {
   final pluginConfigs = getIt<PluginSandbox>().pluginConfigs;
   return pluginBuilders.where(
     (builder) {
+      // [fork:retire-non-core-surfaces] Grid, Board, Calendar and AI Chat are
+      // not creatable — see `specs/retire-non-core-surfaces.md`. Filtered here
+      // rather than by flipping each plugin's own `creatable` config, because
+      // those configs live inside the retired subsystems: putting the decision
+      // in the code being retired is exactly what makes re-enabling archaeology.
+      if (RetiredSurfaces.isRetiredPlugin(builder.pluginType)) {
+        return false;
+      }
       final config = pluginConfigs[builder.pluginType]?.creatable;
       return config ?? true;
     },

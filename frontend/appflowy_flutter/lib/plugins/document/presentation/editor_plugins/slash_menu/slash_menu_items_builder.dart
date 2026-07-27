@@ -1,6 +1,8 @@
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/ai/operations/ai_writer_node_extension.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
+// [fork:retire-non-core-surfaces]
+import 'package:appflowy/workspace/application/retired_surfaces.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:universal_platform/universal_platform.dart';
@@ -98,17 +100,24 @@ List<SelectionMenuItem> _defaultSlashMenuItems({
     threeColumnsSlashMenuItem,
     fourColumnsSlashMenuItem,
 
-    // grid
-    if (documentBloc != null) gridSlashMenuItem(documentBloc),
-    referencedGridSlashMenuItem,
-
-    // kanban
-    if (documentBloc != null) kanbanSlashMenuItem(documentBloc),
-    referencedKanbanSlashMenuItem,
-
-    // calendar
-    if (documentBloc != null) calendarSlashMenuItem(documentBloc),
-    referencedCalendarSlashMenuItem,
+    // [fork:retire-non-core-surfaces] Grid, Kanban and Calendar — both the
+    // "create one here" items and the "reference an existing one" items — are
+    // retired from the slash menu. See `specs/retire-non-core-surfaces.md` and
+    // the surface list in `RetiredSurfaces`.
+    //
+    // The *referenced* items go too, and that is deliberate rather than
+    // over-reach: with nothing creatable there is nothing to reference, so
+    // leaving them would advertise a feature whose only outcome is an empty
+    // picker. In-page tables (`tableSlashMenuItem`, above) are untouched — they
+    // are 11k lines of already-shipping table that this decision does not touch.
+    if (!RetiredSurfaces.isRetired(ViewLayoutPB.Grid)) ...[
+      if (documentBloc != null) gridSlashMenuItem(documentBloc),
+      referencedGridSlashMenuItem,
+      if (documentBloc != null) kanbanSlashMenuItem(documentBloc),
+      referencedKanbanSlashMenuItem,
+      if (documentBloc != null) calendarSlashMenuItem(documentBloc),
+      referencedCalendarSlashMenuItem,
+    ],
 
     // callout
     calloutSlashMenuItem,

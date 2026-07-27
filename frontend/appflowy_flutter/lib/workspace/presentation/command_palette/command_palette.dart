@@ -3,6 +3,8 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/plugin/plugin.dart';
 import 'package:appflowy/startup/startup.dart';
+// [fork:retire-non-core-surfaces]
+import 'package:appflowy/workspace/application/retired_surfaces.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
@@ -180,7 +182,12 @@ class CommandPaletteModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final workspaceState = context.read<UserWorkspaceBloc?>()?.state;
-    final showAskingAI =
+    // [fork:retire-non-core-surfaces] "Ask AI" creates an AI Chat view, so it
+    // goes with AI Chat. The user wants an AI chat eventually — *"our own
+    // version, and very specific and limited"* — and this entrance is exactly
+    // the space that deliberate one will need, so it must not stay occupied by
+    // AppFlowy's general-purpose one. See `specs/retire-non-core-surfaces.md`.
+    final showAskingAI = !RetiredSurfaces.isRetired(ViewLayoutPB.Chat) &&
         workspaceState?.userProfile.workspaceType == WorkspaceTypePB.ServerW;
     return BlocListener<CommandPaletteBloc, CommandPaletteState>(
       listener: (_, state) {

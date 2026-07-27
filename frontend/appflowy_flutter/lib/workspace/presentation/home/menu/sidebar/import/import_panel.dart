@@ -7,6 +7,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/migration/
 import 'package:appflowy/shared/markdown_to_document.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/settings/share/import_service.dart';
+import 'package:appflowy/workspace/application/retired_surfaces.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/import/import_type.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -100,6 +101,14 @@ class _ImportPanelState extends State<ImportPanel> {
               crossAxisCount: 2,
               children: ImportType.values
                   .where((element) => element.enableOnRelease)
+                  // [fork:retire-non-core-surfaces] An import that would create
+                  // a Grid is retired with the Grid itself — otherwise "Import
+                  // CSV" is a button whose only outcome is a surface that no
+                  // longer exists anywhere else in the app. See
+                  // `specs/retire-non-core-surfaces.md`.
+                  .where(
+                    (element) => !RetiredSurfaces.isRetired(element.createdLayout),
+                  )
                   .map(
                     (e) => Card(
                       child: FlowyButton(

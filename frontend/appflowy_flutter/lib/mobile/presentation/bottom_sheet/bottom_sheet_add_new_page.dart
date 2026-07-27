@@ -1,5 +1,7 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+// [fork:retire-non-core-surfaces]
+import 'package:appflowy/workspace/application/retired_surfaces.dart';
 import 'package:appflowy/mobile/presentation/widgets/widgets.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -30,50 +32,58 @@ class AddNewPageWidgetBottomSheet extends StatelessWidget {
           showBottomBorder: false,
           onTap: () => onAction(ViewLayoutPB.Document),
         ),
-        FlowyOptionTile.text(
-          text: LocaleKeys.grid_menuName.tr(),
-          height: 52.0,
-          leftIcon: const FlowySvg(
-            FlowySvgs.icon_grid_s,
-            size: Size.square(20),
+        if (!RetiredSurfaces.isRetired(ViewLayoutPB.Grid)) ...[
+          FlowyOptionTile.text(
+            text: LocaleKeys.grid_menuName.tr(),
+            height: 52.0,
+            leftIcon: const FlowySvg(
+              FlowySvgs.icon_grid_s,
+              size: Size.square(20),
+            ),
+            showTopBorder: false,
+            showBottomBorder: false,
+            onTap: () => onAction(ViewLayoutPB.Grid),
           ),
-          showTopBorder: false,
-          showBottomBorder: false,
-          onTap: () => onAction(ViewLayoutPB.Grid),
-        ),
-        FlowyOptionTile.text(
-          text: LocaleKeys.board_menuName.tr(),
-          height: 52.0,
-          leftIcon: const FlowySvg(
-            FlowySvgs.icon_board_s,
-            size: Size.square(20),
+        ],
+        if (!RetiredSurfaces.isRetired(ViewLayoutPB.Board)) ...[
+          FlowyOptionTile.text(
+            text: LocaleKeys.board_menuName.tr(),
+            height: 52.0,
+            leftIcon: const FlowySvg(
+              FlowySvgs.icon_board_s,
+              size: Size.square(20),
+            ),
+            showTopBorder: false,
+            showBottomBorder: false,
+            onTap: () => onAction(ViewLayoutPB.Board),
           ),
-          showTopBorder: false,
-          showBottomBorder: false,
-          onTap: () => onAction(ViewLayoutPB.Board),
-        ),
-        FlowyOptionTile.text(
-          text: LocaleKeys.calendar_menuName.tr(),
-          height: 52.0,
-          leftIcon: const FlowySvg(
-            FlowySvgs.icon_calendar_s,
-            size: Size.square(20),
+        ],
+        if (!RetiredSurfaces.isRetired(ViewLayoutPB.Calendar)) ...[
+          FlowyOptionTile.text(
+            text: LocaleKeys.calendar_menuName.tr(),
+            height: 52.0,
+            leftIcon: const FlowySvg(
+              FlowySvgs.icon_calendar_s,
+              size: Size.square(20),
+            ),
+            showTopBorder: false,
+            showBottomBorder: false,
+            onTap: () => onAction(ViewLayoutPB.Calendar),
           ),
-          showTopBorder: false,
-          showBottomBorder: false,
-          onTap: () => onAction(ViewLayoutPB.Calendar),
-        ),
-        FlowyOptionTile.text(
-          text: LocaleKeys.chat_newChat.tr(),
-          height: 52.0,
-          leftIcon: const FlowySvg(
-            FlowySvgs.chat_ai_page_s,
-            size: Size.square(20),
+        ],
+        if (!RetiredSurfaces.isRetired(ViewLayoutPB.Chat)) ...[
+          FlowyOptionTile.text(
+            text: LocaleKeys.chat_newChat.tr(),
+            height: 52.0,
+            leftIcon: const FlowySvg(
+              FlowySvgs.chat_ai_page_s,
+              size: Size.square(20),
+            ),
+            showTopBorder: false,
+            showBottomBorder: false,
+            onTap: () => onAction(ViewLayoutPB.Chat),
           ),
-          showTopBorder: false,
-          showBottomBorder: false,
-          onTap: () => onAction(ViewLayoutPB.Chat),
-        ),
+        ],
       ],
     );
   }
