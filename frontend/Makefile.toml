@@ -26,7 +26,11 @@ CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 CARGO_MAKE_CRATE_FS_NAME = "dart_ffi"
 CARGO_MAKE_CRATE_NAME = "dart-ffi"
 LIB_NAME = "dart_ffi"
-APPFLOWY_VERSION = "0.11.4"
+# Ludwig: its own version line, deliberately restarted at 0.1.0 rather than
+# inheriting AppFlowy's numbering (decided 2026-07-27). Keep in step with
+# `version:` in appflowy_flutter/pubspec.yaml — the app reads it from there,
+# and the backup snapshot names embed it.
+APPFLOWY_VERSION = "0.1.0"
 FLUTTER_DESKTOP_FEATURES = "dart"
 # Ludwig: must match PRODUCT_NAME in macos/Runner.xcodeproj/project.pbxproj and
 # AppInfo.xcconfig — it names the built .app that copy-to-product looks for, so
