@@ -1,54 +1,241 @@
-# Distributing a Downloadable Build
+# Ludwig — Rebrand and Distribution
 
 ## Goal
-Let other people **download and run my build of AppFlowy without compiling it themselves** — starting with **macOS only** (the platform I run and can actually test). The audience is people who want the features this fork adds that upstream doesn't have well: RTL support, local/Drive backup, and roadmap features to come.
+Two goals that share one set of decisions, which is why they share one spec:
+
+1. **Rebrand.** The fork stops being "AppFlowy with my changes" and becomes **Ludwig** — its own
+   name, its own icon, its own identity on macOS, its own data location. Starting with my machine.
+2. **Distribute.** Other people **download and run Ludwig without compiling it** — **macOS only**
+   (the only platform I run and can actually test). The audience is people who want what this fork
+   has and upstream doesn't: RTL support, local/Drive backup, the ribbon, and what comes next.
+
+They share a spec because the rebrand *is* the hard half of distribution. Bundle id, app name, data
+location and default server are all one decision surface, and getting them wrong is expensive to
+undo once anyone has downloaded a build.
 
 ## Status
-**Not started. This is a placeholder spec — it needs its own scoping interview before any work.** It exists so the distribution goal is captured rather than lost, and so features built in the meantime keep it in mind (see `CLAUDE.md` → "Designing for other users").
+**Scoping interview DONE (2026-07-27, session 17). Awaiting sign-off, then Phase 1.**
+This supersedes the "placeholder, not scoped" status this file carried since 2026-07-17.
 
-Session-scope decision already made (2026-07-17): **macOS only** for now. Windows/Linux deferred — I can't verify those builds locally, and each adds real release/CI burden.
+**Scope of the current work: Phase 1 only** (the user's choice) — my dock app becomes Ludwig, with
+all my writing. Nothing ships to anyone. Phases 2–4 are specified below but not started.
 
-### Leaning decision on identity/naming (2026-07-18 — user's direction, to confirm in the interview)
-**No rebrand. Keep the AppFlowy name; do NOT start a separate product.** The goal is "let people enjoy my features without compiling," not "build my own app." Concretely:
-- **Keep the name "AppFlowy,"** with a small honest qualifier so it's clearly not the official app and doesn't mislead — e.g. **"AppFlowy (RTL build)"** or **"AppFlowy — community build."** AGPL doesn't require a rename; the qualifier is about honesty toward upstream and clarity for users, not a legal must.
-- **Change only the invisible bundle identifier** (e.g. `com.appflowy.appflowy.flutter` → something like `com.matanrotman.appflowy`) **and the data-folder location**, so the build *coexists* with official AppFlowy on the same Mac instead of silently sharing its prefs and data folder (the same collision this fork's STATUS.md documents between its own debug/release builds). This is a couple of config lines, not a rebrand.
-- **Consequence to handle:** changing the bundle id relocates the app's data folder. For *me*, that means a one-time migration of my existing data to the new location must be part of shipping this (take a backup first — the blank-window hazard in STATUS.md). For a *fresh downloader* there's no existing data, so no migration — they just start clean.
-- Rationale in one line: this makes the build "a different, coexisting version of AppFlowy," which is exactly what the user wants — not an impostor of the official app, and not a new product.
+### ⚠️ Superseded: the 2026-07-18 "no rebrand" decision
+This file previously recorded a leaning decision: *"No rebrand. Keep the AppFlowy name; do NOT
+start a separate product,"* with only the bundle id and data folder changing. **That is superseded**
+by `specs/product-direction.md` (2026-07-26), which makes *"Rebrand and distribution"* priority #1
+and names the product Ludwig, and by the user's explicit confirmation in the session-17 interview.
 
-## Background — why this is more than "zip the .app and share it"
-Handing someone a build of a forked, AGPL app that shares its identity with an official product raises several real issues. None are blockers, but each needs a decision:
+The old reasoning is kept in the Session Log rather than deleted — it was sound at the time and a
+future session shouldn't have to rediscover why "AppFlowy (RTL build)" was ever on the table. It
+lost because the product acquired an identity of its own in the intervening week.
 
-- **App-identity collision with official AppFlowy.** The macOS build's bundle id is `com.appflowy.appflowy.flutter` and its product name is `AppFlowy` — *identical to the official app.* macOS keys a lot off bundle id: preferences (`~/Library/Preferences/com.appflowy.appflowy.flutter.plist`) and the app-support data folder are **shared across any build with that id** (this fork's own STATUS.md already documents the pain this causes between debug/release/test builds on one machine). A downloader who also runs official AppFlowy would have the two builds fighting over the same prefs and data directory. A distributed fork almost certainly needs its **own bundle id, app name, and data location** so it coexists cleanly. This is the single biggest technical decision here.
-- **Naming / trademark.** Distributing something *called* "AppFlowy" that is an unofficial fork is a sensitive area — upstream has publicly pushed back on unofficial builds being represented as the real thing (see STATUS.md → the "Stop lying that this is OSS" issue). A distinct name/branding for my build is probably the respectful and less-confusing choice. **My decision to make** — flag, don't assume.
-- **AGPL-3.0 obligations.** The repo is licensed AGPL-3.0 (see `LICENSE`). Distributing binaries triggers real obligations: recipients must be able to get the corresponding source, the license and notices must be preserved, and modifications must be conveyed under the same license. Source availability is already satisfied by the public fork on GitHub, but the release should link the exact source commit it was built from and keep the license intact. **This is a "get it right," not a "should we" — I'm already choosing to distribute; the spec just has to honor the license.**
-- **macOS Gatekeeper (code signing + notarization).** An unsigned/un-notarized `.app` downloaded from the internet triggers scary "damaged / unidentified developer" warnings and, on recent macOS, can be hard for a non-technical user to open at all. Options, roughly in order of user-friendliness and cost:
-  1. **Apple Developer account (~$99/yr) → sign + notarize.** Cleanest download experience; recurring cost and setup.
-  2. **Ship unsigned + document the right-click-open / `xattr` workaround.** Free; worse first-run experience; some users won't get past it.
-  - **My decision** — the spec should present the trade-off, not pick for me.
-- **What does a downloaded build connect to?** My build points at the AppFlowy Cloud beta server, and cloud sync is proven dead for source-built AppFlowy anyway (STATUS.md). A build handed to strangers shouldn't silently try to talk to a server it can't sync with, or land them in *my* workspace/account. Likely the right default is **local-only / no cloud** (or self-host), with backup being the safety net. Needs a decision, and it intersects with the backup feature.
-- **Updates.** Official AppFlowy auto-updates via a private channel this fork doesn't have. A distributed fork build would update by **manual re-download** unless we build something — fine for a first version, but set the expectation.
-- **Where it's hosted.** Natural answer: **GitHub Releases on the fork** (`matanrotman/AppFlowy`), with the binary attached and release notes linking the source commit. To confirm.
+## Decisions from the scoping interview (2026-07-27)
 
-## Open questions (resolve in the scoping interview)
-1. **New identity or keep `AppFlowy`?** → **Leaning resolved 2026-07-18 (see "Leaning decision on identity/naming" above): keep the name + qualifier, change only the bundle id + data-folder location, no rebrand.** Still to nail down in the interview: the exact qualifier text, the exact new bundle id, and the data-migration step for my existing install.
-2. **Signing:** pay for an Apple Developer account and notarize, or ship unsigned with documented workaround? **New evidence 2026-07-19 — signing affects more than Gatekeeper.** The current build is **ad-hoc signed** (`codesign -dv` → `Signature=adhoc`, `TeamIdentifier=not set`). macOS keys a **TCC permission grant to the app's code hash**, and an ad-hoc signature changes on every rebuild — so every macOS permission the app is granted (Documents, Downloads, microphone, screen recording…) is silently revoked by the next build. This surfaced as the app re-asking for Documents access on *every* launch (root-caused and fixed separately — see `STATUS.md`). Consequences for distribution: (a) a **stably-signed** build keeps users' permission grants across updates, an unsigned/ad-hoc one re-prompts after every release; (b) any future feature needing a real macOS permission (**the transcription feature's microphone access is the obvious one**) will be visibly worse without stable signing. This moves signing from "Gatekeeper nicety" toward "affects behaviour users will notice." A self-signed certificate used consistently would fix the permission-stability half without the $99/yr account; notarization is a separate question.
-3. **Default server/account for a fresh download:** local-only? self-host? something else? (Ties into backup being the safety net.)
-4. **Naming/branding** the build to avoid impersonating official AppFlowy.
-5. **Release mechanics:** GitHub Releases on the fork? Manual, or a `flutter build macos --release` + notarize script? (Note: STATUS.md warns the *release* build targets a different data dir than my debug dock app — a distribution build is a genuinely new build target to validate, not the dock app.)
-6. **Updates:** accept manual re-download for v1, or scope an updater later?
-7. **What exactly is the pitch** — which features are the reason to download this over official AppFlowy (RTL, backup, ribbon…)? Shapes release notes and the landing text.
+| # | Decision | Reasoning |
+|---|---|---|
+| **D1** | **Full Ludwig identity.** New name, own icon, own bundle id, own data folder, own copyright. AppFlowy credited honestly in About and README as AGPL requires, but Ludwig presents as its own product — not as a build of something else. | The product has its own philosophy, its own refusals and its own roadmap (`product-direction.md`). Calling it "AppFlowy (RTL build)" would misdescribe what it now is. |
+| **D2** | **The app shows "Ludwig".** Just the word — Dock, window title, menu bar, About. No tagline, no "(beta)" in the chrome. | Cleanest, most product-like. Positioning text belongs on the release page, not in the title bar the user stares at every day. |
+| **D3** | **Bundle id: `app.ludwig.desktop`.** | Product-first rather than person-first; reads correctly if Ludwig outgrows being a personal build. Slightly aspirational (implies `ludwig.app`) but nothing breaks if that domain is never registered. **Settle once — changing it later relocates everyone's data.** |
+| **D4** | **A fresh download is local-only.** No sign-in, no server, everything on the downloader's disk; backup is the safety net. | Sync is *proven dead* for source-built AppFlowy (see `STATUS.md` — pages arrive as empty shells and typed content is silently dropped). Pointing a stranger at that server would quietly destroy their writing. **`AuthenticatorType.local` already exists as a first-class mode** — this is flipping a default, not building a feature. |
+| **D5** | **The cloud switch is removed for downloaded builds only**, behind a debug/dev flag. I keep it on my machine; a downloader cannot reach it. | Same reasoning as D4, one layer deeper: leaving the control visible means a downloader can walk into Settings and opt themselves into silent data loss. That is a data-loss trap behind a menu item, not a preference. Cost: a build-mode branch and a deliberate divergence between my build and theirs. |
+| **D6** | **Code signing: deferred to release time.** | Nothing in Phases 1–2 depends on it, and the trade-off (see "Signing" below) is easier to judge against an actual binary. |
+| **D7** | **My data migrates by COPY, keeping the old folder.** Forced Drive snapshot first, copy to the new location, verify, leave the AppFlowy folder untouched as a fallback. | Slowest and safest. The old folder can be deleted whenever; a bad move cannot be undone at all. |
+| **D8** | **The icon is the user's own**, supplied as a source image; I generate the 24 macOS sizes. | — |
 
-## Out of scope (for the first version, unless the interview changes it)
-- Windows and Linux builds.
-- Auto-update infrastructure.
-- App Store / Flathub / Snap distribution.
-- Any server the fork would host itself.
+## What actually changes — verified in the code, session 17
 
-## How we'll know it's done (draft — refine in the interview)
-- I can point a non-technical person at a link, they download it, open it on macOS without an insurmountable Gatekeeper wall, and the app runs with its own identity (not colliding with official AppFlowy), defaulting to a sane no-surprise state (no attempt to sync into my account/server).
-- The release links the exact source commit and preserves the AGPL license — obligations met.
+### App identity
+| Thing | Where | Current | Becomes |
+|---|---|---|---|
+| Product name | `macos/Runner/Configs/AppInfo.xcconfig` | `AppFlowy` | `Ludwig` |
+| Bundle id | `macos/Runner.xcodeproj/project.pbxproj` — **this overrides the xcconfig**, which still says `io.appflowy.appflowy` | `com.appflowy.appflowy.flutter` | `app.ludwig.desktop` |
+| Copyright | `AppInfo.xcconfig` | `© 2025 AppFlowy.IO` | Ludwig + AppFlowy attribution |
+| Icon | `macos/Runner/Assets.xcassets/AppIcon.appiconset/` — 24 PNGs | AppFlowy logo | user's icon |
+| In-app name | `assets/translations/en-US.json` `"appName"`, `he.json` | `AppFlowy` | `Ludwig` |
+
+`en-US.json` has **40** `AppFlowy` occurrences and `he.json` **11**, but most are `AppFlowy Cloud` /
+`AppFlowy AI` — cloud-specific or belonging to surfaces already retired
+(`specs/retire-non-core-surfaces.md`). Only strings that name *the app* get changed. The other ~40
+locale files are left alone in Phase 1; they are not languages this user reads, and a partial
+rename there is no worse than the current state.
+
+### The data folder moves by itself — and that is the risk
+The path is `getApplicationSupportDirectory()` + `data_dev` (debug) / `data` (release)
+([`rust_sdk.dart:73`](../frontend/appflowy_flutter/lib/startup/tasks/rust_sdk.dart)), and on macOS
+that first component **is the bundle id**. So D3 relocates the data automatically, no code change.
+The cost is that everything else keyed to the bundle id moves too.
+
+**⚠️ The landmine, confirmed in Rust.** `flowy-core/src/config.rs:45` builds the folder suffix from
+the cloud base URL — and **local mode gets no suffix at all**:
+
+```
+AppFlowy Cloud  →  data_dev_beta.appflowy.cloud     ← the user's real 17MB of writing
+local           →  data_dev                          ← a stale 15MB folder that already exists
+```
+
+`kCloudType` lives in the **preferences plist, keyed to the bundle id** — *not* in the data folder.
+So it does not survive the rename. Phase 2 flips the fresh-install default to local (D4); if that
+lands after Phase 1 has wiped `kCloudType`, the user's own app resolves to **bare `data_dev`** —
+which already exists, from an earlier local-mode run — and their pages look gone.
+
+**Phase 2 must explicitly write `kCloudType = 2` for this install before the default flips.**
+This is the single most valuable thing the interview found.
+
+### Preferences lost to the bundle-id change (recovery checklist)
+None of this is writing. All of it is recoverable by hand. Discovering it one item at a time over a
+week is the failure mode this list exists to prevent. Dumped from the live plist, session 17:
+
+- [ ] `flutter.featureFlag = {"ribbonMenu":true}` — **the ribbon vanishes without this**
+- [ ] `flutter.sidebarDockSide = right` — sidebar jumps to the left
+- [ ] `flutter.kCloudType = 2` + `flutter.kAppFlowyCloudBaseURL` — see the landmine above
+- [ ] `flutter.backupSettings` (enabled, 30 min) + `flutter.backupState` (high-water mark) — a lost
+      high-water mark just forces one full snapshot; harmless but confusing
+- [ ] `flutter.expandedViews` — ~130 pages' collapse state
+- [ ] `flutter.lastOpenedSpaceId`, `flutter.ribbonActiveTab`, `flutter.ribbonCollapsed`
+- [ ] `flutter.windowSize` / `windowPosition` / `windowMaximized`
+- [ ] `flutter.kRecentIcons` — recently-used emoji and icons
+- [ ] `flutter.kDocumentAppearanceDefaultTextDirection` — currently **`auto`** (note: `STATUS.md`
+      records this as `rtl`; it has since changed, and a couple of verification rules there assume
+      the old value)
+
+Phase 1 dumps the whole plist to a file before touching anything, so this is a restore, not a
+reconstruction.
+
+### ⚠️ Backup snapshot naming — rename this carelessly and the safety net goes blind
+[`snapshot_repository.dart:47`](../frontend/appflowy_flutter/lib/shared/backup/snapshot_repository.dart)
+parses snapshots with:
+
+```
+^AppFlowy-(backup|prerestore)-v(.+)-(\d{8})-(\d{6})\.zip$
+```
+
+and writes `'AppFlowy-$kindLabel-v$appVersion-$ts.zip'`. Changing the prefix to `Ludwig-` without
+changing the reader makes **every existing snapshot invisible** — to the restore browser, to
+"Find something you lost", and to the retention pruner. That is a real regression in the one proven
+safety net.
+
+**Required:** the regex accepts `(AppFlowy|Ludwig)`; the writer emits `Ludwig-`. Both, in the same
+change, with a test covering an old-prefix name.
+
+### ⚠️ The Dock tile breaks, and it will look like a broken build
+The Dock points at `…/build/macos/Build/Products/Debug/**AppFlowy.app**`. Renaming `PRODUCT_NAME`
+makes the build output **`Ludwig.app`** — a different path. The old tile becomes a dead icon.
+Expect to drag the new app to the Dock once. Every verification rule in `STATUS.md` that names
+`Debug/AppFlowy.app` needs updating in the same pass.
+
+## Phased plan
+
+### Phase 1 — Be Ludwig (the current scope)
+Nothing ships. Ends with the user's daily app named Ludwig, wearing their icon, holding all their
+writing, behaving exactly as before.
+
+1. **Pre-flight.** Forced Drive snapshot, **verified on disk by contents, not by its label**. Dump
+   the preferences plist to a keepsake file.
+2. **Rename.** `PRODUCT_NAME`, bundle id, copyright. `appName` in `en-US.json` + `he.json`.
+3. **Snapshot-prefix compatibility.** Regex accepts both prefixes; writer emits `Ludwig-`; test.
+4. **Icon.** Generate the 24 sizes from the user's source image into `AppIcon.appiconset`.
+5. **Build** (`flutter build macos --debug`) and **verify by contents**, per `STATUS.md`'s rules.
+6. **Migrate data.** Copy (not move) `data_dev_beta.appflowy.cloud` into
+   `~/Library/Application Support/app.ludwig.desktop/`. Leave the original untouched.
+7. **Restore preferences** from the checklist above.
+8. **Verify live:** pages all present, ribbon present, sidebar on the right, backup still finds its
+   destination and its history, Hebrew pages intact.
+9. **Update `STATUS.md`'s verification rules** to the new app name and paths.
+
+**Not in Phase 1:** the local-only default, removing the cloud switch, the release build, signing,
+GitHub Releases, the other ~40 locale files, Windows/Linux, the app's own font bundling.
+
+### Phase 2 — The fresh-install path
+Make a clean launch correct for someone who is not me.
+- Write `kCloudType = 2` for this install **before** anything else (the landmine).
+- Flip the fresh-install default from AppFlowy Cloud to `AuthenticatorType.local`
+  ([`cloud_env.dart:56`](../frontend/appflowy_flutter/lib/env/cloud_env.dart) — the null branch
+  currently *writes* AppFlowy Cloud as the default).
+- Hide the cloud switch behind a dev flag (D5).
+- Prove it in a scratch data folder: launch clean, no sign-in wall, no `beta.appflowy.cloud`, a page
+  can be written and survives a restart.
+
+### Phase 3 — The release build
+- `flutter build macos --release` as a **genuinely new target** — `STATUS.md` warns it opens a
+  different data dir and it has never been validated for this fork.
+- Signing decision (D6 comes due here).
+- A repeatable build script.
+- AGPL: license preserved, release links the exact source commit, AppFlowy attributed.
+
+### Phase 4 — Publish
+GitHub Releases on `matanrotman/AppFlowy`, release notes, README, the pitch. Manual re-download for
+updates — no updater in v1.
+
+## Signing — the decision deferred by D6
+| Option | Cost | Gatekeeper | Permissions survive updates? |
+|---|---|---|---|
+| Self-signed cert | free | ✗ right-click-Open needed | ✓ |
+| Apple Developer + notarize | $99/yr | ✓ just opens | ✓ |
+| Unsigned | free | ✗ hard on recent macOS | ✗ re-prompts every release |
+
+**Why this is more than a download-time nicety** (evidence from 2026-07-19): the build is *ad-hoc*
+signed, and macOS keys TCC permission grants to the code hash — which changes on every rebuild. So
+every granted permission dies at the next release. This surfaced as the app re-asking for Documents
+access on every launch. It will matter concretely when the microphone-dependent transcription
+feature is built.
+
+## Open questions
+1. **Signing** (D6) — decide at Phase 3 against a real binary.
+2. **The other ~40 locale files** — rename `appName` everywhere, or leave them? Deferred; costs
+   nothing to do later, and none are languages this user reads.
+3. **`RESTORE.md` and the backup docs** still say AppFlowy throughout. Update in Phase 1 or 3?
+4. **Existing snapshots keep the `AppFlowy-` prefix forever.** Acceptable (the reader handles both),
+   or rename them on disk? Leaning: leave them — renaming files in a proven backup set to make them
+   prettier is a bad trade.
+5. **What's the pitch?** Which features are the reason to download Ludwig. Shapes Phase 4.
+
+## Out of scope (first version)
+Windows and Linux builds; auto-update infrastructure; App Store / Flathub / Snap; any server the
+fork hosts itself; bundling the font library (deferred to the ribbon font feature — see below).
+
+## Note: font bundling belongs to the ribbon, not here
+Settled 2026-07-27: the 113 downloaded Hebrew/Arabic families at
+`~/Projects/ludwig-fonts/google_fonts_he_ar/` are **document fonts for writing, not UI fonts**.
+They become important when the ribbon's font picker is built, and **should be bundled as part of any
+Ludwig distribution** at that point. Deferred there by the user's decision, not forgotten.
+
+Measured evidence for the eventual bundling argument, gathered session 17: the user's app-support
+folder holds **224 TTF files / 61MB** of `google_fonts` *runtime downloads* — over three times the
+size of their actual writing (17MB). An offline build cannot rely on that fetch.
+
+The **UI** font question is closed: **Rubik**, one family genuinely covering Latin + Hebrew + Arabic
+(verified by parsing the font's character map: latin=58, hebrew=47, arabic=89), selectable today
+with no code. Poppins, the previous UI font, contains **zero** Hebrew and **zero** Arabic — which is
+why Hebrew and English sidebar rows never looked like the same typeface.
+
+## How we'll know it's done
+**Phase 1:** the Dock launches an app called Ludwig, wearing the user's icon, with every page,
+space and setting where it was — and the AppFlowy data folder still sitting untouched beside it.
+
+**Overall:** a non-technical person follows a link, downloads Ludwig, opens it on macOS without an
+insurmountable Gatekeeper wall, and it runs with its own identity — no collision with official
+AppFlowy, no attempt to sync into anyone's account, no route to silent data loss. The release links
+the exact source commit and preserves the AGPL license.
 
 ## Session Log
-- **2026-07-19 — signing question sharpened by real evidence (no distribution code).** While fixing a repeating macOS Documents-permission prompt, discovered the build is ad-hoc signed and that this makes **every** TCC permission grant expire on the next rebuild. Folded into open question 2 above. The practical upshot: stable signing is not only about Gatekeeper warnings at download time — it decides whether users keep their granted permissions across updates, and it will matter concretely when the microphone-dependent transcription feature is built. A self-signed cert may be enough for that half; notarization remains separate.
-- **2026-07-18 — identity/naming direction set (no code).** User decided: no rebrand, no separate product. Keep the AppFlowy name with an honest qualifier ("RTL build" / "community build"); change only the bundle id + data-folder location so the build coexists with official AppFlowy. Flagged the one-time data migration for the user's own install as part of eventually shipping this. Recorded as the leaning decision above; exact strings + migration step deferred to the interview. Also this session: confirmed the backup feature is already multi-user-capable on macOS (auto-detects any Google account, manual folder picker covers non-Drive users, degrades gracefully) — no backup changes needed for a macOS distribution; details folded into `specs/google-drive-backup.md`.
+- **2026-07-27 (session 17) — SCOPING INTERVIEW DONE, no code.** Two rounds of questions, eight
+  decisions (D1–D8 above). Rebrand to **Ludwig** confirmed, superseding the 2026-07-18 "no rebrand"
+  leaning. Bundle id **`app.ludwig.desktop`**. Fresh downloads **local-only** with the cloud switch
+  removed for downloaded builds only. Data migrates by **copy**, old folder kept. Signing deferred
+  to release. Icon supplied by the user. Scope of the work: **Phase 1 only.**
+  **Four findings from reading the code and the live machine, each of which changes the plan:**
+  (1) **`kCloudType` lives in the bundle-id-keyed preferences plist, not the data folder**, so the
+  rename drops it — and because local mode resolves to a *suffixless* data folder that already
+  exists with 15MB of stale content, Phase 2's local-only default would make the user's real pages
+  look gone. Phase 2 must set `kCloudType = 2` explicitly first. (2) The **backup snapshot parser is
+  hardcoded to `^AppFlowy-`**; renaming the prefix without widening the regex blinds the restore
+  browser and the pruner to every existing snapshot. (3) The **Dock tile breaks** because
+  `PRODUCT_NAME` decides the built `.app` filename — this will look like a broken build if
+  unannounced. (4) **Local-only is ~5 lines, not a feature** — `AuthenticatorType.local` already
+  exists; `cloud_env.dart`'s null branch actively writes AppFlowy Cloud as the default.
+  Also recorded: the **UI font question is closed (Rubik)** and font *bundling* moves to the ribbon
+  font feature by the user's decision.
+- **2026-07-19 — signing question sharpened by real evidence (no distribution code).** While fixing a repeating macOS Documents-permission prompt, discovered the build is ad-hoc signed and that this makes **every** TCC permission grant expire on the next rebuild. The practical upshot: stable signing is not only about Gatekeeper warnings at download time — it decides whether users keep their granted permissions across updates, and it will matter concretely when the microphone-dependent transcription feature is built. A self-signed cert may be enough for that half; notarization remains separate.
+- **2026-07-18 — identity/naming direction set (no code). ⚠️ SUPERSEDED 2026-07-27, see D1.** User decided: no rebrand, no separate product. Keep the AppFlowy name with an honest qualifier ("RTL build" / "community build"); change only the bundle id + data-folder location so the build coexists with official AppFlowy. The reasoning at the time: the goal was "let people enjoy my features without compiling," not "build my own app," and AGPL does not require a rename. This lost a week later because the product acquired an identity of its own (`specs/product-direction.md`). Also this session: confirmed the backup feature is already multi-user-capable on macOS (auto-detects any Google account, manual folder picker covers non-Drive users, degrades gracefully) — no backup changes needed for a macOS distribution; details folded into `specs/google-drive-backup.md`.
 - **2026-07-17 — spec created, no code.** Captured during the "position this fork for other users" session. Decided macOS-only for now. Recorded the real cross-cutting issues (bundle-id collision with official AppFlowy — verified `com.appflowy.appflowy.flutter` / product name `AppFlowy` are identical to official; AGPL-3.0 obligations — verified via `LICENSE`; Gatekeeper signing/notarization trade-off; what a downloaded build connects to; hosting on GitHub Releases; manual-update expectation). No interview run yet — this is the placeholder so the goal isn't lost and so in-flight features keep app-identity/data-location/default-server in mind.
