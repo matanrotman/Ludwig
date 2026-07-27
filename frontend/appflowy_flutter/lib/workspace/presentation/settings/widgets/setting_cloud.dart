@@ -1,5 +1,6 @@
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/env/env.dart';
+import 'package:appflowy/env/ludwig_server_policy.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -45,7 +46,10 @@ class SettingCloud extends StatelessWidget {
                   title: LocaleKeys.settings_menu_cloudSettings.tr(),
                   autoSeparate: false,
                   children: [
-                    if (Env.enableCustomCloud)
+                    // Ludwig: the server switcher is hidden in every build.
+                    // See lib/env/ludwig_server_policy.dart.
+                    if (Env.enableCustomCloud &&
+                        LudwigServerPolicy.showServerSwitcher)
                       _CloudServerSwitcher(cloudType: state.cloudType),
                     _viewFromCloudType(state.cloudType),
                   ],

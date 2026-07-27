@@ -170,15 +170,68 @@ writing, behaving exactly as before.
 **Not in Phase 1:** the local-only default, removing the cloud switch, the release build, signing,
 GitHub Releases, the other ~40 locale files, Windows/Linux, the app's own font bundling.
 
-### Phase 2 — The fresh-install path
+### Phase 2 — The fresh-install path ✅ DONE (session 18)
 Make a clean launch correct for someone who is not me.
-- Write `kCloudType = 2` for this install **before** anything else (the landmine).
-- Flip the fresh-install default from AppFlowy Cloud to `AuthenticatorType.local`
-  ([`cloud_env.dart:56`](../frontend/appflowy_flutter/lib/env/cloud_env.dart) — the null branch
-  currently *writes* AppFlowy Cloud as the default).
-- Hide the cloud switch behind a dev flag (D5).
-- Prove it in a scratch data folder: launch clean, no sign-in wall, no `beta.appflowy.cloud`, a page
-  can be written and survives a restart.
+- ✅ **`kCloudType = 2` was already set** for this install — restored in session 18's preference
+  sweep, before the flip existed. The landmine was defused by accident rather than by plan, and
+  verified before any code changed.
+- ✅ **Fresh-install default flipped to `AuthenticatorType.local`**
+  ([`cloud_env.dart`](../frontend/appflowy_flutter/lib/env/cloud_env.dart)). **Two branches, not
+  one** — the spec only knew about the null branch; reading the function turned up a second one that
+  resolves an *unrecognised* stored value to AppFlowy Cloud. A damaged preferences file could
+  therefore put a downloaded build on someone else's server. Both now resolve to local.
+- ✅ **Server switcher hidden in EVERY build, the user's own included** — their explicit choice over
+  the narrower "release builds only". Reasoning: a control present for the person testing and absent
+  for everyone else means the shipped path is the one nobody exercises.
+- ✅ **Policy lives in a sidecar**, [`ludwig_server_policy.dart`](../frontend/appflowy_flutter/lib/env/ludwig_server_policy.dart),
+  so each of the two core files carries a one-line change and future upstream merges stay cheap.
+- ✅ **5 unit tests, proven failing-then-passing** by flipping the policy off (3 failed with exactly
+  the upstream behaviour: `appflowyCloud`, stored `'2'`). **Stated limitation, written into the test
+  file:** the fresh-install branch is guarded by `!integrationMode().isUnitTest` so a test cannot
+  write real preferences — that branch is unreachable from a unit test *by design*, and is proven
+  only by the drill below.
+
+**The drill — a real fresh install, simulated on the live machine and fully reverted.** Preferences
+backed up, backups disabled for the duration (otherwise the run would push a near-empty snapshot
+into the Drive history and muddle the restore browser), `kCloudType` deleted, app launched.
+
+| Claim | Evidence |
+|---|---|
+| Fresh install resolves to local | `kCloudType` written as **`0`** within ~10s |
+| No sign-in wall | "Welcome to Ludwig" + a single **Quick Start** button — no email, no third-party buttons |
+| Uses the bare local folder | Welcome screen showed `…/app.ludwig.desktop/**data_dev**` |
+| No cloud contact | log says `authenticator: Local`; **0** `appflowy.cloud` hits, **0** websocket attempts |
+| Switcher gone | Settings → Cloud Settings shows only the local view |
+| Writing survives a restart | workspace persisted (1 → 35 files); relaunch went **straight in**, no Welcome screen |
+| Real writing untouched | `data_dev_beta.appflowy.cloud` **356 files before and after**; snapshots held at 63 |
+
+Afterwards the preference domain was restored from the backup and diffed against it: **21 keys, none
+missing, none changed.**
+
+**⚠️ Two findings from the drill, neither of them anticipated:**
+
+1. **🔴 A downloaded Ludwig would tell every user to install AppFlowy over it.** The fresh install
+   showed a "New Version Available" toast, and Settings → Account & App read: *"New Version (0.13.0)
+   Available! Current version: 0.11.4 (**Official build**) → 0.13.0"* with an **Update** button. The
+   updater is checking **AppFlowy's** releases, calling our build an "Official build", and offering
+   an upgrade path that replaces Ludwig with AppFlowy. **This is a Phase 3/4 blocker** — shipping
+   with it means every downloaded copy invites its own destruction. It also silently contacts
+   AppFlowy's servers on launch, which contradicts the local-only promise this very phase
+   establishes. Decide: point it at Ludwig's own releases, or remove it for v1 (no updater is
+   already the plan — see Phase 4).
+2. **The in-app logo is still AppFlowy's.** "Welcome to **Ludwig**" sits under AppFlowy's petal
+   mark. Phase 1 changed the *app icon*; this is a separate bundled asset (`FlowyLogoTitle`).
+   Cosmetic, but it is the first thing a new user sees.
+
+**Also worth a decision (not a bug):** with the switcher hidden and local mode active, **Settings →
+Cloud Settings is a near-empty page** — a "Restart" button and a sentence about changes taking
+effect, for changes that can no longer be made. Consider hiding the whole row when the switcher is
+off.
+
+**Left behind deliberately:** the drill's throwaway workspace (35 files, 548K) in
+`~/Library/Application Support/app.ludwig.desktop/data_dev`. Harmless — nothing reads it while
+`kCloudType = 2` — but it means a future local-mode launch would find a stale drill workspace rather
+than a clean slate. Safe to delete.
 
 ### Phase 3 — The release build
 - `flutter build macos --release` as a **genuinely new target** — `STATUS.md` warns it opens a
@@ -269,6 +322,25 @@ AppFlowy, no attempt to sync into anyone's account, no route to silent data loss
 the exact source commit and preserves the AGPL license.
 
 ## Session Log
+- **2026-07-27 (session 18b) — PHASE 2 BUILT AND DRILLED.** Local-first fresh install, switcher
+  hidden everywhere, 5 tests proven failing-then-passing, and a real simulated fresh install on the
+  live machine that was fully reverted afterwards (21 preference keys, none missing, none changed).
+  Full evidence table under "Phase 2" above.
+  **The two things worth carrying forward, neither of them the work that was planned:**
+  (1) **The spec knew about one branch; the code had two.** `getAuthenticatorType()` also resolves
+  an *unrecognised* stored value to AppFlowy Cloud, so a damaged preferences file could put a
+  downloaded build on someone else's server. Found by reading the whole function rather than
+  jumping to the line the spec named.
+  (2) **🔴 The drill found a shipping blocker the spec never imagined: a fresh Ludwig offers to
+  update itself into AppFlowy.** "New Version (0.13.0) Available… Current version: 0.11.4 (Official
+  build)", with a working Update button pointed at AppFlowy's releases. **This would never have
+  surfaced from tests** — it only appears on a genuinely clean launch, which is exactly what the
+  drill was for and exactly what a unit test cannot reach. It is now the top item in the queue.
+  **Method note worth keeping:** synthetic typing could not be driven into the editor during the
+  drill (a known limitation in this project, recorded in `STATUS.md`). Rather than treat that as a
+  finding, persistence was proven a different way — the workspace the app created for itself *is* a
+  write, and it survived a quit-and-relaunch with the app going straight in rather than back to the
+  Welcome screen. **Prove the claim, not the tooling.**
 - **2026-07-27 (session 18) — PHASE 1 CLOSED OUT: the six unrestored preferences, and the docs.**
   No app code. Phase 1 had been built and committed but its last two steps (7 and 9) were never
   finished, and the gap was invisible because the app *looked* right.

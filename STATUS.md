@@ -63,6 +63,34 @@ direction default is `rtl`; it is `auto`.** Several older verification notes ass
 - Diagnostic artifacts kept in the session scratchpad: `wsprobe/` (Rust replica probe), `ws-trace.log` (RUST_LOG=trace run), `cloud_doc.json` (the empty cloud copy). The probe technique is reusable if AppFlowy ever changes the edge behavior.
 - **Possible community service (not scheduled):** a well-evidenced upstream issue "source-built AppFlowy cannot sync with official cloud." All evidence is reproducible; user hasn't decided whether to file it.
 
+## Switching Ludwig between local and AppFlowy Cloud (the switcher is gone — this is the only route)
+
+Since session 18 the server switcher is hidden in **every** build, the user's own included, so
+Settings has no route between local storage and AppFlowy Cloud. This is deliberate
+(`specs/distribution.md` D5). **With Ludwig quit**, the change is one command:
+
+```bash
+defaults write app.ludwig.desktop flutter.kCloudType -string 2
+```
+
+`2` = AppFlowy Cloud (data folder `data_dev_beta.appflowy.cloud` — the user's real writing).
+`0` = local (data folder bare `data_dev`). **The app must be quit first** — macOS's preferences
+daemon rewrites a running app's domain from its own cache on exit, so a write during a live session
+silently vanishes. To restore the switcher instead, flip `showServerSwitcher` in
+`lib/env/ludwig_server_policy.dart`.
+
+## ⚠️ A downloaded Ludwig would tell users to install AppFlowy over it (found session 18, UNFIXED)
+
+The fresh-install drill surfaced this and it is a **Phase 3/4 blocker**. A clean Ludwig launch shows
+a "New Version Available" toast, and Settings → Account & App reads: *"New Version (0.13.0)
+Available! Current version: 0.11.4 (**Official build**) → 0.13.0"* with an **Update** button. The
+updater checks **AppFlowy's** releases, labels our build an "Official build", and offers an upgrade
+that would replace Ludwig with AppFlowy. It also contacts AppFlowy's servers on launch, which
+contradicts the local-only promise Phase 2 just established. **Do not ship without deciding this** —
+point it at Ludwig's own releases, or remove it for v1 (no updater is already the Phase 4 plan).
+Related, cosmetic: the in-app welcome logo is still AppFlowy's petal mark under the words "Welcome
+to Ludwig" — Phase 1 changed the app icon, not this bundled asset.
+
 ## Project stance — personal build now, designed to open to others later (set 2026-07-17)
 This fork is being positioned so it *could* one day be used by other people — especially those who want RTL support, local backup, and the roadmap features. **Nothing needs to work for everyone today.** The rule (full version in `CLAUDE.md` → "Designing for other users, not just me"): a feature may ship local-only-for-me first, but must be *designed* so a later "make it multi-user" step is a small, bounded edit — not a rewrite. Personal-only assumptions get isolated and named, not baked in.
 - **Distribution goal:** others should eventually **download my prebuilt build (macOS first), not compile their own.** This is captured as its own feature in `specs/distribution.md` — **not started, needs its own scoping session.** It carries real cross-cutting questions (app identity/bundle-id collision with official AppFlowy, naming + AGPL obligations, code-signing/notarization, what server/data-dir a downloaded build defaults to, updates). Keep those in mind when a feature touches app identity, data location, or the default server.
@@ -382,16 +410,15 @@ to be, and the committed priority order. This table is engineering state; that f
 | Folders | `folder.md` | Phase 1 of 4. Phase 2 (the folder page) next |
 | **Product direction** | `product-direction.md` | **NEW — philosophy binding, roadmap a draft** |
 | **Retire Grid/Board/Calendar/AI Chat** | `retire-non-core-surfaces.md` | **BUILT + verified live. `RetiredSurfaces` is the one place** |
-| **Distribution / Ludwig** | `distribution.md` | **Scoped (8 decisions) + Phase 1 DONE — the app is Ludwig. Phases 2–4 left** |
+| **Distribution / Ludwig** | `distribution.md` | **Phases 1 + 2 DONE — Ludwig identity, local-first fresh install, drilled live. Phases 3–4 left, blocked on the auto-updater** |
 | Meeting transcription | `meeting-transcription.md` | Stub |
 | Tables | `tables.md` | Spec only |
 | Plugin system | `plugin-system.md` | Resolved: no plugin system, sidecar modules |
 
 **Immediate queue, in order:**
 
-1. **Distribution Phase 2 — the fresh-install path.** The next real work, and priority #1 in
-   `product-direction.md`. **Write `kCloudType = 2` for this install BEFORE flipping the default to
-   local** — that ordering is the whole landmine; see the top of this file.
+1. **Decide the auto-updater** — see the ⚠️ section near the top. It blocks Phase 3/4 and it is the
+   only thing on this list that would actively harm someone who downloads Ludwig.
 2. **The GitHub page still sells AppFlowy** (user, session 18 — a Phase 4 item, not urgent). The
    repo is already named **Ludwig**, but the description, the homepage link and all 157 README lines
    are AppFlowy's landing page. **The real problem is not branding: the README's hero screenshots

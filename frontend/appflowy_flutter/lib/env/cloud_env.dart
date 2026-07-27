@@ -2,6 +2,7 @@ import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/env/backend_env.dart';
 import 'package:appflowy/env/env.dart';
+import 'package:appflowy/env/ludwig_server_policy.dart';
 import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/log.dart';
@@ -54,7 +55,13 @@ const String kAppflowyCloudUrl = "https://beta.appflowy.cloud";
 Future<AuthenticatorType> getAuthenticatorType() async {
   final value = await getIt<KeyValueStorage>().get(KVKeys.kCloudType);
   if (value == null && !integrationMode().isUnitTest) {
-    // if the cloud type is not set, then set it to AppFlowy Cloud as default.
+    // Ludwig: a fresh install is local-first. Upstream sets AppFlowy Cloud here,
+    // which silently opts a first-time user into a server they never chose.
+    // See lib/env/ludwig_server_policy.dart.
+    if (LudwigServerPolicy.defaultsToLocalServer) {
+      await useLocalServer();
+      return AuthenticatorType.local;
+    }
     await useAppFlowyBetaCloudWithURL(
       kAppflowyCloudUrl,
       AuthenticatorType.appflowyCloud,
@@ -72,6 +79,14 @@ Future<AuthenticatorType> getAuthenticatorType() async {
     case "4":
       return AuthenticatorType.appflowyCloudDevelop;
     default:
+      // Ludwig: an unrecognised stored value means the preferences are damaged
+      // or came from a newer build. Upstream resolves that to AppFlowy Cloud;
+      // we resolve it to local for the same reason as the null case above —
+      // a corrupt file must not be able to put someone on a server silently.
+      if (LudwigServerPolicy.defaultsToLocalServer) {
+        await useLocalServer();
+        return AuthenticatorType.local;
+      }
       await useAppFlowyBetaCloudWithURL(
         kAppflowyCloudUrl,
         AuthenticatorType.appflowyCloud,
