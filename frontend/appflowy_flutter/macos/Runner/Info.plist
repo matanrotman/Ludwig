@@ -23,6 +23,15 @@
 		</array>
 		<key>CFBundleName</key>
 		<string>$(PRODUCT_NAME)</string>
+		<!-- Ludwig: CFBundleDisplayName is the HIGHEST-priority name macOS reads,
+		     and it was absent entirely. project.pbxproj sets
+		     INFOPLIST_KEY_CFBundleDisplayName = Ludwig in three configurations,
+		     but INFOPLIST_KEY_* settings are only injected when Xcode GENERATES
+		     the Info.plist (GENERATE_INFOPLIST_FILE = YES). This project ships a
+		     hand-written template, so all three were silently ignored and the
+		     key never reached the built app. Declared here so it actually does. -->
+		<key>CFBundleDisplayName</key>
+		<string>$(PRODUCT_NAME)</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
