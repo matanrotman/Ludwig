@@ -14,7 +14,8 @@ location and default server are all one decision surface, and getting them wrong
 undo once anyone has downloaded a build.
 
 ## Status
-**Scoping interview DONE (2026-07-27, session 17). Awaiting sign-off, then Phase 1.**
+**Scoping interview DONE (session 17). PHASE 1 DONE (sessions 17–18) — the app is Ludwig and it is
+the user's daily build. Phase 2 (the fresh-install path) is next.**
 This supersedes the "placeholder, not scoped" status this file carried since 2026-07-17.
 
 **Scope of the current work: Phase 1 only** (the user's choice) — my dock app becomes Ludwig, with
@@ -86,21 +87,39 @@ This is the single most valuable thing the interview found.
 None of this is writing. All of it is recoverable by hand. Discovering it one item at a time over a
 week is the failure mode this list exists to prevent. Dumped from the live plist, session 17:
 
-- [ ] `flutter.featureFlag = {"ribbonMenu":true}` — **the ribbon vanishes without this**
-- [ ] `flutter.sidebarDockSide = right` — sidebar jumps to the left
-- [ ] `flutter.kCloudType = 2` + `flutter.kAppFlowyCloudBaseURL` — see the landmine above
-- [ ] `flutter.backupSettings` (enabled, 30 min) + `flutter.backupState` (high-water mark) — a lost
-      high-water mark just forces one full snapshot; harmless but confusing
-- [ ] `flutter.expandedViews` — ~130 pages' collapse state
-- [ ] `flutter.lastOpenedSpaceId`, `flutter.ribbonActiveTab`, `flutter.ribbonCollapsed`
-- [ ] `flutter.windowSize` / `windowPosition` / `windowMaximized`
-- [ ] `flutter.kRecentIcons` — recently-used emoji and icons
-- [ ] `flutter.kDocumentAppearanceDefaultTextDirection` — currently **`auto`** (note: `STATUS.md`
-      records this as `rtl`; it has since changed, and a couple of verification rules there assume
-      the old value)
+**✅ ALL TEN RESTORED AND VERIFIED (session 18)** — but six of them were missed on the first pass
+and only found by diffing the domains a session later. Marked below with how they were resolved.
+
+- [x] `flutter.featureFlag = {"ribbonMenu":true}` — **the ribbon vanishes without this**, and it
+      did: **missed in Phase 1, the ribbon was genuinely off for ~1.5 hours of real use.** Restored.
+- [x] `flutter.sidebarDockSide = right` — sidebar jumps to the left. Restored in Phase 1.
+- [x] `flutter.kCloudType = 2` + `flutter.kAppFlowyCloudBaseURL` — see the landmine above. Restored
+      in Phase 1, which is why the pages showed up at all.
+- [x] `flutter.backupSettings` (enabled, 30 min) — **missed in Phase 1**; backups ran on defaults,
+      which happen to match. `flutter.backupState` survived and is *newer* than the dump, so it was
+      deliberately left alone (a lost high-water mark only forces one full snapshot).
+- [x] `flutter.expandedViews` — ~130 pages' collapse state. **Missed in Phase 1**, and restored by
+      **merge, not overwrite**: the new domain had already learned 19 entries that are newer than
+      the dump (110 + 19 = 111).
+- [x] `flutter.lastOpenedSpaceId`, `flutter.ribbonActiveTab`, `flutter.ribbonCollapsed` — **missed
+      in Phase 1.** Restored.
+- [x] `flutter.windowSize` / `windowPosition` / `windowMaximized` — restored in Phase 1.
+- [x] `flutter.kRecentIcons` — recently-used emoji and icons. **Missed in Phase 1.** Restored.
+- [x] `flutter.kDocumentAppearanceDefaultTextDirection` — **`auto`**. **Missed in Phase 1.**
+      Restored, and `STATUS.md`'s stale `rtl` claim corrected in the same pass.
 
 Phase 1 dumps the whole plist to a file before touching anything, so this is a restore, not a
-reconstruction.
+reconstruction. **The dump is at `~/Desktop/Ludwig_phase1_preflight/prefs_ORIGINAL.plist`** (plus a
+readable `.xml` twin, the original icon set, and a data copy).
+
+**Two procedural lessons, both earned:**
+1. **Write these with the app quit, and verify by reading the plist FILE, not `defaults read`.**
+   macOS's preferences daemon caches a running app's domain and rewrites it from that cache on
+   exit — so a write during a live session can vanish, and a read-back through the daemon only
+   proves the daemon agrees with itself.
+2. **Tick this list against the domain, not against the app's appearance.** Ludwig looked entirely
+   correct with six of these missing, because the four load-bearing ones had been restored.
+   Everything else fails as "quietly behaves like a fresh install."
 
 ### ⚠️ Backup snapshot naming — rename this carelessly and the safety net goes blind
 [`snapshot_repository.dart:47`](../frontend/appflowy_flutter/lib/shared/backup/snapshot_repository.dart)
@@ -126,22 +145,27 @@ Expect to drag the new app to the Dock once. Every verification rule in `STATUS.
 
 ## Phased plan
 
-### Phase 1 — Be Ludwig (the current scope)
+### Phase 1 — Be Ludwig ✅ DONE (built session 17, closed out session 18)
 Nothing ships. Ends with the user's daily app named Ludwig, wearing their icon, holding all their
 writing, behaving exactly as before.
 
-1. **Pre-flight.** Forced Drive snapshot, **verified on disk by contents, not by its label**. Dump
-   the preferences plist to a keepsake file.
-2. **Rename.** `PRODUCT_NAME`, bundle id, copyright. `appName` in `en-US.json` + `he.json`.
-3. **Snapshot-prefix compatibility.** Regex accepts both prefixes; writer emits `Ludwig-`; test.
-4. **Icon.** Generate the 24 sizes from the user's source image into `AppIcon.appiconset`.
-5. **Build** (`flutter build macos --debug`) and **verify by contents**, per `STATUS.md`'s rules.
-6. **Migrate data.** Copy (not move) `data_dev_beta.appflowy.cloud` into
-   `~/Library/Application Support/app.ludwig.desktop/`. Leave the original untouched.
-7. **Restore preferences** from the checklist above.
-8. **Verify live:** pages all present, ribbon present, sidebar on the right, backup still finds its
-   destination and its history, Hebrew pages intact.
-9. **Update `STATUS.md`'s verification rules** to the new app name and paths.
+1. ✅ **Pre-flight.** Forced Drive snapshot, **verified on disk by contents, not by its label**. Dump
+   the preferences plist to a keepsake file. → `~/Desktop/Ludwig_phase1_preflight/`
+2. ✅ **Rename.** `PRODUCT_NAME`, bundle id, copyright. `appName` in `en-US.json` + `he.json`.
+   **The trap: `project.pbxproj` overrides `AppInfo.xcconfig` and wins silently.**
+3. ✅ **Snapshot-prefix compatibility.** Regex accepts both prefixes; writer emits `Ludwig-`; tests
+   cover an old-prefix name, a refused foreign prefix, and the writer never emitting the old one.
+4. ✅ **Icon.** All 25 sizes. **The source PNG had no alpha and white corners** — masked to an
+   Apple-style superellipse and the mark enlarged first.
+5. ✅ **Build** and **verify by contents**: test-binding refs 0, `runAppFlowy` 31.
+6. ✅ **Migrate data.** Copied (not moved) into `~/Library/Application Support/app.ludwig.desktop/`.
+   Original untouched.
+7. ✅ **Restore preferences** from the checklist above — **four in session 17, the remaining six in
+   session 18** after a domain diff found them missing. See the checklist for which.
+8. ✅ **Verify live** (user, session 18, after the preference restore): **ribbon back**, sidebar on
+   the right, **backup shows all snapshots** — including the 62 old `AppFlowy-`-prefixed ones, which
+   is the reader-accepts-both-prefixes fix proving itself against real data rather than a test.
+9. ✅ **Update `STATUS.md`'s verification rules** to the new app name and paths (session 18).
 
 **Not in Phase 1:** the local-only default, removing the cloud switch, the release build, signing,
 GitHub Releases, the other ~40 locale files, Windows/Linux, the app's own font bundling.
@@ -219,6 +243,42 @@ AppFlowy, no attempt to sync into anyone's account, no route to silent data loss
 the exact source commit and preserves the AGPL license.
 
 ## Session Log
+- **2026-07-27 (session 18) — PHASE 1 CLOSED OUT: the six unrestored preferences, and the docs.**
+  No app code. Phase 1 had been built and committed but its last two steps (7 and 9) were never
+  finished, and the gap was invisible because the app *looked* right.
+  **Step 7 — six of the ten preferences on the recovery checklist above had never been written to
+  the new domain.** Found by diffing `defaults export app.ludwig.desktop` against the pre-flight
+  dump, not by noticing a symptom. The consequential one is
+  **`flutter.featureFlag = {"ribbonMenu":true}` — the entire ribbon was switched off in Ludwig**,
+  exactly as the checklist predicted in bold, and it had been that way for the ~1.5 hours the app
+  had been in use. Also missing: `kDocumentAppearanceDefaultTextDirection`, `backupSettings`,
+  `lastOpenedSpaceId`, `ribbonActiveTab`/`ribbonCollapsed`, `kRecentIcons`. Restored from
+  `prefs_ORIGINAL.plist` with the app quit, then verified in the **on-disk plist read directly**,
+  bypassing the preferences daemon's cache — a `defaults read` alone would only prove the daemon
+  agreed with itself. All ten checklist items now present.
+  **`expandedViews` was MERGED, not overwritten** — the new domain had already learned 19 entries
+  since the rename and those are newer than the dump; 110 + 19 = 111 (so 18 of the 19 already
+  existed). Blind restore would have been a small, silent regression.
+  **The lesson worth keeping: a rename's damage is measured against the checklist, not against the
+  app's appearance.** Everything user-visible looked correct — pages present, sidebar on the right,
+  Hebrew intact, backups running under the new name — because the four *load-bearing* preferences
+  had been restored. The six that were missed are all "the app quietly behaves like a fresh
+  install," which is indistinguishable from working unless you go looking. This is precisely why
+  the checklist was written during the interview; it earned its place.
+  **Step 9 — `STATUS.md`'s verification rules were rewritten to the Ludwig identity.** They still
+  named `Debug/AppFlowy.app`, the old bundle id and the old data path in five places, including the
+  two hazard rules and the `defaults delete` command that undoes integration-test pollution. Also
+  corrected there: **the document text-direction default is `auto`, not `rtl`** as several older
+  notes claim, and a warning that **three stale copies of the same writing now exist** (the kept
+  pre-rename folder, an old release-build cache, and the bare `data_dev` that is Phase 2's landmine)
+  so no future session restores from the wrong one. Recorded a detail found while editing: the
+  `path_location` pref KEY is still `io.appflowy.appflowy_flutter…` because it is a hardcoded Dart
+  constant (`kv_keys.dart:4`), independent of the bundle id — only the domain moved. Renaming it
+  would orphan existing values for no gain.
+  **✅ VERIFIED LIVE by the user the same session, which closes Phase 1 entirely:** ribbon back,
+  sidebar on the right, backup showing all snapshots. That last one is the strongest of the three —
+  it means the both-prefixes reader is resolving the 62 pre-rename `AppFlowy-` snapshots against
+  real data, not just in its unit test.
 - **2026-07-27 (session 17) — SCOPING INTERVIEW DONE, no code.** Two rounds of questions, eight
   decisions (D1–D8 above). Rebrand to **Ludwig** confirmed, superseding the 2026-07-18 "no rebrand"
   leaning. Bundle id **`app.ludwig.desktop`**. Fresh downloads **local-only** with the cloud switch

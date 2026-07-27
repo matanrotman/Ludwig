@@ -2,7 +2,43 @@
 
 *The current snapshot only — replace sections when they change, don't append to them. Detailed history lives in each feature's spec, under its own "Session Log."*
 
-**Last updated:** 2026-07-27 (session 16) (**Everything on the session's list got done and verified. (1) The four no-titles round-2 fixes RE-TESTED AND ALL PASS** — the gate first (rename in the sidebar, then edit the first line: the name holds), the naming window closing on leave, the header spacing, and New Page. *Method note worth keeping: the freeze test appeared to fail once and had not — the away-navigation never happened, and the caret still sitting where I left it was the tell.* (2) **`no-titles` PHASE 5 IS DONE — the migration RAN against real data.** Backup taken and **verified on disk** rather than by its label; dry run shown and approved; **112 views, 48 written, 64 skipped, 0 unreadable**; then re-run afterwards reporting **WOULD WRITE: 0**, which *proves* idempotency instead of arguing it. Built as a **one-off offline Rust tool with the app quit**, not an in-app migration — it runs once on one workspace ever, so there is no general case, and offline removes every hazard the spec named. **The title box is now gone from every page**, which also killed a live defect: `showTitle` was gated on the naming flag, so under round 2's rule every page grew a title box on its *second* visit and showed its name twice. (3) **The restore preview was OPENED for the first time and works** — ordinary page, Hebrew (RTL + links correct), image renders "An image was here.", rapid clicking between pages resolves to the last one, hover states clean. *Incidental proof: opened against a pre-migration snapshot, it correctly showed a page WITHOUT its migrated first line — direct evidence it reads the snapshot, not live data.* (4) **Grid, Board, Calendar and AI Chat are RETIRED from the UI**, one sweep, no code deleted, `RetiredSurfaces` the single findable place; the guard test caught **four** files I had missed on its first run. (5) **The UI font question is ANSWERED and half-delivered** — see its own section below. **⚠️ Two things need the user's own hands: Escape in the restore browser, and the sidebar `+` menu** — automation cannot drive either, and reporting them as broken would be measuring the tooling.) — *Prior (session 15):* 
+**Last updated:** 2026-07-27 (session 18)
+
+## ⚠️ THE APP IS NOW CALLED LUDWIG. Every path in this file changed (session 17).
+
+**`specs/distribution.md` Phase 1 is DONE and it is the user's live daily app.** The Dock tile is
+labelled **Ludwig**, carries bundle id **`app.ludwig.desktop`**, and points at
+`…/Debug/**Ludwig.app**`. Their writing lives at
+`~/Library/Application Support/**app.ludwig.desktop**/data_dev_beta.appflowy.cloud`. The
+pre-rename AppFlowy folder is **deliberately kept untouched** beside it — the migration was a copy,
+not a move. Build content-verified: test-binding refs **0**, `runAppFlowy` **31**. Pre-flight
+keepsakes (original icon set, original prefs plist, a data copy) are at
+`~/Desktop/Ludwig_phase1_preflight/`. **Read "How to verify anything here" below before running
+anything — all of its paths were rewritten in session 18.**
+
+**Three traps session 17 found by reading the code and the machine, each of which would have cost a
+session on its own:** (1) **`AppInfo.xcconfig` is silently ignored** — `project.pbxproj` carries its
+own `PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER` and `CFBundleDisplayName` (×3 each) and those win;
+both files are now in step and the xcconfig says so in a comment. (2) **The backup snapshot parser
+was hardcoded to `^AppFlowy-`** — renaming the writer alone would have made the restore browser,
+"Find something you lost" and the retention pruner silently blind to **62 real snapshots of real
+writing**. The reader now accepts both prefixes, the writer emits `Ludwig-` only, and a test covers
+each direction. (3) **The supplied icon PNG had no alpha channel and white corners**, so macOS would
+have drawn a white square on the Dock; it is masked to an Apple-style superellipse and the mark
+enlarged. Accepted limitation: at 16pt the artwork's thin strokes collapse regardless.
+
+**Session 18 (this one) closed Phase 1's two loose ends.** (a) **Six of the ten preferences on the
+spec's recovery checklist had never been restored** — most consequentially
+`featureFlag = {"ribbonMenu":true}`, so **the entire ribbon was switched off in Ludwig** and nobody
+had noticed yet; also the text-direction default, backup settings, recent icons, and the ribbon's
+tab/collapse state. All ten now verified present in the live domain, restored from the pre-flight
+dump with the app quit. `expandedViews` was **merged, not overwritten** (110 from the dump + 19 the
+new app had already learned = 111), because the running app's state was newer. (b) STATUS.md's
+verification rules — which still named `AppFlowy.app` and the old bundle id everywhere — were
+rewritten to the new identity. **A correction that matters: this file said the user's document
+direction default is `rtl`; it is `auto`.** Several older verification notes assume the old value.
+
+*Prior (session 16):* (**Everything on the session's list got done and verified. (1) The four no-titles round-2 fixes RE-TESTED AND ALL PASS** — the gate first (rename in the sidebar, then edit the first line: the name holds), the naming window closing on leave, the header spacing, and New Page. *Method note worth keeping: the freeze test appeared to fail once and had not — the away-navigation never happened, and the caret still sitting where I left it was the tell.* (2) **`no-titles` PHASE 5 IS DONE — the migration RAN against real data.** Backup taken and **verified on disk** rather than by its label; dry run shown and approved; **112 views, 48 written, 64 skipped, 0 unreadable**; then re-run afterwards reporting **WOULD WRITE: 0**, which *proves* idempotency instead of arguing it. Built as a **one-off offline Rust tool with the app quit**, not an in-app migration — it runs once on one workspace ever, so there is no general case, and offline removes every hazard the spec named. **The title box is now gone from every page**, which also killed a live defect: `showTitle` was gated on the naming flag, so under round 2's rule every page grew a title box on its *second* visit and showed its name twice. (3) **The restore preview was OPENED for the first time and works** — ordinary page, Hebrew (RTL + links correct), image renders "An image was here.", rapid clicking between pages resolves to the last one, hover states clean. *Incidental proof: opened against a pre-migration snapshot, it correctly showed a page WITHOUT its migrated first line — direct evidence it reads the snapshot, not live data.* (4) **Grid, Board, Calendar and AI Chat are RETIRED from the UI**, one sweep, no code deleted, `RetiredSurfaces` the single findable place; the guard test caught **four** files I had missed on its first run. (5) **The UI font question is ANSWERED and half-delivered** — see its own section below. **⚠️ Two things need the user's own hands: Escape in the restore browser, and the sidebar `+` menu** — automation cannot drive either, and reporting them as broken would be measuring the tooling.) — *Prior (session 15):* 
 
 *Prior session (2026-07-21 session 6):* (**Sidebar-improvements feature: interviewed, spec'd, signed off, and ALL FOUR PHASES BUILT in one session** — `specs/sidebar-improvements.md` is the authoritative record. (1) ··· is now the outermost hover icon on pages+spaces; (2) double-click renames **in place** (rebuilt to a thin-framed in-row field after the user rejected the popover version on first look); (3) the in-page trash banner is gone — deleting the open page navigates to a neighbor, and the footer trash icon turns into a hand-drawn "full trash" when trash has items; (4) **every space is now visible and independently collapsible** — switcher dropdown retired, "New Space" row under "New Page", New Page targets the open page's space, per-space "…" actions explicitly target their space. Phases 1–3 user-verified live ("good"/"great"); **Phase 4 + the in-place rename are built, shipped, contents-verified, but NOT yet user-verified — that's the next session's first item.** 5 commits, 15 new tests, SpaceBloc untouched. ⚠️ One deliberate visual change to confirm with the user: space headers now put the name on the LEFT like page rows (old header dock-mirrored it right in their right-docked layout).)
 
@@ -33,7 +69,7 @@ This fork is being positioned so it *could* one day be used by other people — 
 
 ### Multi-user readiness at a glance (detail lives in each feature's spec)
 - **Google Drive backup** — *more multi-user-ready than it looks (code-verified 2026-07-18).* Other people **can already use it**: auto-detect scans for *any* `GoogleDrive-*` mount (not my account), a **manual folder picker already exists** (`backup_bloc.dart:80` `pickDestination()`), so non-Drive users point it at Dropbox/iCloud/any folder, and it **fails soft** (no mount → null → "no destination" idle, no crash). The only genuinely macOS-specific part is the *auto-detect convenience* (`~/Library/CloudStorage` layout + `HOME` env, unset on Windows) and the Drive-flavored labels. **Needs zero changes for a macOS distribution.** See `specs/google-drive-backup.md` → "Multi-user readiness."
-- **RTL/LTR support** — *the headline draw for other users, mostly universal already.* Watch: behaviors that assume my personal `kDocumentAppearanceDefaultTextDirection = rtl` default must work for LTR/auto users too. Split across app + editor fork (fine for a downloaded binary; source-builders need the fork pin). See `specs/rtl-support.md` → "Multi-user readiness."
+- **RTL/LTR support** — *the headline draw for other users, mostly universal already.* Watch: behaviors that assume a personal `kDocumentAppearanceDefaultTextDirection` default must work for every value — **this user's is now `auto`, not `rtl`** (older notes in this file still say `rtl`; read the live pref). Split across app + editor fork (fine for a downloaded binary; source-builders need the fork pin). See `specs/rtl-support.md` → "Multi-user readiness."
 - **Floating toolbar / ribbon (upcoming)** — universal, no personal assumptions; ribbon interview should bake in the multi-user design rule. See `specs/plugin-system.md`.
 - **Meeting transcription (stub)** — *inherently personal* (my self-hosted server); a general version needs the server endpoint to be user-config, not hardcoded. See `specs/meeting-transcription.md`.
 - **Tables (RTL paste, spec only)** — universal; minor note in `specs/tables.md`.
@@ -194,31 +230,59 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 **Several "still broken" bugs turned out to be already fixed — the user was testing a STALE dock app** (found 2026-07-15 r1). The floating toolbar was the clearest case: it worked in a fresh build and was broken only in the installed app, which predated the fix. That explained the multi-session loop: **the fixes were real but never reached the app being tested in.** Everything below exists to stop that recurring — treat it as standing procedure, not history.
 1. **Verify against the REAL macOS render path, never headless `flutter test`.** Run `flutter test integration_test/desktop/document/<file>.dart -d macos`. Plain `flutter test` forces a fixed-width fake font (Ahem) that collapses RTL glyph geometry, so RTL caret/position bugs are invisible to it — this is why prior headless "fixes" went green while the app stayed broken. (It gets worse: even on the real target, `editorState.selectionRects()` mis-reports the caret for the shrink-wrapped empty RTL block — measure the actual rendered `Cursor` widget's global rect instead.)
 2. **The user's dock app IS the DEBUG build — verified from the Dock plist, don't re-guess this.**
-   `~/Library/Preferences/com.apple.dock` → the AppFlowy tile points at
-   `…/frontend/appflowy_flutter/build/macos/Build/Products/Debug/AppFlowy.app`.
-   So: their real pages live in `…/com.appflowy.appflowy.flutter/**data_dev_beta.appflowy.cloud**` (debug + AppFlowy Cloud), **not** `data_beta.appflowy.cloud` (that's a stale release-build cache — a *different* local cache of the same cloud workspace `612287731153768448`).
+   **⚠️ THE APP IS CALLED LUDWIG AS OF 2026-07-27 (session 17). Every path below changed.**
+   `~/Library/Preferences/com.apple.dock` → the tile is labelled **Ludwig**, carries
+   `bundle-identifier = app.ludwig.desktop`, and points at
+   `…/frontend/appflowy_flutter/build/macos/Build/Products/Debug/**Ludwig.app**`.
+   So: their real pages live in `…/**app.ludwig.desktop**/data_dev_beta.appflowy.cloud` (debug + AppFlowy Cloud).
+   **Three stale copies of the same writing now exist — do not "restore" from any of them by accident:**
+   `com.appflowy.appflowy.flutter/data_dev_beta.appflowy.cloud` (the pre-rename original, deliberately
+   kept), `com.appflowy.appflowy.flutter/data_beta.appflowy.cloud` (an old release-build cache of the
+   same cloud workspace `612287731153768448`), and `app.ludwig.desktop/data_dev` (a bare local-mode
+   folder — **this is the Phase 2 landmine**: local mode resolves to a *suffixless* name, so flipping
+   the default to local without writing `kCloudType = 2` first makes every page look gone).
    **To ship a fix to the user's daily app: `flutter build macos --debug`** — it rebuilds *in place* at the exact path the dock icon already points to. No release build, no `/Applications` copy, no dock changes needed. (A release build was tried on 2026-07-15 r1 and was the wrong target: it opened `data_beta`, so recent pages looked "missing." Nothing was lost.)
    Data-dir map: debug → `data_dev*`; release → `data*`; integration tests → their own sandbox (see the hazard below).
    Note for debug bundles: the Dart code is `Contents/Frameworks/App.framework/Resources/flutter_assets/kernel_blob.bin`. **Do NOT judge a rebuild by its timestamp** (corrected 2026-07-15 r2 — the earlier advice here was wrong): Flutter copies the cached artifact and *preserves its mtime*, so a successful rebuild can legitimately show an old time. A verified-correct restore on 2026-07-15 r2 read `09:26` — hours stale, and fine. Check **contents**, not time:
    ```
-   KB=build/macos/Build/Products/Debug/AppFlowy.app/Contents/Frameworks/App.framework/Resources/flutter_assets/kernel_blob.bin
+   KB=build/macos/Build/Products/Debug/Ludwig.app/Contents/Frameworks/App.framework/Resources/flutter_assets/kernel_blob.bin
    strings "$KB" | grep -c IntegrationTestWidgetsFlutterBinding   # want 0 (non-zero = it's a TEST build)
    strings "$KB" | grep -c runAppFlowy                            # want >0 (the real app)
    ```
+   (`runAppFlowy` is still the entrypoint's name in code — the rename was the product's, not the
+   function's. It is the right symbol to grep for, and 31 is its current count.)
    (Grepping the blob for a *test filename* is a false-positive detector — it matches a code comment in `appflowy_rich_text.dart` that references the test file.)
-3. **⚠️ HAZARD — `flutter test integration_test/... -d macos` OVERWRITES the dock app with a TEST build.** (Found 2026-07-15 r2.) The run rebuilds *in place* at `build/macos/Build/Products/Debug/AppFlowy.app` — the exact path the Dock tile points at — using the test as the Dart entrypoint. Verified: afterwards the bundle carried **14** `IntegrationTestWidgetsFlutterBinding` refs. Clicking the dock icon then launches the test harness, not AppFlowy. This is silent, and is very likely a *second* cause of the "blank window / looks broken" reports previously blamed only on the pref below.
+3. **⚠️ HAZARD — `flutter test integration_test/... -d macos` OVERWRITES the dock app with a TEST build.** (Found 2026-07-15 r2.) The run rebuilds *in place* at `build/macos/Build/Products/Debug/Ludwig.app` — the exact path the Dock tile points at — using the test as the Dart entrypoint. Verified: afterwards the bundle carried **14** `IntegrationTestWidgetsFlutterBinding` refs. Clicking the dock icon then launches the test harness, not AppFlowy. This is silent, and is very likely a *second* cause of the "blank window / looks broken" reports previously blamed only on the pref below.
    **Always re-run `flutter build macos --debug` after any `-d macos` integration test**, then verify by contents as above.
 4. **⚠️ HAZARD — integration tests pollute the user's REAL app preferences.** `initializeAppFlowy()` → `mockApplicationDataStorage()` writes
-   `flutter.io.appflowy.appflowy_flutter.path_location` into `~/Library/Preferences/com.appflowy.appflowy.flutter.plist`, which is **shared by every build (same bundle id)**. The user's app then opens an empty integration-test sandbox under `~/Library/Caches/appflowy_integration_test/…` and shows a **blank window** — which looks exactly like a broken build. Their data is fine; the app is just looking in the wrong folder.
-   **After ANY integration-test run, clear it before the user opens their app:**
+   `flutter.io.appflowy.appflowy_flutter.path_location` into the app's preferences plist, which is **shared by every build with the same bundle id**. The user's app then opens an empty integration-test sandbox under `~/Library/Caches/appflowy_integration_test/…` and shows a **blank window** — which looks exactly like a broken build. Their data is fine; the app is just looking in the wrong folder.
+   **After ANY integration-test run, clear it before the user opens their app** — note the DOMAIN is now `app.ludwig.desktop`, while the KEY still says `io.appflowy.appflowy_flutter` (it's a hardcoded Dart constant in `kv_keys.dart:4`, not derived from the bundle id, and renaming it would orphan existing values):
    ```
-   defaults delete com.appflowy.appflowy.flutter flutter.io.appflowy.appflowy_flutter.path_location
+   defaults delete app.ludwig.desktop flutter.io.appflowy.appflowy_flutter.path_location
    ```
-   (Also note `syncDefaultTextDirection(...)` in tests writes `kDocumentAppearanceDefaultTextDirection` to those same real prefs — it happened to match the user's existing `rtl`, but don't rely on that.)
+   (Also note `syncDefaultTextDirection(...)` in tests writes `kDocumentAppearanceDefaultTextDirection` to those same real prefs. **That default is now `auto`, not `rtl`** — it changed at some point before session 17 and several older notes in this file still say `rtl`. If a direction bug won't reproduce, read the live pref rather than trusting any value written down here.)
 
 ## Bug status
 - **Arrow-up jumped straight to the title from a wrapped first block — FIXED, live-verified (2026-07-20 session 4 r2).** Commit `7041a0bfa`. `arrowUpToTitle` gated only on "caret in the first block," so when that block wrapped, plain arrow-up from a lower visual line skipped the block's own upper lines. Now it also requires the caret's visual line to start at offset 0 (via the fork's `getLineBoundaryInPosition`, falling back to the old behavior if the render object is unmounted). Verified live: line 3 → line 2 → line 1 → title, one press each.
-  - **⏸ Upstream PR PREPARED but NOT pushed (awaiting user go, 2026-07-20 r3).** Vanilla AppFlowy has the identical bug (confirmed against `upstream/main`). Local branch **`fix/arrow-up-to-title-first-visual-line`** (off `upstream/main`, commit `38be8900c`, one file +36) holds an **upstream-compatible rewrite**: our in-app fix uses the fork-only `getLineBoundaryInPosition`, which vanilla's editor lacks, so the PR version instead compares caret rects via `getCursorRectInPosition` (a real vanilla `SelectableMixin` API) to detect the first visual line. The user said "let's do it," but the follow-up confirm-to-push question went unanswered, so nothing was pushed. **To ship it:** `git push origin fix/arrow-up-to-title-first-visual-line` then `gh pr create` against `AppFlowy-IO/AppFlowy:main` (CLA check will run; user has signed AppFlowy's CLA before). PR title: "fix: arrow-up only jumps to the title from the first visual line".
+  - **⏸ Upstream PR #8874 is OPEN and stalled on the maintainer gate — re-checked 2026-07-27 (session 18).**
+    https://github.com/AppFlowy-IO/AppFlowy/pull/8874, branch `fix/arrow-up-to-title-first-visual-line`,
+    head `6476db053`, MERGEABLE, **no maintainer review, no repo activity since 2026-07-21** (6 days).
+    - **Sourcery's three points are all addressed and confirmed on the head commit** (+12/−1): the
+      inline issue (use `firstLineCaret.height`, not `caret.height`, so the check survives later
+      lines having different heights), the "explain why half a line-height" comment, and the
+      `onlyFromFirstVisualLine` doc-comment saying the constraint is **best-effort** — it returns
+      `true` when geometry can't be resolved, so the key is never swallowed.
+    - **What's green vs. what hasn't run:** `gh pr checks` shows three passes (Ninja i18n, Sourcery
+      review, CLA) and looks clean — but that is **not the real CI**. Querying the check-*suites*
+      shows **four `action_required`**: Flutter-CI, Rust-CI, iOS CI and Commit-messages-lint, all
+      still behind the first-contributor approval gate. **`gh pr checks` hides gated workflows;**
+      use `gh api repos/<o>/<r>/commits/<sha>/check-suites` to see them. So this code has **still
+      never been compiled by anyone's CI.**
+    - **Open, and needs the user's call: Sourcery's inline comment thread was never replied to.**
+      The fix was pushed silently. A maintainer skimming the PR sees an unanswered review comment on
+      a PR whose tests never ran. A one-line "addressed in 6476db053" reply would cost nothing —
+      **but that posts publicly under the user's name, so it needs an explicit yes.**
+  - *(Historical)* **Upstream PR PREPARED but NOT pushed (awaiting user go, 2026-07-20 r3).** Vanilla AppFlowy has the identical bug (confirmed against `upstream/main`). Local branch **`fix/arrow-up-to-title-first-visual-line`** (off `upstream/main`, commit `38be8900c`, one file +36) holds an **upstream-compatible rewrite**: our in-app fix uses the fork-only `getLineBoundaryInPosition`, which vanilla's editor lacks, so the PR version instead compares caret rects via `getCursorRectInPosition` (a real vanilla `SelectableMixin` API) to detect the first visual line. The user said "let's do it," but the follow-up confirm-to-push question went unanswered, so nothing was pushed. **To ship it:** `git push origin fix/arrow-up-to-title-first-visual-line` then `gh pr create` against `AppFlowy-IO/AppFlowy:main` (CLA check will run; user has signed AppFlowy's CLA before). PR title: "fix: arrow-up only jumps to the title from the first visual line".
 - **Dark/light: layout vs. per-page — REWORKED to the right model, live-verified (2026-07-20 session 4 r2→r4).** Final commit `4762b470d` (supersedes the r2/r3 attempts `3ba5f93b8`, `0b818f19d`, which had it inverted). **The user's rule: Settings control the layout + default page look; the ribbon controls this page's look.**
   - **Settings → Appearance drives the whole app** (chrome + any page that inherits) — reverted the earlier chrome/global split, so setting it Light makes the *layout* light again (the earlier build made that impossible). This is just upstream's original `themeMode` behavior, restored.
   - **The ribbon "Appearance" button is now a PER-PAGE override**, stored in `View.extra` (`page_theme_mode.dart`), mirroring the per-page text direction exactly: `inherit` = absence of the key, so untouched pages follow the app theme unchanged. Pressing it flips the current page's effective brightness; flipping back onto the app theme clears the override to `inherit` so the page keeps following Settings. `PageThemeScope` applies the override to the document subtree (page + desk) only; no-op on inherit.
@@ -258,15 +322,19 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 
 ## Where things stand
 - Repo forked (`origin` = matanrotman/AppFlowy), `upstream` = AppFlowy-IO/AppFlowy.
-- **Fork-sync (checked 2026-07-27 session 16, both ends):** app `main` **0 behind** `upstream/main`
-  (117 ahead; the ahead count grows every session — re-run the check, never trust a written number).
-  Editor fork `rtl-direction-aware-selection-menu` **38 behind / 20 ahead** — the deliberately
-  deferred number, see the merge section above. **Pin ↔ pushed HEAD: in sync (`4e0ee071`)**; the
-  editor fork was NOT touched this session. Dock app rebuilt twice and **content-verified** each
-  time: test-binding refs **0**, `runAppFlowy` **31**, `RetiredSurfaces` **12**. **The Rust core was
-  NOT rebuilt** — the only Rust change is an `examples/` file plus a `uuid` dev-dependency, and
-  examples are not part of the shipped cdylib. **No integration tests were run**, so neither
-  `-d macos` hazard applies, and no stray test data-path pref exists.
+- **Fork-sync (checked 2026-07-27 session 18, both ends):** app `main` **0 behind** `upstream/main`
+  (121 ahead; the ahead count grows every session — re-run the check, never trust a written number).
+  Editor fork `rtl-direction-aware-selection-menu` **39 behind / 21 ahead** — the deliberately
+  deferred number, see the merge section above. **Pin ↔ pushed HEAD: in sync (`5edb60e5`)**; the
+  editor fork was NOT touched this session. The dock app (**`Ludwig.app`** now) was last built in
+  session 17 and **content-verified in session 18**: test-binding refs **0**, `runAppFlowy` **31**,
+  bundle id `app.ludwig.desktop`. **No `.dart` change has happened since that build**, so no rebuild
+  was needed. **No integration tests were run** in either session, so neither `-d macos` hazard
+  applies and no stray test data-path pref exists.
+- *(Prior, session 16):* app `main` 0 behind (117 ahead); editor fork 38 behind / 20 ahead; pin in
+  sync (`4e0ee071`). Dock app rebuilt twice, content-verified: test-binding refs 0, `runAppFlowy`
+  31, `RetiredSurfaces` 12. The Rust core was NOT rebuilt — the only Rust change was an `examples/`
+  file plus a `uuid` dev-dependency, and examples are not part of the shipped cdylib.
 - *(Prior, session 10):* app `main` **0 behind** of `upstream/main` (ahead count grows every session — don't trust a written number, re-run the check). Editor fork `rtl-direction-aware-selection-menu` **38 behind / 18 ahead** — the ahead count grew by 1 this session (the Phase 4 super/subscript + justify commit `c48c69f5`); still the deliberately-deferred number, see the merge section above before acting on it. **Pin ↔ pushed HEAD: in sync** (`c48c69f5`, verified — the fork WAS touched this session and re-pinned from `d15e3c3a`). **Note:** local `main` has ~90 commits not pushed to `origin` (the user's own fork) — harmless, push on request.
 - **The dock app was rebuilt 2026-07-25 (session 10) against the re-pinned editor fork (`c48c69f5`) and content-verified**: test-binding refs **0**, `runAppFlowy` **31**, `toggleExclusiveAttribute` **5**, `blockTextAlign` **13**, `meta+shift+equal` **2**, `Justify text` **3** (symbols that exist only because of Phase 4, proving the code is genuinely in the bundle). Lock `resolved-ref` = `c48c69f5` (git pin, not the temporary path override, which was reverted). No stray test data-path pref. **No `.dart` or fork change happened after that final build.** ⚠️ **The user must QUIT AND REOPEN AppFlowy to pick this up** — super/subscript + justify ride on the fork pin, so a stale running instance won't have them. *(Historical: also rebuilt twice in session 4 — after the r2 shortcut/arrow-up fixes, and again after the theme split — content-verified each time: test-binding refs 0, `runAppFlowy` > 0, markers `_adjacentVisualLineEdge`, `PageThemeScope`, `chromeAppearance` present. The chrome-theme pref was set and then deleted during that session's live verification, so the app is back on the default "Same as pages".)*
 - *(Historical, 2026-07-16):* app `main` **0 behind** `upstream/main` — that's the number that matters. (The "ahead" count climbs with every commit here, so don't treat any figure written down as current; the session-start fork-sync check is authoritative.) Editor fork branch `rtl-direction-aware-selection-menu` **36 behind, 12 ahead** of `AppFlowy-IO/appflowy-editor` (tagged 6.1.0; our pin reports 5.2.0) — see the "deferred on purpose" section at the top before acting on that number. Pin ↔ pushed-HEAD: **in sync** (`5354a98d`).
@@ -276,9 +344,10 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 - **Editor fork upstream merge — deferred indefinitely, on evidence.** Not "risky to fold into a bug-fix session" (the old reason) — it's the wrong move until AppFlowy-IO moves first. See the top section.
 - **⚠️ The RTL caret regression test is intermittently unreliable — 1 hang in 3 runs (2026-07-15 r2).** When it runs it is *deterministic*: two passing runs produced bit-identical geometry (`emptyCaret=1174.0 typedCaret=1164.7 diff=9.3`, threshold 999.0 of a 1332px editor). But one run in between **hung for 61 minutes** and failed having never reached the measurement. Root cause **unknown** — the run's output was destroyed by grepping it, so there's no log (see the process rule below). Ruled out: it is not the `setUpAll` guard (present in the passing runs), not the removed `foundation.dart` import (the *later* passing run has it removed), and not a geometry regression (no `RTLDIAG` line = it never measured).
   **How to read a failure:** if there's no `RTLDIAG` line, the test didn't measure anything — treat it as a flake, re-run, and don't conclude the caret regressed. A real regression shows `RTLDIAG` with bad numbers. **Never pipe a test run through `grep`** — capture full output to a file (`… -d macos > run.log 2>&1`) and grep the *file*, or the next failure is undiagnosable too. Worth a proper diagnosis session before leaning on this test as a safety net.
-  **Lead for that diagnosis — deliberately left in place:** `~/Library/Caches/appflowy_integration_test` has **52** accumulated run dirs (14M). It's the prime suspect for the hang, so it was *not* cleaned at session end: wiping it would destroy the repro and probably mask the flake. It is test cache only — the real data is `~/Library/Application Support/com.appflowy.appflowy.flutter/data_dev_beta.appflowy.cloud`, a different tree entirely — so it's safe to clear once the diagnosis is done (or if the flake ever blocks real work).
+  **Lead for that diagnosis — deliberately left in place:** `~/Library/Caches/appflowy_integration_test` has **52** accumulated run dirs (14M). It's the prime suspect for the hang, so it was *not* cleaned at session end: wiping it would destroy the repro and probably mask the flake. It is test cache only — the real data is `~/Library/Application Support/app.ludwig.desktop/data_dev_beta.appflowy.cloud` (was `com.appflowy.appflowy.flutter/…` before the session-17 rename), a different tree entirely — so it's safe to clear once the diagnosis is done (or if the flake ever blocks real work).
 - **✅ Upstream toolbar PR SENT — https://github.com/AppFlowy-IO/appflowy-editor/pull/1222** (opened 2026-07-15 r2 at the user's explicit instruction). Branch `fix/floating-toolbar-debounce-race`, commit `7299f9d4`, 1 file, +24/−9. The debounce-key split + post-frame deferral, rebased onto upstream's newer `dispose()`. If accepted, `floating_toolbar.dart` leaves the fork for good — one less file to reconcile at every future merge.
   - **CLA signed (confirmed 2026-07-16); `license/cla` check passes.** **Confirmed 2026-07-21: both test workflows are `action_required`** — a maintainer must approve first-contributor runs; zero maintainer activity, zero reviews (this repo doesn't run the Sourcery bot) in 6 days. **User decision 2026-07-21: WAIT** — a polite nudge comment only if it stays silent another week or two.
+  - **Re-checked 2026-07-27 (session 18): still OPEN, still no review, `updatedAt` unchanged since 2026-07-15.** That is now **12 days silent**, which is past the "another week or two" threshold the user set — **the nudge is due, and it needs their explicit go since it posts publicly.**
   - Never compiled locally (upstream needs Flutter ≥3.32, we're on 3.27.4); verified by inspection only — parses, `dart format`-clean, no dangling `_debounceKey`. **Upstream's CI (Flutter 3.38.5) is the first real compile — check it.**
   - The PR states plainly that no widget test reproduces the race (a `jumpTo()` + settle can't recreate a real drag's continuous scroll-tick stream), so expect maintainers may ask for one.
 - **The user's dock app now runs the fixed code with their real data — confirmed live by the user** ("everything's back", cursor fix works). Done by rebuilding the debug app in place (`flutter build macos --debug`), which is what the dock icon points at.
@@ -294,7 +363,7 @@ Full reasoning, the landmines, and the convergent-conflict finding: `specs/rtl-s
 
 ## Next step
 
-**Roadmap status at a glance (2026-07-27, session 15)**
+**Roadmap status at a glance (2026-07-27, session 18)**
 
 **Read `specs/product-direction.md` first.** It is new and binding: what Ludwig is, what it refuses
 to be, and the committed priority order. This table is engineering state; that file is the product.
@@ -313,50 +382,57 @@ to be, and the committed priority order. This table is engineering state; that f
 | Folders | `folder.md` | Phase 1 of 4. Phase 2 (the folder page) next |
 | **Product direction** | `product-direction.md` | **NEW — philosophy binding, roadmap a draft** |
 | **Retire Grid/Board/Calendar/AI Chat** | `retire-non-core-surfaces.md` | **BUILT + verified live. `RetiredSurfaces` is the one place** |
-| Distribution | `distribution.md` | Placeholder, not scoped — **now priority #1** |
+| **Distribution / Ludwig** | `distribution.md` | **Scoped (8 decisions) + Phase 1 DONE — the app is Ludwig. Phases 2–4 left** |
 | Meeting transcription | `meeting-transcription.md` | Stub |
 | Tables | `tables.md` | Spec only |
 | Plugin system | `plugin-system.md` | Resolved: no plugin system, sidecar modules |
 
 **Immediate queue, in order:**
 
-1. **The UI font — finish the three-way comparison.** See "UI font" below. The download and the
-   decision are done; what is left is `fontFamilyFallback` support so IBM Plex and Noto can be tried
-   at all.
+1. **Distribution Phase 2 — the fresh-install path.** The next real work, and priority #1 in
+   `product-direction.md`. **Write `kCloudType = 2` for this install BEFORE flipping the default to
+   local** — that ordering is the whole landmine; see the top of this file.
 2. **Two by-hand checks that automation cannot do** (30 seconds total): Escape in the restore
    browser, and the sidebar `+` menu showing only Document/folder/import.
-3. **Rebrand + distribution** — priority #1 in `product-direction.md`, still nothing started.
-4. **Restore redesign Phase 3** (the merge — the only phase that writes) or **folder Phase 2**,
+3. **Restore redesign Phase 3** (the merge — the only phase that writes) or **folder Phase 2**,
    whichever the user wants; both are below distribution in the priority order.
 
-## UI font — answered, half-delivered (session 16)
+**Settled in session 17, so no longer in this queue:** the **UI font is Rubik** — one family
+genuinely covering Latin + Hebrew + Arabic (verified by parsing its character map: latin 58,
+hebrew 47, arabic 89), selectable today with no code. The `fontFamilyFallback` work the old queue
+called for is **not needed** — it existed only to make IBM Plex and Noto comparable, and Rubik wins
+without it. **Font *bundling* moved to the ribbon's font feature** by the user's decision: the 113
+downloaded families at `~/Projects/ludwig-fonts/google_fonts_he_ar/` are *document* fonts, and they
+should be bundled when that feature is built. Measured argument for doing so: this user's app-support
+folder holds **224 TTF files / 61MB of `google_fonts` runtime downloads** — over three times the size
+of their actual writing. An offline build cannot rely on that fetch. Details in `distribution.md`.
 
-**The problem, measured:** the UI font is **Poppins**, which contains **no Hebrew and no Arabic at
-all**. Every Hebrew row in the sidebar is silently falling back to a system font — which is why
-Hebrew and English rows have never looked like the same typeface.
+## UI font — CLOSED (session 17): it is Rubik
 
-**The user's answer: try IBM Plex Sans, Rubik and Noto Sans**, plus "download all the Hebrew and
-Arabic free fonts from Google Fonts."
+**The problem, measured:** the UI font was **Poppins**, which contains **no Hebrew and no Arabic at
+all**. Every Hebrew row in the sidebar was silently falling back to a system font — which is why
+Hebrew and English rows had never looked like the same typeface.
 
-- **Downloaded: 113 of 114 families, 206 TTF files, 108MB**, in the session scratchpad under
-  `google_fonts_he_ar/` with a manifest. Only "Google Sans" is missing (proprietary, not in the OFL
-  repo). **They live at `~/Projects/ludwig-fonts/google_fonts_he_ar/`** — outside the repo on
-  purpose (108MB of TTFs should be a deliberate bundling decision, not an accidental commit), with
-  the fetch script beside them. Note `fonts.google.com/download` now serves an HTML app page rather
-  than a zip; the working source is the `google/fonts` GitHub repo via one recursive tree listing.
-- **The finding that shapes the work:** **Rubik is a single family covering Latin + Hebrew + Arabic**
-  and is **selectable today** — Settings → Workspace → Font → "Rubik", no code needed. **IBM Plex
-  Sans and Noto Sans each split into three families** (`… Hebrew`, `… Arabic`), so picking them today
-  gives Latin only and Hebrew falls back exactly as it does now.
-- **So a fair comparison needs `fontFamilyFallback` chains.** `base_appearance.dart` builds the theme
-  from a single `fontFamily`; the picker at `settings_workspace_view.dart:948` already lists every
-  Google font. That is the bounded piece of work left.
-- **For distribution, bundling beats the runtime download** the `google_fonts` package does today —
-  worth settling while this is open, since offline is the point of a downloadable build.
+**The answer: Rubik.** A single family genuinely covering Latin + Hebrew + Arabic, verified by
+parsing the font's own character map (latin 58, hebrew 47, arabic 89) rather than trusting a
+listing. **Selectable today with no code** — Settings → Workspace → Font → "Rubik"; the three Rubik
+weights are already downloaded into the Ludwig app-support folder. **IBM Plex Sans and Noto Sans
+each split into three separate families** (`… Hebrew`, `… Arabic`), so picking either gives Latin
+only — which is what made Rubik the answer rather than one of three candidates. **The
+`fontFamilyFallback` work the old queue called for is therefore not needed**; it existed only to
+make the split families comparable.
+
+**Font bundling moved to the ribbon's font feature** (user's decision, session 17) — the 113
+downloaded families are *document* fonts for writing, not UI fonts. They live at
+`~/Projects/ludwig-fonts/google_fonts_he_ar/` (113 of 114 families, 206 TTFs, 108MB), outside the
+repo on purpose, with the fetch script beside them. Only "Google Sans" is missing — proprietary, not
+in the OFL repo. Note `fonts.google.com/download` now serves an HTML app page rather than a zip; the
+working source is the `google/fonts` GitHub repo via one recursive tree listing. **They should be
+bundled when the ribbon's font picker is built** — the measured argument being that this user's
+app-support folder holds **224 TTF files / 61MB of `google_fonts` runtime downloads**, over three
+times the size of their writing, and an offline build cannot rely on that fetch.
 
 **Waiting on the user:**
-- **The UI font covering Hebrew + Latin + Arabic** — still blocks further typographic tuning. Raised
-  in session 15 but deferred in favour of no-titles; raise it again early.
 - Page↔folder conversion.
 - **Two 30-second by-hand checks automation cannot do:** (a) does **Escape** close the restore
   browser? (b) does the sidebar **`+` menu** now show only Document, New folder and Import?
