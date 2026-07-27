@@ -1,157 +1,86 @@
-<h1 align="center" style="border-bottom: none">
-    <b>
-        <a href="https://www.appflowy.com">AppFlowy</a><br>
-    </b>
-    ⭐️  The Open Source Alternative To Notion  ⭐️ <br>
-</h1>
+<h1 align="center">Ludwig</h1>
 
 <p align="center">
-AppFlowy is the AI workspace where you achieve more without losing control of your data
+  <b>A scratchpad for the thought that hasn't found its place yet.</b>
 </p>
 
 <p align="center">
-<a href="https://discord.gg/9Q2xaN37tV"><img src="https://img.shields.io/badge/AppFlowy.IO-discord-orange"></a>
-<a href="https://github.com/AppFlowy-IO/appflowy"><img src="https://img.shields.io/github/stars/AppFlowy-IO/appflowy.svg?style=flat&logo=github&colorB=deeppink&label=stars"></a>
-<a href="https://github.com/AppFlowy-IO/appflowy"><img src="https://img.shields.io/github/forks/AppFlowy-IO/appflowy.svg"></a>
-<a href="https://opensource.org/licenses/AGPL-3.0"><img src="https://img.shields.io/badge/license-AGPL-purple.svg" alt="License: AGPL"></a>
-
+  <a href="https://opensource.org/licenses/AGPL-3.0"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-lightgrey.svg" alt="macOS, Apple Silicon">
+  <img src="https://img.shields.io/badge/data-local--first-green.svg" alt="Local-first">
 </p>
 
-<p align="center">
-    <a href="https://www.appflowy.com"><b>Website</b></a> •
-    <a href="https://forum.appflowy.io/"><b>Forum</b></a> •
-    <a href="https://discord.gg/9Q2xaN37tV"><b>Discord</b></a> •
-    <a href="https://www.reddit.com/r/AppFlowy"><b>Reddit</b></a> •
-    <a href="https://twitter.com/appflowy"><b>Twitter</b></a>
-</p>
+---
 
-<p align="center"><img src="https://appflowy.com/_next/static/media/tasks.796c753e.png" alt="AppFlowy Kanban Board for To-dos"  /></p>
-<p align="center"><img src="https://appflowy.com/_next/static/media/Grid.9e30484b.png" alt="AppFlowy Databases for Tasks and Projects"  /></p>
-<p align="center"><img src="https://appflowy.com/_next/static/media/sites.a8d5b2b9.png" alt="AppFlowy Sites for Beautiful documentation"  /></p>
-<p align="center"><img src="https://appflowy.com/_next/static/media/ai.e1460982.png" alt="AppFlowy AI" /></p>
-<p align="center"><img src="https://appflowy.com/_next/static/media/template.9ea13c3b.png" alt="AppFlowy Templates"  /></p>
+Ludwig is a note-taking app for the at-the-moment need to jot something down that hasn't yet taken a
+clear place in your mind. Maybe it's notes from a meeting. A draft that might or might not become a
+full document. A summary of a lesson, or an article. Thoughts for your next marketing campaign. A
+short task list.
 
-<br></br>
-<p align="center" >
-    <img src="https://github.com/user-attachments/assets/5841c491-b564-4a26-b9b6-191def430911" alt="Work across devices" width="1040px" /></p>
-<p align="center" >
-    <img src="https://github.com/user-attachments/assets/c2ba6bb8-746c-4743-9393-d008a669be95" alt="Work across devices" width="1040px" /></p>
-<p align="center" >
-    <img src="https://github.com/user-attachments/assets/e83dd1a3-4975-4d0e-91a1-9eb6e0d248cd" alt="Work across devices" width="1040px" /></p>
+It's built so that whenever you need one, there's a scratchpad at your fingertips — and when you're
+ready, you can start organizing that piece of knowledge: give it a location, structure, context. Or
+not. It's up to you.
 
-## User Installation
+It aims to put your flow and your zone into focus. Not your productivity, efficiency or teamwork.
+Just your mind, on the go.
 
-- [Download AppFlowy Desktop (macOS, Windows, and Linux)](https://github.com/AppFlowy-IO/AppFlowy/releases)
-- Other
-  channels: [FlatHub](https://flathub.org/apps/io.appflowy.AppFlowy), [Snapcraft](https://snapcraft.io/appflowy), [Sourceforge](https://sourceforge.net/projects/appflowy/)
-- Available on
-    - [App Store](https://apps.apple.com/app/appflowy/id6457261352): iPhone
-    - [Play Store](https://play.google.com/store/apps/details?id=io.appflowy.appflowy): Android 10 or above; ARMv7 is
-      not supported
-- [Self-hosting AppFlowy](https://appflowy.com/docs/Step-by-step-Self-Hosting-Guide---From-Zero-to-Production)
-- [Source](https://docs.appflowy.io/docs/documentation/appflowy/from-source)
+## What that means in practice
 
-## Built With
+- **It opens on a blank page.** Not a dashboard, not a template picker. Start typing; it becomes a
+  page once you've written something worth keeping, named after your first line. Empty it and it
+  quietly goes away again.
+- **Capture never asks you where.** New notes land in a Temporary space. Filing them is a separate
+  decision you can make later, or never.
+- **Right-to-left actually works.** Hebrew and Arabic are first-class: per-page direction,
+  bidirectional text, correct cursor behaviour, and a UI font that covers all three scripts. This is
+  the part most tools get wrong.
+- **Your writing stays on your machine.** No account, no server, nothing to sign into. Automatic
+  backups go to a folder you choose — Google Drive, Dropbox, iCloud, anywhere.
+- **It does less on purpose.** No databases, boards, calendars or AI chat. Project management is not
+  a problem Ludwig is trying to solve.
 
-- [Flutter](https://flutter.dev/)
+## Install
 
-- [Rust](https://www.rust-lang.org/)
+**macOS on Apple Silicon (M1 and later).** Intel Macs and Windows/Linux aren't built yet.
 
-## Stay Up-to-Date
+1. Download `Ludwig.dmg` from [Releases](https://github.com/matanrotman/Ludwig/releases).
+2. Open it and drag Ludwig to Applications.
+3. **The first time, right-click the app and choose Open**, then confirm.
 
-<p align="center"><img src="https://github.com/AppFlowy-IO/appflowy/blob/main/doc/imgs/howtostar.gif" alt="AppFlowy Github - how to star the repo" width="100%" /></p>
+That third step is needed because Ludwig is signed with a self-signed certificate rather than a
+$99/year Apple Developer one. macOS will warn you the first time and then remember. If you'd rather
+not take that on trust, [build it yourself](#building-from-source) — the release notes name the
+exact commit each build came from.
 
-## Getting Started with development
+## Ludwig and AppFlowy
 
-Please view the [documentation](https://docs.appflowy.io/docs/documentation/appflowy/from-source) for OS specific
-development instructions
+Ludwig is a fork of [AppFlowy](https://github.com/AppFlowy-IO/AppFlowy), which is excellent, and
+which Ludwig would not exist without. It diverges deliberately:
 
-## Roadmap
+|  | AppFlowy | Ludwig |
+|---|---|---|
+| Default storage | AppFlowy Cloud account | Local, no account |
+| Right-to-left | partial | first-class |
+| Databases, boards, calendars, AI chat | yes | removed |
+| Updates | automatic | download when you want to |
 
-- [AppFlowy Roadmap ReadMe](https://docs.appflowy.io/docs/appflowy/roadmap)
-- [AppFlowy Public Roadmap](https://github.com/orgs/AppFlowy-IO/projects/5/views/12)
+**Ludwig is not affiliated with or endorsed by AppFlowy.IO.** It won't sync with an AppFlowy Cloud
+account, and it stores its data separately, so the two can be installed side by side.
 
-If you'd like to propose a feature, submit a feature
-request [here](https://github.com/AppFlowy-IO/AppFlowy/issues/new?assignees=&labels=&template=feature_request.yaml&title=%5BFR%5D+) <br/>
-If you'd like to report a bug, submit a bug
-report [here](https://github.com/AppFlowy-IO/AppFlowy/issues/new?assignees=&labels=&template=bug_report.yaml&title=%5BBug%5D+)
+## Building from source
 
-## **Releases**
+Ludwig builds with the same toolchain as AppFlowy — Flutter 3.27.4 and Rust 1.85, plus `cargo-make`,
+`protoc` and `protoc_plugin`. Once those are in place:
 
-Please see the [changelog](https://appflowy.com/what-is-new) for more details about a given release.
+```bash
+./frontend/scripts/ludwig/build_release.sh
+```
 
-## Contributing
-
-Contributions make the open-source community a fantastic place to learn, inspire, and create. Any contributions you make
-are **greatly appreciated**. Please look
-at [Contributing to AppFlowy](https://docs.appflowy.io/docs/documentation/software-contributions/contributing-to-appflowy)
-for details.
-
-If your Pull Request is accepted as it fixes a bug, adds functionality, or makes AppFlowy's codebase significantly
-easier to use or understand, **Congratulations!** If your administrative and managerial work behind the scenes sustains
-the community, **Congratulations!** You are now an official contributor to AppFlowy.
-
-## Translations 🌎🗺
-
-[![translation badge](https://inlang.com/badge?url=github.com/AppFlowy-IO/AppFlowy)](https://inlang.com/editor/github.com/AppFlowy-IO/AppFlowy?ref=badge)
-
-To add translations, you can manually edit the JSON translation files in `/frontend/resources/translations`, use
-the [inlang online editor](https://inlang.com/editor/github.com/AppFlowy-IO/AppFlowy), or
-run `npx inlang machine translate` to add missing translations.
-
-## Join the community to build AppFlowy together
-
-<a href="https://github.com/AppFlowy-IO/AppFlowy/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=AppFlowy-IO/AppFlowy" />
-</a>
-
-## Why Are We Building This?
-
-Notion has been our favourite project and knowledge management tool in recent years because of its aesthetic appeal and
-functionality. Our team uses it daily, and we are on its paid plan. However, as we all know, Notion has its limitations.
-These include weak data security and poor compatibility with mobile devices. Likewise, alternative collaborative
-workplace management tools also have their constraints.
-
-The limitations we encountered using these tools and our past work experience with collaborative productivity tools have
-led to our firm belief that there is a glass ceiling on what's possible for these tools in the future. This emanates
-from the fact that these tools will probably struggle to scale horizontally at some point and be forced to prioritize a
-proportion of customers whose needs differ from the rest. While decision-makers want a workplace OS, it is impossible to
-come up with a one-size fits all solution in such a fragmented market.
-
-When a customer's evolving core needs are not satisfied, they either switch to another or build one from the ground up,
-in-house. Consequently, they either go under another ceiling or buy an expensive ticket to learn a hard lesson. This is
-a requirement for many resources and expertise, building a reliable and easy-to-use collaborative tool, not to mention
-the speed and native experience. The same may apply to individual users as well.
-
-All these restrictions necessitate our mission - to make it possible for anyone to create apps that suit their needs
-well.
-
-- To individuals, we would like to offer Notion's functionality, data security, and cross-platform native experience.
-- To enterprises and hackers, AppFlowy is dedicated to offering building blocks and collaboration infra services to
-  enable you to make apps on your own. Moreover, you have 100% control of your data. You can design and modify AppFlowy
-  your way, with a single codebase written in Flutter and Rust supporting multiple platforms armed with long-term
-  maintainability.
-
-We decided to achieve this mission by upholding the three most fundamental values:
-
-- Data privacy first
-- Reliable native experience
-- Community-driven extensibility
-
-We do not claim to outperform Notion in terms of functionality and design, at least for now. Besides, our priority
-doesn't lie in more functionality at the moment. Instead, we would like to cultivate a community to democratize the
-knowledge and wheels of making complex workplace management tools while enabling people and businesses to create
-beautiful things on their own by equipping them with a versatile toolbox of building blocks.
+The script checks the toolchain, builds the Rust core and the app, verifies the result, signs it if
+you have a certificate, and prints the source commit it built from.
 
 ## License
 
-Distributed under the AGPLv3 License. See [`LICENSE.md`](https://github.com/AppFlowy-IO/AppFlowy/blob/main/LICENSE) for
-more information.
-
-## Acknowledgments
-
-Special thanks to these amazing projects which help power AppFlowy:
-
-- [cargo-make](https://github.com/sagiegurari/cargo-make)
-- [contrib.rocks](https://contrib.rocks)
-- [flutter_chat_ui](https://pub.dev/packages/flutter_chat_ui)
+[AGPL-3.0](LICENSE), inherited from AppFlowy. Copyright © 2026 Matan Rotman; Ludwig is a fork of
+AppFlowy, © AppFlowy.IO, used under the AGPL-3.0. The corresponding source for every release is this
+repository, at the commit named in that release's notes.

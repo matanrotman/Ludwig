@@ -42,3 +42,24 @@ frontend/*.deb
 **/Cargo.toml.bak
 
 **/.cargo/**
+# ---------------------------------------------------------------------------
+# Ludwig's working diary — deliberately NOT published (decided 2026-07-27).
+#
+# STATUS.md, CLAUDE.md and specs/ are the project's private working notes: the
+# reasoning behind every decision, but also personal setup, data paths, page
+# names and session-by-session detail. They stay on this machine.
+#
+# ⚠️ Older versions of STATUS.md, CLAUDE.md and three specs are ALREADY public
+# in commits up to bc01a2655 (2026-07-15). Ignoring them here stops any FURTHER
+# publication; it does not remove what is already in history. Removing that
+# would mean rewriting published history — ask before anyone tries.
+#
+# These files still live in the working tree and are still edited every
+# session; they are simply no longer tracked.
+# ---------------------------------------------------------------------------
+/STATUS.md
+/CLAUDE.md
+/specs/
+
+# Built installers — release artefacts, never committed (82MB each)
+/dist/
