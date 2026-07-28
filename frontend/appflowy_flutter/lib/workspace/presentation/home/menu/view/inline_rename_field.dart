@@ -59,6 +59,16 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
   Timer? _graceTimer;
   bool _graceOver = false;
 
+  /// Re-asserts focus for the length of the grace window.
+  ///
+  /// The listener-based reclaim below only fires when focus is LOST, which
+  /// misses the other half of the problem: if the editor takes focus at almost
+  /// the same moment this field autofocuses, the field may never GAIN focus at
+  /// all — no focus event fires, nothing is "lost", and the box just sits there
+  /// inert while the page keeps the caret. Polling covers both cases without
+  /// depending on which order the two requests happen to land in.
+  Timer? _assertTimer;
+
   /// How many times focus has been reclaimed from a steal. Bounded so a
   /// pathological competitor cannot produce an infinite focus ping-pong.
   int _reclaims = 0;
@@ -86,7 +96,19 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
       baseOffset: 0,
       extentOffset: widget.initialName.length,
     );
-    _graceTimer = Timer(_focusGrace, () => _graceOver = true);
+    _graceTimer = Timer(_focusGrace, () {
+      _graceOver = true;
+      _assertTimer?.cancel();
+    });
+    _assertTimer = Timer.periodic(const Duration(milliseconds: 120), (timer) {
+      if (done || !mounted || _graceOver) {
+        timer.cancel();
+        return;
+      }
+      if (!focusNode.hasFocus) {
+        focusNode.requestFocus();
+      }
+    });
     focusNode.addListener(_onFocusChanged);
     controller.addListener(_onTextChanged);
   }
@@ -94,6 +116,7 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
   @override
   void dispose() {
     _graceTimer?.cancel();
+    _assertTimer?.cancel();
     focusNode.removeListener(_onFocusChanged);
     controller.removeListener(_onTextChanged);
     focusNode.dispose();
