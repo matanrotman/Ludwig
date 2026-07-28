@@ -37,8 +37,7 @@ void main() {
 
   testWidgets('starts with the current name fully selected', (tester) async {
     await pumpField(tester);
-    final field =
-        tester.widget<TextField>(find.byType(TextField).first);
+    final field = tester.widget<TextField>(find.byType(TextField).first);
     expect(field.controller!.text, 'old name');
     expect(field.controller!.selection.baseOffset, 0);
     expect(field.controller!.selection.extentOffset, 'old name'.length);
@@ -187,6 +186,91 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.pumpAndSettle();
       expect(controller.selection.baseOffset, 3);
+    });
+  });
+
+  group('focus stolen by the editor opening underneath (2026-07-28):', () {
+    // Renaming starts on a DOUBLE-click, and the first of those clicks already
+    // opened the page. The document editor mounts afterwards and asks for focus
+    // itself — on macOS via a deliberately delayed request — so the rename box
+    // appeared and vanished instantly, committing as if the user had clicked
+    // away. See InlineRenameField._isFocusSteal.
+    testWidgets('a programmatic focus grab is reclaimed, and does NOT commit',
+        (tester) async {
+      final thief = FocusNode();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                InlineRenameField(
+                  initialName: 'old name',
+                  onSubmitted: (v) => submitted = v,
+                  onDismissed: () => dismissed++,
+                ),
+                Focus(focusNode: thief, child: const SizedBox(height: 20)),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final editable = tester.widget<TextField>(find.byType(TextField));
+      expect(editable.focusNode?.hasFocus, isTrue, reason: 'autofocus');
+
+      // What the editor does: takes focus with no pointer event involved.
+      thief.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(
+        editable.focusNode?.hasFocus,
+        isTrue,
+        reason: 'the field should have taken its focus back',
+      );
+      expect(
+        submitted,
+        isNull,
+        reason: 'a stolen focus must not be read as the user committing',
+      );
+      expect(dismissed, 0);
+
+      thief.dispose();
+    });
+
+    testWidgets('after the grace window, focus loss still commits as before',
+        (tester) async {
+      final thief = FocusNode();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                InlineRenameField(
+                  initialName: 'old name',
+                  onSubmitted: (v) => submitted = v,
+                  onDismissed: () => dismissed++,
+                ),
+                Focus(focusNode: thief, child: const SizedBox(height: 20)),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Past the window, this is an ordinary exit (Tab-away and friends).
+      await tester.pump(const Duration(seconds: 2));
+      thief.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(
+        submitted,
+        'old name',
+        reason: 'ordinary focus loss must still commit',
+      );
+
+      thief.dispose();
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:appflowy_editor/appflowy_editor.dart'
     show determineTextDirection;
 import 'package:flutter/material.dart';
@@ -51,6 +53,30 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
   // fire a second outcome (Escape drops focus while unmounting).
   bool done = false;
 
+  /// Closes the window in which focus loss is read as a steal. A timer rather
+  /// than a wall-clock comparison so the behaviour is drivable in tests — with
+  /// `DateTime.now()` the window cannot be advanced by `tester.pump`.
+  Timer? _graceTimer;
+  bool _graceOver = false;
+
+  /// How many times focus has been reclaimed from a steal. Bounded so a
+  /// pathological competitor cannot produce an infinite focus ping-pong.
+  int _reclaims = 0;
+
+  /// A rename is opened by DOUBLE-clicking a sidebar row, and the FIRST of
+  /// those clicks already opened the page (see [DoubleClickDetector] — single
+  /// tap must stay immediate, so it cannot wait on a disambiguation window).
+  /// The document editor therefore mounts *after* this field autofocuses, and
+  /// then asks for focus itself — on macOS via an explicitly DELAYED request
+  /// (`cover_title.dart`, `Durations.short4`), which lands right on top of us.
+  /// The field lost focus, `_onFocusChanged` read that as a click-away, and
+  /// committed instantly: the box appeared and vanished.
+  ///
+  /// Grace window generously longer than that delay, to also cover the page
+  /// load that precedes it.
+  static const Duration _focusGrace = Duration(milliseconds: 900);
+  static const int _maxReclaims = 3;
+
   @override
   void initState() {
     super.initState();
@@ -60,12 +86,14 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
       baseOffset: 0,
       extentOffset: widget.initialName.length,
     );
+    _graceTimer = Timer(_focusGrace, () => _graceOver = true);
     focusNode.addListener(_onFocusChanged);
     controller.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    _graceTimer?.cancel();
     focusNode.removeListener(_onFocusChanged);
     controller.removeListener(_onTextChanged);
     focusNode.dispose();
@@ -88,9 +116,40 @@ class _InlineRenameFieldState extends State<InlineRenameField> {
   TextDirection? _detected;
 
   void _onFocusChanged() {
-    if (!focusNode.hasFocus) {
-      _finish(commit: true);
+    if (focusNode.hasFocus) {
+      return;
     }
+    if (_isFocusSteal()) {
+      _reclaims += 1;
+      // Take it back on the next frame: whatever grabbed focus is mid-build,
+      // and requesting synchronously inside its own notification loses again.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!done && mounted && !focusNode.hasFocus) {
+          focusNode.requestFocus();
+        }
+      });
+      return;
+    }
+    _finish(commit: true);
+  }
+
+  /// Whether losing focus just now was something else grabbing it rather than
+  /// the user leaving.
+  ///
+  /// The distinction is available without guessing: a real click-away arrives
+  /// as a pointer-down, and [TapRegion.onTapOutside] already commits on those
+  /// — including clicks on sidebar chrome that take no focus at all, which is
+  /// why it was added in the first place. So focus that disappears with no
+  /// pointer event, moments after the box opened, was taken programmatically.
+  ///
+  /// Deliberately time-bounded rather than permanent: after the window, focus
+  /// loss commits exactly as before, so Tab-away and every other ordinary exit
+  /// keep working. [done] means a commit or cancel already ran.
+  bool _isFocusSteal() {
+    if (done || !mounted || _reclaims >= _maxReclaims) {
+      return false;
+    }
+    return !_graceOver;
   }
 
   void _finish({required bool commit}) {
