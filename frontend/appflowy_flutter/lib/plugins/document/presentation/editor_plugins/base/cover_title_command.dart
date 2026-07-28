@@ -28,6 +28,17 @@ KeyEventResult _backspaceToTitle({
     return KeyEventResult.ignored;
   }
 
+  // [fork:no-titles] Ludwig retired the in-document title (specs/no-titles.md),
+  // so on most pages this focus node is never attached to a widget. Focusing an
+  // unattached node after clearing the selection sends focus NOWHERE and the
+  // document becomes uneditable until the page is reopened — reported
+  // 2026-07-28 as "left arrow at the start of the sentence and I can't edit any
+  // more". A FocusNode that was never attached has a null context, which is the
+  // precise test for "there is nothing to move focus to".
+  if (coverTitleFocusNode.context == null) {
+    return KeyEventResult.ignored;
+  }
+
   final selection = editorState.selection;
   // only active when the backspace is at the first position of first line
   if (selection == null ||
@@ -124,6 +135,17 @@ KeyEventResult _arrowKeyToTitle({
       ?.read<SharedEditorContext?>()
       ?.coverTitleFocusNode;
   if (coverTitleFocusNode == null) {
+    return KeyEventResult.ignored;
+  }
+
+  // [fork:no-titles] Ludwig retired the in-document title (specs/no-titles.md),
+  // so on most pages this focus node is never attached to a widget. Focusing an
+  // unattached node after clearing the selection sends focus NOWHERE and the
+  // document becomes uneditable until the page is reopened — reported
+  // 2026-07-28 as "left arrow at the start of the sentence and I can't edit any
+  // more". A FocusNode that was never attached has a null context, which is the
+  // precise test for "there is nothing to move focus to".
+  if (coverTitleFocusNode.context == null) {
     return KeyEventResult.ignored;
   }
 
