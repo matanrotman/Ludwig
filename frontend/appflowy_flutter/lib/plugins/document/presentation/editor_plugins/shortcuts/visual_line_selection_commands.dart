@@ -1,11 +1,24 @@
 // [fork:rtl] Sidecar module — see specs/rtl-support.md
 // "select-to-line and select-by-paragraph shortcuts" (decided 2026-07-20).
 //
-// Option+Shift+Left/Right extends the selection to the edge of the current
-// VISUAL line — the soft-wrapped line as rendered, the way Word's Shift+Home/End
-// behaves — and Option+Shift+Up/Down extends it by one whole paragraph per press.
-// (Remapped 2026-07-24 r2 from Option+Ctrl+Shift+arrow at the user's request;
-// the editor binds no `alt+shift+arrow` of its own, so there is no conflict.)
+// Option+Shift+Up/Down extends the selection by one whole paragraph per press.
+//
+// ⚠️ Option+Shift+LEFT/RIGHT IS NO LONGER BOUND HERE (changed 2026-07-28 at the
+// user's request: "make option+shift+left/right select the next word, not the
+// whole sentence ... mimic Word's behavior").
+//
+// The 2026-07-24 r2 comment this replaces claimed "the editor binds no
+// `alt+shift+arrow` of its own, so there is no conflict." **That was wrong.**
+// The editor fork binds word-wise selection to exactly those keys via
+// `macOSCommand` — `arrow_left_command.dart:131` and
+// `arrow_right_command.dart:135` — so registering these two ahead of
+// `standardCommandShortcutEvents` silently shadowed word selection for four
+// days. Whenever a shortcut here "has no conflict", check `macOSCommand` and
+// not just `command`.
+//
+// `selectToVisualLineLeftCommand`/`RightCommand` are deliberately KEPT but left
+// out of [visualLineSelectionCommands], so the behaviour is one line away if it
+// is ever wanted on a free binding — and so their tests keep covering it.
 //
 // RTL semantics are VISUAL, not logical: Left always extends toward the
 // left of the screen, which in an RTL block is *forward* in reading order.
@@ -20,13 +33,15 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 
+/// Registered shortcuts. Left/right are intentionally absent — see the header:
+/// Option+Shift+Left/Right belongs to the editor's own word selection.
 final List<CommandShortcutEvent> visualLineSelectionCommands = [
-  selectToVisualLineLeftCommand,
-  selectToVisualLineRightCommand,
   selectParagraphUpCommand,
   selectParagraphDownCommand,
 ];
 
+/// ⚠️ NOT REGISTERED — adding this back to [visualLineSelectionCommands] would
+/// shadow the editor's word selection again. See the header.
 final CommandShortcutEvent selectToVisualLineLeftCommand =
     CommandShortcutEvent(
   key: 'extend the selection to the left edge of the visual line',
@@ -36,6 +51,7 @@ final CommandShortcutEvent selectToVisualLineLeftCommand =
       _extendToVisualLineEdge(editorState, towardLeft: true),
 );
 
+/// ⚠️ NOT REGISTERED — see [selectToVisualLineLeftCommand].
 final CommandShortcutEvent selectToVisualLineRightCommand =
     CommandShortcutEvent(
   key: 'extend the selection to the right edge of the visual line',

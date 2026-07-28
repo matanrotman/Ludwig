@@ -352,4 +352,46 @@ void main() {
       );
     });
   });
+
+  group('Option+Shift+Left/Right belongs to word selection (2026-07-28):', () {
+    // The user reported that Option+Shift+Left/Right selected far too much and
+    // asked for Word's behaviour — one WORD per press. The cause was that these
+    // two commands were registered on `alt+shift+arrow left/right`, which the
+    // editor fork already binds to word selection via `macOSCommand`
+    // (arrow_left_command.dart:131, arrow_right_command.dart:135). Registering
+    // them ahead of standardCommandShortcutEvents shadowed it.
+    //
+    // These tests fail if either is put back into the registered list.
+    test('the visual-line left/right commands are NOT registered', () {
+      expect(
+        visualLineSelectionCommands.contains(selectToVisualLineLeftCommand),
+        isFalse,
+        reason: 'registering this shadows the editor word selection on '
+            'Option+Shift+Left — see this file\'s header',
+      );
+      expect(
+        visualLineSelectionCommands.contains(selectToVisualLineRightCommand),
+        isFalse,
+        reason: 'registering this shadows the editor word selection on '
+            'Option+Shift+Right',
+      );
+    });
+
+    test('nothing registered here claims alt+shift+arrow left/right', () {
+      final claimed = visualLineSelectionCommands
+          .map((c) => c.command.toLowerCase())
+          .toList();
+      expect(claimed, isNot(contains('alt+shift+arrow left')));
+      expect(claimed, isNot(contains('alt+shift+arrow right')));
+    });
+
+    test('paragraph selection keeps up/down, which the editor does not bind',
+        () {
+      final claimed =
+          visualLineSelectionCommands.map((c) => c.command.toLowerCase());
+      expect(claimed, contains('alt+shift+arrow up'));
+      expect(claimed, contains('alt+shift+arrow down'));
+      expect(visualLineSelectionCommands.length, 2);
+    });
+  });
 }
