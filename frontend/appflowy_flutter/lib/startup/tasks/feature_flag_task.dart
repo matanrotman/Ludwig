@@ -1,4 +1,3 @@
-import 'package:appflowy/shared/bidi_block_crossing.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:flutter/foundation.dart';
 
@@ -17,9 +16,5 @@ class FeatureFlagTask extends LaunchTask {
     }
 
     await FeatureFlag.initialize();
-
-    // [fork:bidi] the editor fork owns the arrow-key commands but cannot read
-    // these preferences, so the flag has to be pushed to it.
-    applyVisualBlockCrossingFlag();
   }
 }

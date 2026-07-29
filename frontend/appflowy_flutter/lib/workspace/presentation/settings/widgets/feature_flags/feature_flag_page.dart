@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:appflowy/shared/bidi_block_crossing.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
@@ -53,9 +52,6 @@ class _FeatureFlagItemState extends State<_FeatureFlagItem> {
         value: widget.featureFlag.isOn,
         onChanged: (value) async {
           await widget.featureFlag.update(value);
-          // [fork:bidi] so a flag the editor fork reads takes effect on the
-          // next keystroke rather than the next launch.
-          applyVisualBlockCrossingFlag();
           setState(() {});
         },
       ),

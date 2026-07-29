@@ -49,11 +49,6 @@ enum FeatureFlag {
   // floating selection toolbar is suppressed by default.
   ribbonMenu,
 
-  // [fork:bidi] used to compare two behaviours at a paragraph boundary between
-  // opposite text directions — see lib/shared/bidi_block_crossing.dart. An
-  // experiment awaiting a verdict, not a finished feature.
-  visualBlockCrossing,
-
   // used for ignore the conflicted feature flag
   unknown;
 
@@ -141,9 +136,6 @@ enum FeatureFlag {
       // [fork:ribbon] off by default; flag off must restore today's behaviour
       // exactly, including the floating selection toolbar.
       case FeatureFlag.ribbonMenu:
-      // [fork:bidi] off by default: flag off must leave arrow keys exactly as
-      // they behave today.
-      case FeatureFlag.visualBlockCrossing:
       case FeatureFlag.unknown:
         return false;
     }
@@ -172,9 +164,6 @@ enum FeatureFlag {
       // [fork:ribbon]
       case FeatureFlag.ribbonMenu:
         return 'if it\'s on, a tabbed ribbon menu is pinned above the document and replaces the floating selection toolbar';
-      // [fork:bidi]
-      case FeatureFlag.visualBlockCrossing:
-        return 'arrow keys at a boundary between an English and a Hebrew paragraph. OFF: the paragraph decides, and left bounces between the two. ON: left always keeps moving left into the next paragraph\'s right edge';
       case FeatureFlag.unknown:
         return '';
     }
