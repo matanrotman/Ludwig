@@ -13,6 +13,7 @@ import 'package:appflowy/plugins/document/application/document_appearance_cubit.
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/desktop_cover.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/header/header_click_target.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/custom_image_block_component/custom_image_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image_menu.dart';
@@ -184,85 +185,136 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final offset = _calculateIconLeft(context, constraints);
-          return Padding(
-            // [fork:no-titles] A titleless page needs air ABOVE the header too,
-            // not only below it. On an ordinary page the title's own line box
-            // gives the "Add Cover / Add icon" row somewhere to sit; strip the
-            // title and the row ends up pinned to the top of the sheet (user,
-            // session 15: "Add cover and icon now don't have breathing space").
-            //
-            // Only when there is no cover: a cover already fills the top of the
-            // page, and padding above it would leave a strip of desk showing
-            // through where the image should run to the edge.
-            padding: EdgeInsets.only(
-              top: hasCover ? 0 : kTitlelessHeaderTopGap,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    SizedBox(
-                      height: _calculateOverallHeight(),
-                      // [fork:rtl] The "Add icon"/"Add cover" toolbar must follow
-                      // the PAGE's direction like the title, icon and the cover's
-                      // own buttons do — otherwise on an RTL page it stays pinned
-                      // to the left and reads as sitting under the icon rather
-                      // than across from it (user report 2026-07-25). One wrapper
-                      // flips both the button order and, via
-                      // AlignmentDirectional.bottomStart inside, which edge the
-                      // row hugs.
-                      child: Directionality(
-                        textDirection: _headerDirection(context),
-                        child: DocumentHeaderToolbar(
-                          onIconOrCoverChanged: _saveIconOrCover,
-                          node: widget.node,
-                          editorState: widget.editorState,
-                          hasCover: hasCover,
-                          hasIcon: hasIcon,
-                          offset: offset,
-                          isCoverTitleHovered: isCoverTitleHovered,
-                          documentId: view.id,
-                          tabs: widget.tabs,
+          // [fork:no-titles] Clicking anywhere in the header puts the caret on
+          // the first line — see [_focusFirstLine]. Wraps the whole header, not
+          // just the blank gap, so every part of this dead band is alive.
+          // "Add icon"/"Add Cover" and the cover's own controls are nested
+          // deeper and win the gesture arena, so they are unaffected.
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _focusFirstLine,
+            child: Padding(
+              // [fork:no-titles] A titleless page needs air ABOVE the header too,
+              // not only below it. On an ordinary page the title's own line box
+              // gives the "Add Cover / Add icon" row somewhere to sit; strip the
+              // title and the row ends up pinned to the top of the sheet (user,
+              // session 15: "Add cover and icon now don't have breathing space").
+              //
+              // Only when there is no cover: a cover already fills the top of the
+              // page, and padding above it would leave a strip of desk showing
+              // through where the image should run to the edge.
+              padding: EdgeInsets.only(
+                top: hasCover ? 0 : kTitlelessHeaderTopGap,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      SizedBox(
+                        height: _calculateOverallHeight(),
+                        // [fork:rtl] The "Add icon"/"Add cover" toolbar must follow
+                        // the PAGE's direction like the title, icon and the cover's
+                        // own buttons do — otherwise on an RTL page it stays pinned
+                        // to the left and reads as sitting under the icon rather
+                        // than across from it (user report 2026-07-25). One wrapper
+                        // flips both the button order and, via
+                        // AlignmentDirectional.bottomStart inside, which edge the
+                        // row hugs.
+                        child: Directionality(
+                          textDirection: _headerDirection(context),
+                          child: DocumentHeaderToolbar(
+                            onIconOrCoverChanged: _saveIconOrCover,
+                            node: widget.node,
+                            editorState: widget.editorState,
+                            hasCover: hasCover,
+                            hasIcon: hasIcon,
+                            offset: offset,
+                            isCoverTitleHovered: isCoverTitleHovered,
+                            documentId: view.id,
+                            tabs: widget.tabs,
+                          ),
                         ),
                       ),
-                    ),
-                    if (hasCover)
-                      DocumentCover(
-                        view: view,
-                        editorState: widget.editorState,
-                        node: widget.node,
-                        coverType: coverType,
-                        coverDetails: coverDetails,
-                        onChangeCover: (type, details) =>
-                            _saveIconOrCover(cover: (type, details)),
-                      ),
-                    _buildAlignedCoverIcon(context),
-                  ],
-                ),
-                // [fork:no-titles] **PHASE 5 — there is no title box any more.**
-                // A page is named by its first line, everywhere, with no second
-                // kind of page left in the wild: the one-off migration moved
-                // every existing name into its document as line one.
-                //
-                // Omitted entirely rather than sized to zero. An invisible
-                // `CoverTitle` still holds a focus node and still seeds itself
-                // from the view's name, and this header is rebuilt whenever a
-                // paste grows the document (it is item 0 of a virtualized list).
-                // That combination is precisely what produced session 11's title
-                // bug, and there is no reason to keep a dormant copy of it.
-                //
-                // The space it occupied IS kept. Without it the "Add Cover / Add
-                // icon" row sits directly on the first line of text (user,
-                // session 15: "too close to first line of text") — on the old
-                // page it was the title that held those apart.
-                const SizedBox(height: kTitlelessHeaderGap),
-              ],
+                      if (hasCover)
+                        DocumentCover(
+                          view: view,
+                          editorState: widget.editorState,
+                          node: widget.node,
+                          coverType: coverType,
+                          coverDetails: coverDetails,
+                          onChangeCover: (type, details) =>
+                              _saveIconOrCover(cover: (type, details)),
+                        ),
+                      _buildAlignedCoverIcon(context),
+                    ],
+                  ),
+                  // [fork:no-titles] **PHASE 5 — there is no title box any more.**
+                  // A page is named by its first line, everywhere, with no second
+                  // kind of page left in the wild: the one-off migration moved
+                  // every existing name into its document as line one.
+                  //
+                  // Omitted entirely rather than sized to zero. An invisible
+                  // `CoverTitle` still holds a focus node and still seeds itself
+                  // from the view's name, and this header is rebuilt whenever a
+                  // paste grows the document (it is item 0 of a virtualized list).
+                  // That combination is precisely what produced session 11's title
+                  // bug, and there is no reason to keep a dormant copy of it.
+                  //
+                  // The space it occupied IS kept. Without it the "Add Cover / Add
+                  // icon" row sits directly on the first line of text (user,
+                  // session 15: "too close to first line of text") — on the old
+                  // page it was the title that held those apart.
+                  const SizedBox(height: kTitlelessHeaderGap),
+                ],
+              ),
             ),
           );
         },
       ),
+    );
+  }
+
+  /// [fork:no-titles] Clicking the header puts the caret on the first line.
+  ///
+  /// The header used to contain the title field, and clicking it put you in the
+  /// title. Phase 5 removed the title but deliberately kept its space (see
+  /// [kTitlelessHeaderGap]) — while this widget still registers a
+  /// [SelectionGestureInterceptor] over its whole box, and the editor's answer
+  /// to an intercepted tap is `updateSelection(null)`
+  /// (`desktop_selection_service.dart`, `_onTapDown`).
+  ///
+  /// So on a titleless page, clicking the blank band above the first line
+  /// silently DESTROYED the caret. Because an already-written page does not
+  /// autofocus, the page then ignored every keystroke, with nothing on screen
+  /// to say why. Reported 2026-07-29 as "the keyboard stopped working" — the
+  /// same shape as the session-4 report, but a different cause.
+  ///
+  /// Runs on tap-UP deliberately: the interceptor clears on tap-DOWN, so this
+  /// lands after it however the gesture arena resolves.
+  void _focusFirstLine() {
+    if (!widget.editorState.editable) {
+      return;
+    }
+
+    final position = headerClickCaretPosition(widget.editorState.document);
+    if (position == null) {
+      return;
+    }
+
+    // MUST be `updateSelectionWithReason(..., uiEvent)`, not the bare
+    // `selection` setter. Placing a caret is not the same as taking the
+    // keyboard: the keyboard service only calls `focusNode.requestFocus()` when
+    // the update is marked a uiEvent (`keyboard_service_widget.dart`,
+    // `_onSelectionChanged`). With the bare setter the caret appears and the
+    // ribbon lights up, while every keystroke goes nowhere — which reads as
+    // "the keyboard stopped working" all over again, only harder to see because
+    // the page now looks focused. It also clears any stale
+    // `selectionExtraInfo`, which can otherwise suppress the text input service.
+    widget.editorState.updateSelectionWithReason(
+      Selection.collapsed(position),
+      reason: SelectionUpdateReason.uiEvent,
     );
   }
 
