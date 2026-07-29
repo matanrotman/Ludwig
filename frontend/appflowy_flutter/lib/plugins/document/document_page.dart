@@ -24,6 +24,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/ribbon/pag
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_surface.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_theme_scope.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/editor_focus_primer.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/shared_context/shared_context.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/transaction_handler/editor_transaction_service.dart';
 import 'package:appflowy/plugins/document/presentation/editor_style.dart';
@@ -329,47 +330,52 @@ class _DocumentPageState extends State<DocumentPage>
             )
           : child;
 
-      return withNaming(
-        withPromotion(
-          EditorDropHandler(
-            viewId: widget.view.id,
-            editorState: editorState,
-            isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
-            child: AppFlowyEditorPage(
+      // [fork:no-titles] A freshly-opened page does not accept typing until
+      // something re-asserts the selection — see EditorFocusPrimer.
+      return EditorFocusPrimer(
+        editorState: editorState,
+        child: withNaming(
+          withPromotion(
+            EditorDropHandler(
+              viewId: widget.view.id,
               editorState: editorState,
-              // [fork:no-titles] Phase 5: no page has a title to focus any more,
-              // so the cursor always belongs in the document — which is also the
-              // only place a name can come from.
-              autoFocus: true,
-              styleCustomizer: EditorStyleCustomizer(
-                context: ctx,
-                width: width,
-                padding: documentPadding,
+              isLocalMode: ctx.read<DocumentBloc>().isLocalMode,
+              child: AppFlowyEditorPage(
                 editorState: editorState,
-                pageTextDirection: pageDirection.editorValue,
+                // [fork:no-titles] Phase 5: no page has a title to focus any more,
+                // so the cursor always belongs in the document — which is also the
+                // only place a name can come from.
+                autoFocus: true,
+                styleCustomizer: EditorStyleCustomizer(
+                  context: ctx,
+                  width: width,
+                  padding: documentPadding,
+                  editorState: editorState,
+                  pageTextDirection: pageDirection.editorValue,
+                ),
+                header: padHeader ?? buildCoverAndIcon(ctx, state),
+                initialSelection: initialSelection,
+                placeholderText: (node) {
+                  if (isPad ||
+                      node.type != ParagraphBlockKeys.type ||
+                      node.isInTable) {
+                    return '';
+                  }
+                  // [fork:no-titles] The first line IS the page's name, and it
+                  // sits exactly where a title used to. Body-text guidance in that
+                  // spot reads as a label for the title, so the line is left blank
+                  // — the same bare treatment the pad gets. The hint still appears
+                  // on every line after it, so nothing is lost but the wrong
+                  // placement. Phase 5: this holds for every page, not only pages
+                  // that are still naming themselves.
+                  final isFirstLine =
+                      node.path.length == 1 && node.path.first == 0;
+                  if (isFirstLine) {
+                    return '';
+                  }
+                  return LocaleKeys.editor_slashPlaceHolder.tr();
+                },
               ),
-              header: padHeader ?? buildCoverAndIcon(ctx, state),
-              initialSelection: initialSelection,
-              placeholderText: (node) {
-                if (isPad ||
-                    node.type != ParagraphBlockKeys.type ||
-                    node.isInTable) {
-                  return '';
-                }
-                // [fork:no-titles] The first line IS the page's name, and it
-                // sits exactly where a title used to. Body-text guidance in that
-                // spot reads as a label for the title, so the line is left blank
-                // — the same bare treatment the pad gets. The hint still appears
-                // on every line after it, so nothing is lost but the wrong
-                // placement. Phase 5: this holds for every page, not only pages
-                // that are still naming themselves.
-                final isFirstLine =
-                    node.path.length == 1 && node.path.first == 0;
-                if (isFirstLine) {
-                  return '';
-                }
-                return LocaleKeys.editor_slashPlaceHolder.tr();
-              },
             ),
           ),
         ),
