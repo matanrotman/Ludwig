@@ -8,6 +8,7 @@ import 'package:appflowy/plugins/document/application/document_data_pb_extension
 import 'package:appflowy/plugins/document/application/document_listener.dart';
 import 'package:appflowy/plugins/document/application/document_rules.dart';
 import 'package:appflowy/plugins/document/application/document_service.dart';
+import 'package:appflowy/plugins/document/application/editable_document.dart';
 import 'package:appflowy/plugins/document/application/editor_transaction_adapter.dart';
 import 'package:appflowy/plugins/trash/application/trash_service.dart';
 import 'package:appflowy/shared/feature_flags.dart';
@@ -254,6 +255,13 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
     if (document == null) {
       assert(false, 'document is null');
       return null;
+    }
+
+    // [fork:no-titles] A document with nothing that can hold text is silently
+    // unusable — see `ensureDocumentIsEditable`. Ludwig has no page title to
+    // fall back on, so such a page accepts no typing anywhere on it.
+    if (ensureDocumentIsEditable(document)) {
+      Log.info('document $documentId had no editable block; added a paragraph');
     }
 
     final editorState = EditorState(document: document);

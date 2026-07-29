@@ -312,10 +312,36 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
     // "the keyboard stopped working" all over again, only harder to see because
     // the page now looks focused. It also clears any stale
     // `selectionExtraInfo`, which can otherwise suppress the text input service.
+    // Clear first, so the line below is always a REAL change.
+    //
+    // `selectionNotifier` is a ValueNotifier and Selection has value equality,
+    // so re-setting the same selection notifies nobody — and the keyboard
+    // service does all of its work (attaching the text input service, and
+    // requesting focus) from that notification. On an empty page this is the
+    // normal case, not an edge case: there is exactly one caret position, so
+    // the caret is always already where we are about to put it. That is why
+    // empty pages stayed dead after the first two attempts while pages with
+    // text came back (reported 2026-07-29: "empty pages are dead no matter
+    // what"). The clear costs one synchronous notification and no frame, so
+    // there is nothing to see.
+    widget.editorState.selection = null;
+
     widget.editorState.updateSelectionWithReason(
       Selection.collapsed(position),
       reason: SelectionUpdateReason.uiEvent,
     );
+
+    // And ask for the keyboard explicitly, because the line above is not
+    // guaranteed to do it. `selectionNotifier` is a ValueNotifier and Selection
+    // has value equality, so setting the SAME selection notifies nobody — and
+    // then `_onSelectionChanged` never runs and never requests focus. On an
+    // empty page that is the normal case, not an edge case: there is exactly
+    // one caret position, so the caret is always already where this puts it.
+    // That is why empty pages stayed dead after the first fix while pages with
+    // text came back (reported 2026-07-29: "empty pages are dead no matter
+    // what"). Requesting focus is idempotent, so doing it unconditionally is
+    // both simpler and safer than reasoning about whether the selection moved.
+    widget.editorState.service.keyboardService?.enable();
   }
 
   /// [fork:rtl] The direction the header should read in — the page's, not the
