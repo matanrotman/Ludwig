@@ -38,7 +38,56 @@ import 'package:flutter/material.dart';
 final List<CommandShortcutEvent> visualLineSelectionCommands = [
   selectParagraphUpCommand,
   selectParagraphDownCommand,
+  moveCursorParagraphUpCommand,
+  moveCursorParagraphDownCommand,
 ];
+
+/// Option+Up/Down (no shift) — the collapsed-caret counterpart of
+/// [selectParagraphUpCommand]/[selectParagraphDownCommand]. Previously
+/// unbound entirely (reported 2026-08-05: "option + arrow up/down doesn't
+/// work"), matching the native macOS convention (TextEdit's
+/// moveToBeginningOfParagraph:/moveToEndOfParagraph:) rather than inventing
+/// one — first press goes to this paragraph's start/end, a further press at
+/// that edge steps into the neighboring one.
+final CommandShortcutEvent moveCursorParagraphUpCommand = CommandShortcutEvent(
+  key: 'move the cursor to the start of the paragraph',
+  getDescription: () => 'Move cursor to paragraph start',
+  command: 'alt+arrow up',
+  macOSCommand: 'alt+arrow up',
+  handler: (editorState) => _moveCursorByParagraph(editorState, up: true),
+);
+
+final CommandShortcutEvent moveCursorParagraphDownCommand =
+    CommandShortcutEvent(
+  key: 'move the cursor to the end of the paragraph',
+  getDescription: () => 'Move cursor to paragraph end',
+  command: 'alt+arrow down',
+  macOSCommand: 'alt+arrow down',
+  handler: (editorState) => _moveCursorByParagraph(editorState, up: false),
+);
+
+KeyEventResult _moveCursorByParagraph(
+  EditorState editorState, {
+  required bool up,
+}) {
+  final selection = editorState.selection;
+  if (selection == null) {
+    return KeyEventResult.ignored;
+  }
+  final extent = selection.end;
+  final node = editorState.getNodeAtPath(extent.path);
+  if (node == null) {
+    return KeyEventResult.ignored;
+  }
+  final target = _paragraphTarget(node, extent, up: up);
+  if (target != null) {
+    editorState.updateSelectionWithReason(
+      Selection.collapsed(target),
+      reason: SelectionUpdateReason.uiEvent,
+    );
+  }
+  return KeyEventResult.handled;
+}
 
 /// ⚠️ NOT REGISTERED — adding this back to [visualLineSelectionCommands] would
 /// shadow the editor's word selection again. See the header.
@@ -210,32 +259,7 @@ KeyEventResult _extendByParagraph(
   if (node == null) {
     return KeyEventResult.ignored;
   }
-
-  // Word-style, repeatable: first press snaps the extent to this
-  // paragraph's start/end; each further press takes in one more whole
-  // paragraph. "Paragraph" here is any text block (delta != null), found
-  // in document order at any nesting depth.
-  Position? target;
-  final delta = node.delta;
-  if (up) {
-    if (delta != null && extent.offset > 0) {
-      target = Position(path: node.path);
-    } else {
-      final previous = node.previousNodeWhere((n) => n.delta != null);
-      if (previous != null) {
-        target = Position(path: previous.path);
-      }
-    }
-  } else {
-    if (delta != null && extent.offset < delta.length) {
-      target = Position(path: node.path, offset: delta.length);
-    } else {
-      final next = _nextTextNodeInDocumentOrder(node);
-      if (next != null) {
-        target = Position(path: next.path, offset: next.delta!.length);
-      }
-    }
-  }
+  final target = _paragraphTarget(node, extent, up: up);
 
   if (target != null && target != extent) {
     editorState.updateSelectionWithReason(
@@ -244,6 +268,30 @@ KeyEventResult _extendByParagraph(
     );
   }
   return KeyEventResult.handled;
+}
+
+/// Word-style, repeatable: at this paragraph's start/end already, the target
+/// is the neighboring paragraph's start/end; otherwise this paragraph's own.
+/// "Paragraph" here is any text block (delta != null), found in document
+/// order at any nesting depth. Shared by the select-by-paragraph and
+/// move-by-paragraph (Option+Up/Down) commands above.
+Position? _paragraphTarget(Node node, Position extent, {required bool up}) {
+  final delta = node.delta;
+  if (up) {
+    if (delta != null && extent.offset > 0) {
+      return Position(path: node.path);
+    }
+    final previous = node.previousNodeWhere((n) => n.delta != null);
+    return previous != null ? Position(path: previous.path) : null;
+  } else {
+    if (delta != null && extent.offset < delta.length) {
+      return Position(path: node.path, offset: delta.length);
+    }
+    final next = _nextTextNodeInDocumentOrder(node);
+    return next != null
+        ? Position(path: next.path, offset: next.delta!.length)
+        : null;
+  }
 }
 
 /// The next text block after [node] in document order (first child, then
